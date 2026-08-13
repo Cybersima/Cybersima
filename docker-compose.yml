@@ -1,0 +1,16 @@
+services:
+  lockwell:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - lockwell-data:/app/backend/instance
+    environment:
+      SECRET_KEY: lockwell-compose-dev-key
+      MONITOR_PEPPER: lockwell-compose-pepper
+      FLASK_DEBUG: "0"
+      DATABASE_URL: sqlite:////app/backend/instance/lockwell.db
+    restart: unless-stopped
+
+volumes:
+  lockwell-data:

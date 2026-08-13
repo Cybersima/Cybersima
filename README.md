@@ -1,6 +1,35 @@
 # Lockwell
 
-Identity-protection MVP with a security-first architecture: zero-knowledge vault, hashed monitoring, device posture, alerts, and a transparent audit log.
+Identity-protection MVP with a security-first architecture: zero-knowledge vault, hashed monitoring, device posture, Network Guard, alerts, and a transparent audit log.
+
+## Test on your computer
+
+### Fastest local run
+
+**macOS / Linux**
+
+```bash
+chmod +x scripts/*.sh
+./scripts/start.sh
+```
+
+**Windows (PowerShell)**
+
+```powershell
+.\scripts\start.ps1
+```
+
+Then open **http://127.0.0.1:5000**
+
+### Docker
+
+```bash
+docker compose up --build
+```
+
+Then open **http://127.0.0.1:5000**
+
+Full walkthrough: [`docs/TESTING_LOCALLY.md`](docs/TESTING_LOCALLY.md)
 
 ## What’s included
 
@@ -12,7 +41,7 @@ Identity-protection MVP with a security-first architecture: zero-knowledge vault
 - **Network Guard** — edge agent for live hostile-packet detection and blocking
 - **Audit log** — every sensitive action recorded for the account owner
 
-## Quick start
+## Development (separate API + Vite)
 
 ### Backend
 
@@ -21,7 +50,7 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python app.py
+FLASK_DEBUG=1 python app.py
 ```
 
 API listens on `http://127.0.0.1:5000`.
@@ -47,16 +76,15 @@ python threat_generator.py
 ### Network Guard edge agent
 
 ```bash
-cd backend
-source .venv/bin/activate
-export LOCKWELL_API=http://127.0.0.1:5000
 export LOCKWELL_GUARD_TOKEN=<token from /app/network>
-python -m network_guard.agent --mode simulate
+./scripts/start-network-guard.sh
 ```
 
 On a real gateway/firewall host with privileges:
 
 ```bash
+cd backend
+source .venv/bin/activate
 sudo python -m network_guard.agent --mode enforce --interface eth0
 ```
 

@@ -14,11 +14,19 @@ import hmac
 import os
 import secrets
 from datetime import datetime, timezone
+from pathlib import Path
 
-from flask import Flask, g, jsonify, request
+from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
+
+FRONTEND_DIST = Path(
+    os.environ.get(
+        "LOCKWELL_FRONTEND_DIST",
+        Path(__file__).resolve().parents[1] / "frontend" / "dist",
+    )
+)
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
@@ -1000,5 +1008,31 @@ with app.app_context():
     db.create_all()
 
 
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def spa(path: str):
+    """Serve the packaged React app when frontend/dist is present."""
+    if path.startswith("api/"):
+        return jsonify({"error": "Not found"}), 404
+    if not FRONTEND_DIST.exists():
+        return (
+            jsonify(
+                {
+                    "error": "Frontend build missing",
+                    "hint": "Run ./start.sh or npm run build in frontend/",
+                }
+            ),
+            503,
+        )
+    candidate = FRONTEND_DIST / path
+    if path and candidate.is_file():
+        return send_from_directory(FRONTEND_DIST, path)
+    return send_from_directory(FRONTEND_DIST, "index.html")
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+    app.run(
+        host=os.environ.get("HOST", "0.0.0.0"),
+        port=int(os.environ.get("PORT", 5000)),
+        debug=os.environ.get("FLASK_DEBUG", "0") == "1",
+    )
