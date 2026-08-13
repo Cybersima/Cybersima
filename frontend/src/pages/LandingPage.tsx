@@ -70,6 +70,13 @@ export function LandingPage() {
                 breach-style alerts in one place.
               </p>
             </li>
+            <li>
+              <h3>Network Guard at the edge</h3>
+              <p>
+                A gateway agent watches for scan/flood/bad-actor patterns and can
+                drop them before they forward into the home or business LAN.
+              </p>
+            </li>
           </ul>
         </div>
       </section>

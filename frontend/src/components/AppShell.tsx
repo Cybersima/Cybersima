@@ -3,6 +3,7 @@ import { useAuth } from '../auth'
 
 const links = [
   { to: '/app', label: 'Overview', end: true },
+  { to: '/app/network', label: 'Network Guard' },
   { to: '/app/alerts', label: 'Alerts' },
   { to: '/app/vault', label: 'Vault' },
   { to: '/app/monitor', label: 'Monitoring' },

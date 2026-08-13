@@ -9,6 +9,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { DevicesPage } from './pages/DevicesPage'
 import { LandingPage } from './pages/LandingPage'
 import { MonitorPage } from './pages/MonitorPage'
+import { NetworkGuardPage } from './pages/NetworkGuardPage'
 import { VaultPage } from './pages/VaultPage'
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -61,6 +62,14 @@ export default function App() {
         element={
           <Protected>
             <DevicesPage />
+          </Protected>
+        }
+      />
+      <Route
+        path="/app/network"
+        element={
+          <Protected>
+            <NetworkGuardPage />
           </Protected>
         }
       />

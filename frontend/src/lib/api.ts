@@ -52,6 +52,44 @@ export type AuditEvent = {
   createdAt: string
 }
 
+export type GuardNode = {
+  id: number
+  name: string
+  mode: string
+  backend: string
+  interface: string
+  status: string
+  packetsSeen: number
+  packetsBlocked: number
+  lastSeenAt: string | null
+  createdAt: string
+  agentToken: string
+}
+
+export type NetworkEvent = {
+  id: number
+  guardNodeId: number | null
+  category: string
+  severity: string
+  title: string
+  detail: string
+  srcIp: string
+  dstIp: string
+  dstPort: number
+  protocol: string
+  action: string
+  createdAt: string
+}
+
+export type BlockRule = {
+  id: number
+  ip: string
+  reason: string
+  active: boolean
+  hits: number
+  createdAt: string
+}
+
 const TOKEN_KEY = 'lockwell_token'
 
 export function getToken(): string | null {
@@ -100,6 +138,7 @@ export const api = {
         monitoredItems: number
         deviceProtectionScore: number
         vaultMode: string
+        networkPacketsBlocked?: number
       }
       recentAlerts: Alert[]
       devices: Device[]
@@ -132,4 +171,29 @@ export const api = {
     request<{ product: string; principles: string[]; mvpLimits: string[] }>(
       '/api/architecture',
     ),
+  networkSummary: () =>
+    request<{
+      summary: {
+        nodes: number
+        onlineNodes: number
+        packetsSeen: number
+        packetsBlocked: number
+        activeBlocks: number
+      }
+      nodes: GuardNode[]
+      events: NetworkEvent[]
+      blocks: BlockRule[]
+    }>('/api/network/summary'),
+  createGuardNode: (body: { name: string; mode?: string; interface?: string }) =>
+    request<{ node: GuardNode }>('/api/network/nodes', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  createBlock: (body: { ip: string; reason: string }) =>
+    request<{ block: BlockRule }>('/api/network/blocks', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  deleteBlock: (id: number) =>
+    request<{ ok: boolean }>(`/api/network/blocks/${id}`, { method: 'DELETE' }),
 }

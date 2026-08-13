@@ -20,11 +20,14 @@ export function ArchitecturePage() {
           'Transparent audit trail for every sensitive account action',
           'Least privilege API tokens scoped to a single session',
           'Defense-in-depth device posture scoring',
+          'Network Guard sits on the edge gateway to drop hostile packets before LAN forward',
         ])
         setLimits([
           'Breach and dark-web alerts are simulated for the demo corpus',
           'Credit bureau feeds and insurance require licensed partners',
           'Device antivirus/VPN toggles are posture controls, not full endpoint agents',
+          'True packet blocking requires deploying the agent on a gateway/firewall host',
+          'Demo mode uses synthetic packet metadata; enforce mode needs nftables privileges',
         ])
       })
   }, [])

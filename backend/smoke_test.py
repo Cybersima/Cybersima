@@ -57,6 +57,58 @@ class LockwellSmokeTest(unittest.TestCase):
         self.assertIn("auth.register", actions)
         self.assertIn("vault.create", actions)
 
+        network = self.client.get("/api/network/summary", headers=headers)
+        self.assertEqual(network.status_code, 200)
+        node = network.get_json()["nodes"][0]
+        guard_headers = {"X-Guard-Token": node["agentToken"]}
+
+        hb = self.client.post(
+            "/api/network/agent/heartbeat",
+            data=json.dumps(
+                {
+                    "packetsSeen": 120,
+                    "packetsBlocked": 3,
+                    "mode": "simulate",
+                    "backend": "simulate",
+                    "status": "online",
+                }
+            ),
+            content_type="application/json",
+            headers=guard_headers,
+        )
+        self.assertEqual(hb.status_code, 200)
+
+        events = self.client.post(
+            "/api/network/agent/events",
+            data=json.dumps(
+                {
+                    "events": [
+                        {
+                            "category": "port_scan",
+                            "severity": "high",
+                            "title": "Inbound port scan detected",
+                            "detail": "demo",
+                            "srcIp": "203.0.113.50",
+                            "dstIp": "192.168.1.1",
+                            "dstPort": 22,
+                            "protocol": "TCP",
+                            "action": "blocked",
+                        }
+                    ]
+                }
+            ),
+            content_type="application/json",
+            headers=guard_headers,
+        )
+        self.assertEqual(events.status_code, 200)
+        self.assertEqual(events.get_json()["accepted"], 1)
+
+        blocks = self.client.get("/api/network/blocks", headers=headers)
+        self.assertEqual(blocks.status_code, 200)
+        self.assertTrue(
+            any(block["ip"] == "203.0.113.50" for block in blocks.get_json()["blocks"])
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

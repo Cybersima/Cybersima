@@ -62,6 +62,15 @@ class User(db.Model):
     audit_events = db.relationship(
         "AuditEvent", backref="user", lazy=True, cascade="all, delete"
     )
+    guard_nodes = db.relationship(
+        "GuardNode", backref="user", lazy=True, cascade="all, delete"
+    )
+    network_events = db.relationship(
+        "NetworkEvent", backref="user", lazy=True, cascade="all, delete"
+    )
+    block_rules = db.relationship(
+        "BlockRule", backref="user", lazy=True, cascade="all, delete"
+    )
 
 
 class Session(db.Model):
@@ -124,6 +133,47 @@ class AuditEvent(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
 
+class GuardNode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    agent_token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    mode = db.Column(db.String(20), default="simulate", nullable=False)
+    backend = db.Column(db.String(40), default="simulate", nullable=False)
+    interface = db.Column(db.String(80), default="any", nullable=False)
+    status = db.Column(db.String(20), default="pending", nullable=False)
+    packets_seen = db.Column(db.Integer, default=0, nullable=False)
+    packets_blocked = db.Column(db.Integer, default=0, nullable=False)
+    last_seen_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+
+class NetworkEvent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    guard_node_id = db.Column(db.Integer, db.ForeignKey("guard_node.id"), nullable=True)
+    category = db.Column(db.String(40), nullable=False)
+    severity = db.Column(db.String(20), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    detail = db.Column(db.Text, nullable=False)
+    src_ip = db.Column(db.String(64), nullable=False)
+    dst_ip = db.Column(db.String(64), nullable=False)
+    dst_port = db.Column(db.Integer, default=0, nullable=False)
+    protocol = db.Column(db.String(20), default="TCP", nullable=False)
+    action = db.Column(db.String(20), default="logged", nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+
+class BlockRule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    ip = db.Column(db.String(64), nullable=False)
+    reason = db.Column(db.String(255), nullable=False)
+    active = db.Column(db.Boolean, default=True, nullable=False)
+    hits = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+
 def hash_monitor_value(value: str) -> str:
     normalized = value.strip().lower()
     return hmac.new(
@@ -180,6 +230,20 @@ def require_user():
     if g.user is None:
         return jsonify({"error": "Authentication required"}), 401
     return None
+
+
+def current_guard_node() -> GuardNode | None:
+    token = request.headers.get("X-Guard-Token", "").strip()
+    if not token:
+        return None
+    return GuardNode.query.filter_by(agent_token=token).first()
+
+
+def require_guard_node():
+    node = current_guard_node()
+    if node is None:
+        return None, (jsonify({"error": "Valid X-Guard-Token required"}), 401)
+    return node, None
 
 
 def seed_demo_for_user(user: User) -> None:
@@ -254,6 +318,31 @@ def seed_demo_for_user(user: User) -> None:
                 updates_current=False,
             ),
         ]
+    )
+
+    db.session.add(
+        GuardNode(
+            user_id=user.id,
+            name="Home edge gateway",
+            agent_token=secrets.token_hex(24),
+            mode="simulate",
+            backend="simulate",
+            interface="wan0",
+            status="pending",
+        )
+    )
+    db.session.add(
+        Alert(
+            user_id=user.id,
+            category="network",
+            severity="medium",
+            title="Network Guard awaiting edge agent",
+            detail=(
+                "Deploy the Lockwell Network Guard agent on your router/firewall "
+                "host so hostile packets can be dropped before they forward into the LAN."
+            ),
+            source="Network Guard",
+        )
     )
     audit(user.id, "seed", "Demo monitoring profile initialized")
 
@@ -358,6 +447,11 @@ def dashboard():
         .limit(5)
         .all()
     )
+    blocked_packets = (
+        db.session.query(db.func.coalesce(db.func.sum(GuardNode.packets_blocked), 0))
+        .filter(GuardNode.user_id == user.id)
+        .scalar()
+    )
     return jsonify(
         {
             "summary": {
@@ -366,6 +460,7 @@ def dashboard():
                 "monitoredItems": monitored,
                 "deviceProtectionScore": protection,
                 "vaultMode": "zero-knowledge",
+                "networkPacketsBlocked": int(blocked_packets or 0),
             },
             "recentAlerts": [serialize_alert(a) for a in recent],
             "devices": [serialize_device(d) for d in devices],
@@ -579,14 +674,223 @@ def architecture():
                 "Transparent audit trail for every sensitive account action",
                 "Least privilege API tokens scoped to a single session",
                 "Defense-in-depth device posture scoring",
+                "Network Guard sits on the edge gateway to drop hostile packets before LAN forward",
             ],
             "mvpLimits": [
                 "Breach and dark-web alerts are simulated for the demo corpus",
                 "Credit bureau feeds and insurance require licensed partners",
                 "Device antivirus/VPN toggles are posture controls, not full endpoint agents",
+                "True packet blocking requires deploying the agent on a gateway/firewall host",
+                "Demo mode uses synthetic packet metadata; enforce mode needs nftables privileges",
             ],
         }
     )
+
+
+@app.get("/api/network/summary")
+def network_summary():
+    denied = require_user()
+    if denied:
+        return denied
+    user = g.user
+    nodes = GuardNode.query.filter_by(user_id=user.id).all()
+    events = (
+        NetworkEvent.query.filter_by(user_id=user.id)
+        .order_by(NetworkEvent.created_at.desc())
+        .limit(25)
+        .all()
+    )
+    blocks = (
+        BlockRule.query.filter_by(user_id=user.id, active=True)
+        .order_by(BlockRule.created_at.desc())
+        .all()
+    )
+    return jsonify(
+        {
+            "summary": {
+                "nodes": len(nodes),
+                "onlineNodes": sum(1 for n in nodes if n.status == "online"),
+                "packetsSeen": sum(n.packets_seen for n in nodes),
+                "packetsBlocked": sum(n.packets_blocked for n in nodes),
+                "activeBlocks": len(blocks),
+            },
+            "nodes": [serialize_guard_node(n, include_token=True) for n in nodes],
+            "events": [serialize_network_event(e) for e in events],
+            "blocks": [serialize_block_rule(b) for b in blocks],
+        }
+    )
+
+
+@app.post("/api/network/nodes")
+def create_guard_node():
+    denied = require_user()
+    if denied:
+        return denied
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip() or "Edge gateway"
+    node = GuardNode(
+        user_id=g.user.id,
+        name=name,
+        agent_token=secrets.token_hex(24),
+        mode=(data.get("mode") or "simulate").strip(),
+        interface=(data.get("interface") or "any").strip(),
+        status="pending",
+    )
+    db.session.add(node)
+    audit(g.user.id, "network.node.create", f"Created guard node {name}")
+    db.session.commit()
+    return jsonify({"node": serialize_guard_node(node, include_token=True)}), 201
+
+
+@app.get("/api/network/events")
+def list_network_events():
+    denied = require_user()
+    if denied:
+        return denied
+    events = (
+        NetworkEvent.query.filter_by(user_id=g.user.id)
+        .order_by(NetworkEvent.created_at.desc())
+        .limit(200)
+        .all()
+    )
+    return jsonify({"events": [serialize_network_event(e) for e in events]})
+
+
+@app.get("/api/network/blocks")
+def list_blocks():
+    denied = require_user()
+    if denied:
+        return denied
+    blocks = (
+        BlockRule.query.filter_by(user_id=g.user.id)
+        .order_by(BlockRule.created_at.desc())
+        .all()
+    )
+    return jsonify({"blocks": [serialize_block_rule(b) for b in blocks]})
+
+
+@app.post("/api/network/blocks")
+def create_block():
+    denied = require_user()
+    if denied:
+        return denied
+    data = request.get_json(silent=True) or {}
+    ip = (data.get("ip") or "").strip()
+    reason = (data.get("reason") or "Manual block").strip()
+    if not ip:
+        return jsonify({"error": "ip required"}), 400
+    existing = BlockRule.query.filter_by(user_id=g.user.id, ip=ip, active=True).first()
+    if existing:
+        return jsonify({"block": serialize_block_rule(existing)})
+    block = BlockRule(user_id=g.user.id, ip=ip, reason=reason, active=True)
+    db.session.add(block)
+    audit(g.user.id, "network.block", f"Blocked {ip}")
+    db.session.commit()
+    return jsonify({"block": serialize_block_rule(block)}), 201
+
+
+@app.delete("/api/network/blocks/<int:block_id>")
+def delete_block(block_id: int):
+    denied = require_user()
+    if denied:
+        return denied
+    block = BlockRule.query.filter_by(id=block_id, user_id=g.user.id).first()
+    if not block:
+        return jsonify({"error": "Block not found"}), 404
+    block.active = False
+    audit(g.user.id, "network.unblock", f"Unblocked {block.ip}")
+    db.session.commit()
+    return jsonify({"ok": True, "block": serialize_block_rule(block)})
+
+
+@app.post("/api/network/agent/heartbeat")
+def agent_heartbeat():
+    node, error = require_guard_node()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    node.packets_seen = int(data.get("packetsSeen", node.packets_seen) or 0)
+    node.packets_blocked = int(data.get("packetsBlocked", node.packets_blocked) or 0)
+    node.mode = (data.get("mode") or node.mode)[:20]
+    node.backend = (data.get("backend") or node.backend)[:40]
+    node.interface = (data.get("interface") or node.interface)[:80]
+    node.status = (data.get("status") or "online")[:20]
+    node.last_seen_at = utcnow()
+    db.session.commit()
+    return jsonify({"ok": True, "node": serialize_guard_node(node)})
+
+
+@app.post("/api/network/agent/events")
+def agent_events():
+    node, error = require_guard_node()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    events = data.get("events") or []
+    created = 0
+    for item in events[:100]:
+        src_ip = (item.get("srcIp") or item.get("src_ip") or "").strip()
+        if not src_ip:
+            continue
+        action = (item.get("action") or "logged").strip()
+        title = (item.get("title") or "Network event")[:200]
+        detail = item.get("detail") or ""
+        event = NetworkEvent(
+            user_id=node.user_id,
+            guard_node_id=node.id,
+            category=(item.get("category") or "network")[:40],
+            severity=(item.get("severity") or "medium")[:20],
+            title=title,
+            detail=detail,
+            src_ip=src_ip[:64],
+            dst_ip=(item.get("dstIp") or item.get("dst_ip") or "")[:64],
+            dst_port=int(item.get("dstPort") or item.get("dst_port") or 0),
+            protocol=(item.get("protocol") or "TCP")[:20],
+            action=action[:20],
+        )
+        db.session.add(event)
+        created += 1
+
+        if action == "blocked":
+            block = BlockRule.query.filter_by(
+                user_id=node.user_id, ip=src_ip, active=True
+            ).first()
+            if block:
+                block.hits += 1
+            else:
+                db.session.add(
+                    BlockRule(
+                        user_id=node.user_id,
+                        ip=src_ip,
+                        reason=title,
+                        active=True,
+                        hits=1,
+                    )
+                )
+            db.session.add(
+                Alert(
+                    user_id=node.user_id,
+                    category="network",
+                    severity=(item.get("severity") or "high")[:20],
+                    title=title,
+                    detail=detail,
+                    source="Network Guard",
+                )
+            )
+
+    node.last_seen_at = utcnow()
+    node.status = "online"
+    db.session.commit()
+    return jsonify({"ok": True, "accepted": created})
+
+
+@app.get("/api/network/agent/blocklist")
+def agent_blocklist():
+    node, error = require_guard_node()
+    if error:
+        return error
+    blocks = BlockRule.query.filter_by(user_id=node.user_id, active=True).all()
+    return jsonify({"blocks": [serialize_block_rule(b) for b in blocks]})
 
 
 def serialize_user(user: User) -> dict:
@@ -643,6 +947,52 @@ def serialize_device(device: Device) -> dict:
         "screenLockEnabled": device.screen_lock_enabled,
         "updatesCurrent": device.updates_current,
         "lastCheckIn": device.last_check_in.isoformat(),
+    }
+
+
+def serialize_guard_node(node: GuardNode, include_token: bool = False) -> dict:
+    payload = {
+        "id": node.id,
+        "name": node.name,
+        "mode": node.mode,
+        "backend": node.backend,
+        "interface": node.interface,
+        "status": node.status,
+        "packetsSeen": node.packets_seen,
+        "packetsBlocked": node.packets_blocked,
+        "lastSeenAt": node.last_seen_at.isoformat() if node.last_seen_at else None,
+        "createdAt": node.created_at.isoformat(),
+    }
+    if include_token:
+        payload["agentToken"] = node.agent_token
+    return payload
+
+
+def serialize_network_event(event: NetworkEvent) -> dict:
+    return {
+        "id": event.id,
+        "guardNodeId": event.guard_node_id,
+        "category": event.category,
+        "severity": event.severity,
+        "title": event.title,
+        "detail": event.detail,
+        "srcIp": event.src_ip,
+        "dstIp": event.dst_ip,
+        "dstPort": event.dst_port,
+        "protocol": event.protocol,
+        "action": event.action,
+        "createdAt": event.created_at.isoformat(),
+    }
+
+
+def serialize_block_rule(block: BlockRule) -> dict:
+    return {
+        "id": block.id,
+        "ip": block.ip,
+        "reason": block.reason,
+        "active": block.active,
+        "hits": block.hits,
+        "createdAt": block.created_at.isoformat(),
     }
 
 

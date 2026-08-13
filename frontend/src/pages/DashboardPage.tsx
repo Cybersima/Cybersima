@@ -9,6 +9,7 @@ export function DashboardPage() {
     monitoredItems: 0,
     deviceProtectionScore: 0,
     vaultMode: 'zero-knowledge',
+    networkPacketsBlocked: 0,
   })
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [devices, setDevices] = useState<Device[]>([])
@@ -42,14 +43,18 @@ export function DashboardPage() {
           <strong>{summary.highSeverity}</strong>
         </div>
         <div className="metric">
-          <span>Monitored items</span>
-          <strong>{summary.monitoredItems}</strong>
-        </div>
-        <div className="metric">
           <span>Device score</span>
           <strong>{summary.deviceProtectionScore}%</strong>
         </div>
+        <div className="metric">
+          <span>Edge blocks</span>
+          <strong>{summary.networkPacketsBlocked ?? 0}</strong>
+        </div>
       </div>
+      <p className="page-sub">
+        Monitored identifiers: {summary.monitoredItems}. Edge blocking requires the{' '}
+        <Link to="/app/network">Network Guard</Link> agent on your gateway.
+      </p>
 
       <section className="stack">
         <header className="list-row" style={{ borderBottom: 0, paddingBottom: 0 }}>
