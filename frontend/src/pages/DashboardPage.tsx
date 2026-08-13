@@ -19,7 +19,10 @@ export function DashboardPage() {
     api
       .dashboard()
       .then((res) => {
-        setSummary(res.summary)
+        setSummary({
+          ...res.summary,
+          networkPacketsBlocked: res.summary.networkPacketsBlocked ?? 0,
+        })
         setAlerts(res.recentAlerts)
         setDevices(res.devices)
       })
