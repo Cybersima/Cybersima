@@ -4,6 +4,11 @@ Identity-protection MVP with a security-first architecture: zero-knowledge vault
 
 ## Test on your computer
 
+### Download
+
+- Portable ZIP: https://github.com/Cybersima/Cybersima/raw/cursor/lockwell-identity-mvp-1cbb/dist/lockwell-portable.zip
+- Full branch ZIP: https://github.com/Cybersima/Cybersima/archive/refs/heads/cursor/lockwell-identity-mvp-1cbb.zip
+
 ### Fastest local run
 
 **macOS / Linux**

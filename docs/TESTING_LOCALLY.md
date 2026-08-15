@@ -1,10 +1,26 @@
 # Test Lockwell on your computer
 
-You do **not** need the cloud agent environment. Use either option below after cloning this branch/PR.
+You do **not** need the cloud agent environment.
 
-## Option A — one command (recommended)
+## Download the files to your computer
 
-Requirements: Python 3.11+, Node.js 20+, npm.
+### Option 1 — portable ZIP from GitHub (easiest)
+
+Download this file and unzip it on your Desktop:
+
+https://github.com/Cybersima/Cybersima/raw/cursor/lockwell-identity-mvp-1cbb/dist/lockwell-portable.zip
+
+If the browser only shows a page instead of downloading, use the folder view and click the zip file’s download button:
+
+https://github.com/Cybersima/Cybersima/tree/cursor/lockwell-identity-mvp-1cbb/dist
+
+### Option 2 — full branch ZIP
+
+https://github.com/Cybersima/Cybersima/archive/refs/heads/cursor/lockwell-identity-mvp-1cbb.zip
+
+## Run it
+
+Requirements: Python 3.11+, Node.js 20+, npm (or Docker).
 
 ### macOS / Linux
 
@@ -12,8 +28,6 @@ Requirements: Python 3.11+, Node.js 20+, npm.
 chmod +x scripts/start.sh
 ./scripts/start.sh
 ```
-
-Open **http://127.0.0.1:5000**
 
 ### Windows (PowerShell)
 
@@ -23,11 +37,7 @@ Open **http://127.0.0.1:5000**
 
 Open **http://127.0.0.1:5000**
 
-This builds the UI, installs Python deps, and serves API + app together on port 5000.
-
-## Option B — Docker
-
-Requirements: Docker Desktop.
+### Docker
 
 ```bash
 docker compose up --build
