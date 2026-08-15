@@ -29,9 +29,19 @@ chmod +x scripts/start.sh
 ./scripts/start.sh
 ```
 
-### Windows (PowerShell)
+### Windows
+
+**Easiest:** double-click `scripts\start.cmd`  
+(or in Command Prompt / PowerShell):
+
+```bat
+scripts\start.cmd
+```
+
+If you prefer PowerShell and hit an execution-policy error:
 
 ```powershell
+Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\start.ps1
 ```
 
