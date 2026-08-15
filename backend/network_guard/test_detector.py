@@ -35,5 +35,17 @@ class DetectorTests(unittest.TestCase):
         self.assertEqual(findings[0].category, "threat_intel")
 
 
+class BlockerSafetyTests(unittest.TestCase):
+    def test_refuses_loopback(self) -> None:
+        from network_guard.blocker import PacketBlocker
+
+        blocker = PacketBlocker(mode="enforce")
+        blocker._ready = True
+        blocker.backend = "windows-firewall"
+        decision = blocker.block("127.0.0.1", "test")
+        self.assertFalse(decision.enforced)
+        self.assertIn("loopback", decision.detail.lower())
+
+
 if __name__ == "__main__":
     unittest.main()

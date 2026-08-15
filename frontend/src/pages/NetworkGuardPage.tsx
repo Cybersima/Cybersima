@@ -108,20 +108,25 @@ export function NetworkGuardPage() {
 
       <section className="panel" style={{ width: '100%', marginBottom: '1.25rem' }}>
         <h2 style={{ fontFamily: 'var(--font-display)', marginTop: 0 }}>
-          Deploy on the edge
+          Deploy / enforce
         </h2>
         <p>
-          A browser app cannot intercept WAN packets. Run Network Guard on the
-          router, firewall appliance, or a Linux box routing your LAN.
+          Simulate mode only records decisions. Enforce mode writes real firewall
+          rules. On Windows this protects this PC; whole-LAN protection needs a
+          gateway host.
         </p>
         {primary ? (
-          <pre className="secret-preview">{`cd backend
-source .venv/bin/activate
-export LOCKWELL_API=http://127.0.0.1:5000
-export LOCKWELL_GUARD_TOKEN=${primary.agentToken}
-python -m network_guard.agent --mode simulate
-# Gateway host with privileges:
-# python -m network_guard.agent --mode enforce --interface eth0`}</pre>
+          <pre className="secret-preview">{`# Windows (PowerShell as Administrator) — real firewall rules
+cd backend
+$env:LOCKWELL_API="http://127.0.0.1:5000"
+$env:LOCKWELL_GUARD_TOKEN="${primary.agentToken}"
+.\\\\.venv\\Scripts\\python.exe -m network_guard.agent --mode enforce --force-simulate
+
+# Or run: scripts\\start-network-guard-enforce.cmd
+# Cleanup: scripts\\remove-lockwell-firewall-rules.cmd
+
+# Linux gateway (whole LAN):
+# sudo python -m network_guard.agent --mode enforce --interface eth0`}</pre>
         ) : (
           <p>Create a guard node to get an agent token.</p>
         )}

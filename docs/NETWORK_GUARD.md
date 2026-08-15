@@ -25,15 +25,23 @@ on `input` / `forward` hooks.
 
 | Mode | Behavior |
 | --- | --- |
-| `simulate` | Safe demo stream + recorded block decisions |
+| `simulate` | Demo stream + recorded block decisions |
 | `live` | Sniff interface when scapy/permissions allow |
-| `enforce` | Detections also push sources into an nftables set |
+| `enforce` | Real firewall drops (Windows Firewall or Linux nftables) |
+
+First real-firewall step on Windows:
+
+```powershell
+python -m network_guard.agent --mode enforce --force-simulate
+```
+
+See `docs/DEPLOY_ENFORCE.md`.
 
 ## Run
 
 1. Register in the Lockwell app and open **Network Guard**.
 2. Copy the node token.
-3. On the gateway host:
+3. On the host:
 
 ```bash
 cd backend
@@ -41,6 +49,8 @@ source .venv/bin/activate
 export LOCKWELL_API=http://<controller-host>:5000
 export LOCKWELL_GUARD_TOKEN=<token>
 python -m network_guard.agent --mode simulate
-# production-style:
+# Windows host enforce (Administrator):
+# python -m network_guard.agent --mode enforce --force-simulate
+# Linux gateway enforce:
 # sudo python -m network_guard.agent --mode enforce --interface eth0
 ```

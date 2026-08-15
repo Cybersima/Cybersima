@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
-"""Lockwell Network Guard edge agent.
+"""Lockwell Network Guard edge/host agent.
 
-Deploy this on the gateway / firewall host that sits in front of the LAN so
-hostile packets can be dropped before they forward into home or business hosts.
+Deploy paths:
+  1) Windows host enforce — protects THIS computer via Windows Firewall
+  2) Linux gateway enforce — drops hostile sources before LAN forward (nftables)
 
 Modes:
-  simulate — demo metadata stream (safe default, no privileges required)
-  live     — sniff local interface when scapy + permissions allow
-  enforce  — live/sim detections also push drops through nftables when possible
+  simulate — demo metadata stream (safe default)
+  live     — sniff interface when scapy + permissions allow
+  enforce  — detections also apply real firewall drops when possible
+
+Tip for first real blocks on Windows:
+  --mode enforce --force-simulate
+uses demo detections but writes real Windows Firewall rules for the demo IPs.
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import platform
 import sys
 import time
 from pathlib import Path
@@ -65,7 +71,7 @@ def sniff_live(interface: str | None):
     except Exception as exc:  # pragma: no cover - optional dependency
         raise RuntimeError(
             "Live mode requires scapy. Install with `pip install scapy` "
-            "or use --mode simulate."
+            "or use --mode enforce --force-simulate."
         ) from exc
 
     def _capture():
@@ -90,13 +96,17 @@ def sniff_live(interface: str | None):
                     )
                 )
 
-            sniff(
-                iface=interface or None,
-                prn=_handle,
-                store=False,
-                timeout=1,
-                quiet=True,
-            )
+            kwargs = {
+                "prn": _handle,
+                "store": False,
+                "timeout": 1,
+            }
+            if interface:
+                kwargs["iface"] = interface
+            try:
+                sniff(**kwargs, quiet=True)
+            except TypeError:
+                sniff(**kwargs)
             yield from batch
 
     return _capture()
@@ -108,19 +118,23 @@ def run_agent(args: argparse.Namespace) -> None:
     backend = blocker.ensure_ready()
     detector = ThreatDetector(threat_ips=set(DEMO_THREAT_INTEL))
 
-    packets_seen = 0
-    packets_blocked = 0
-    source = (
-        sniff_live(args.interface)
-        if args.mode in {"live", "enforce"} and not args.force_simulate
-        else iter_demo_packets()
-    )
+    use_live = args.mode in {"live", "enforce"} and not args.force_simulate
+    source = sniff_live(args.interface) if use_live else iter_demo_packets()
 
     print(
-        f"Lockwell Network Guard starting mode={args.mode} backend={backend}",
+        f"Lockwell Network Guard starting mode={args.mode} backend={backend} "
+        f"os={platform.system()} live_capture={use_live}",
         flush=True,
     )
+    if args.mode == "enforce" and backend.startswith("simulate"):
+        print(
+            "WARNING: enforce requested but firewall backend unavailable. "
+            "On Windows, re-run PowerShell as Administrator.",
+            flush=True,
+        )
 
+    packets_seen = 0
+    packets_blocked = 0
     pending: list[dict[str, Any]] = []
     last_heartbeat = 0.0
     last_sync = 0.0
@@ -133,8 +147,9 @@ def run_agent(args: argparse.Namespace) -> None:
             action = "logged"
             if detection.should_block and args.auto_block:
                 decision = blocker.block(detection.src_ip, detection.title)
-                action = "blocked" if decision.enforced or decision.backend == "simulate" else "logged"
-                if action == "blocked":
+                if decision.enforced or decision.backend == "simulate":
+                    action = "blocked"
+                if decision.enforced or decision.backend == "simulate":
                     packets_blocked += 1
 
             pending.append(
@@ -143,11 +158,7 @@ def run_agent(args: argparse.Namespace) -> None:
                     "severity": detection.severity,
                     "title": detection.title,
                     "detail": detection.detail
-                    + (
-                        f" [{decision.detail}]"
-                        if decision is not None
-                        else ""
-                    ),
+                    + (f" [{decision.detail}]" if decision is not None else ""),
                     "srcIp": detection.src_ip,
                     "dstIp": detection.dst_ip,
                     "dstPort": detection.dst_port,
@@ -187,7 +198,7 @@ def run_agent(args: argparse.Namespace) -> None:
             except Exception as exc:
                 print(f"blocklist sync failed: {exc}", flush=True)
 
-        if args.mode == "simulate" or args.force_simulate:
+        if not use_live:
             time.sleep(args.demo_delay)
 
 
@@ -216,7 +227,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--force-simulate",
         action="store_true",
-        help="Even in live/enforce, use the safe demo packet stream",
+        help="Use demo packet stream even in live/enforce (still applies real blocks in enforce)",
     )
     return parser
 
@@ -231,9 +242,8 @@ def main() -> None:
             run_agent(args)
             return
         except RuntimeError as exc:
-            print(f"{exc} Falling back to simulate.", flush=True)
+            print(f"{exc} Falling back to demo packet stream with current mode.", flush=True)
             args.force_simulate = True
-            args.mode = "simulate"
     run_agent(args)
 
 
