@@ -95,6 +95,15 @@ sudo python -m network_guard.agent --mode enforce --interface eth0
 
 See `docs/NETWORK_GUARD.md`.
 
+### Whole-network (gateway) deploy
+
+Host enforce protects one PC. To protect the whole LAN, run Network Guard on a
+gateway device (Raspberry Pi / mini PC) between modem and LAN:
+
+- Guide: [`docs/DEPLOY_GATEWAY.md`](docs/DEPLOY_GATEWAY.md)
+- Script: `scripts/start-network-guard-gateway.sh`
+- Compose: `docker compose -f docker-compose.gateway.yml up --build`
+
 ## Security notes (MVP)
 
 Lockwell is a working product shell, not a licensed identity-theft insurance / credit-bureau service.

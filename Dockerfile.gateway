@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1
+FROM python:3.12-slim-bookworm
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends nftables libpcap0.8 \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY backend/ /app/
+ENV PYTHONUNBUFFERED=1
+
+CMD ["sh", "-c", "python -m network_guard.agent --mode ${LOCKWELL_GUARD_MODE:-enforce} --interface ${LOCKWELL_IFACE:-eth0}"]

@@ -116,20 +116,25 @@ export function NetworkGuardPage() {
           gateway host.
         </p>
         {primary ? (
-          <pre className="secret-preview">{`# Windows (PowerShell as Administrator) — real firewall rules
+          <pre className="secret-preview">{`# Windows host enforce (Admin) — protects THIS PC
 cd backend
 $env:LOCKWELL_API="http://127.0.0.1:5000"
 $env:LOCKWELL_GUARD_TOKEN="${primary.agentToken}"
 .\\\\.venv\\Scripts\\python.exe -m network_guard.agent --mode enforce --force-simulate
 
-# Or run: scripts\\start-network-guard-enforce.cmd
-# Cleanup: scripts\\remove-lockwell-firewall-rules.cmd
-
-# Linux gateway (whole LAN):
-# sudo python -m network_guard.agent --mode enforce --interface eth0`}</pre>
+# Linux gateway enforce — protects whole LAN
+# export LOCKWELL_API=http://<windows-pc-lan-ip>:5000
+# export LOCKWELL_GUARD_TOKEN=${primary.agentToken}
+# sudo ./scripts/start-network-guard-gateway.sh
+# Expected: backend=nftables live_capture=True
+# See docs/DEPLOY_GATEWAY.md`}</pre>
         ) : (
           <p>Create a guard node to get an agent token.</p>
         )}
+        <p style={{ marginTop: '0.85rem', color: 'var(--ink-soft)' }}>
+          Host enforce is done when Windows shows <code>backend=windows-firewall</code>.
+          Whole-network protection needs a second machine on the modem→LAN path.
+        </p>
         <form className="form-stack" onSubmit={createNode}>
           <label>
             New node name

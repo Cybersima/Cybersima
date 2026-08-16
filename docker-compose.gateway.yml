@@ -1,0 +1,15 @@
+services:
+  lockwell-gateway-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      LOCKWELL_API: ${LOCKWELL_API}
+      LOCKWELL_GUARD_TOKEN: ${LOCKWELL_GUARD_TOKEN}
+      LOCKWELL_IFACE: ${LOCKWELL_IFACE:-eth0}
+      LOCKWELL_GUARD_MODE: enforce
+    restart: unless-stopped
