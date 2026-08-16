@@ -126,10 +126,18 @@ def run_agent(args: argparse.Namespace) -> None:
         f"os={platform.system()} live_capture={use_live}",
         flush=True,
     )
+    if getattr(blocker, "_last_error", ""):
+        print(f"backend detail: {blocker._last_error}", flush=True)
+    if args.mode != "enforce":
+        print(
+            "NOTE: mode is not enforce. Use --mode enforce to write real firewall rules.",
+            flush=True,
+        )
     if args.mode == "enforce" and backend.startswith("simulate"):
         print(
             "WARNING: enforce requested but firewall backend unavailable. "
-            "On Windows, re-run PowerShell as Administrator.",
+            "On Windows: 1) enable Windows Firewall, 2) run PowerShell as Administrator, "
+            "3) make sure you have the latest Lockwell files with Windows Firewall support.",
             flush=True,
         )
 

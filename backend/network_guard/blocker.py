@@ -33,6 +33,7 @@ class PacketBlocker:
     blocked: set[str] = field(default_factory=set)
     backend: str = "simulate"
     _ready: bool = False
+    _last_error: str = ""
 
     def ensure_ready(self) -> str:
         if self.mode != "enforce":
@@ -46,29 +47,47 @@ class PacketBlocker:
 
     def _ensure_windows(self) -> str:
         try:
-            result = subprocess.run(
+            # Probe firewall service + admin capability with a no-op rule lifecycle.
+            probe = subprocess.run(
                 [
                     "powershell",
                     "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
                     "-Command",
-                    "Get-NetFirewallProfile | Out-Null; 'ok'",
+                    (
+                        "$ErrorActionPreference='Stop'; "
+                        "Get-NetFirewallProfile | Out-Null; "
+                        "$n='Lockwell Probe'; "
+                        "Get-NetFirewallRule -DisplayName $n -ErrorAction SilentlyContinue | "
+                        "Remove-NetFirewallRule -ErrorAction SilentlyContinue; "
+                        "New-NetFirewallRule -DisplayName $n -Direction Inbound "
+                        "-RemoteAddress 203.0.113.254 -Action Block -Enabled False "
+                        "-Profile Any | Out-Null; "
+                        "Remove-NetFirewallRule -DisplayName $n | Out-Null; "
+                        "'ok'"
+                    ),
                 ],
                 check=False,
                 capture_output=True,
                 text=True,
             )
-            if result.returncode != 0:
+            if probe.returncode != 0:
+                detail = (probe.stderr or probe.stdout or "").strip()
                 self.mode = "simulate"
                 self.backend = "simulate"
                 self._ready = False
+                self._last_error = detail or "Windows Firewall probe failed"
                 return "simulate-fallback-windows-firewall-unavailable"
             self.backend = "windows-firewall"
             self._ready = True
+            self._last_error = ""
             return "windows-firewall"
-        except Exception:
+        except Exception as exc:
             self.mode = "simulate"
             self.backend = "simulate"
             self._ready = False
+            self._last_error = str(exc)
             return "simulate-fallback-windows-error"
 
     def _ensure_nftables(self) -> str:
