@@ -6,7 +6,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 PORT="${PORT:-5000}"
-HOST="${HOST:-127.0.0.1}"
+# Bind on all interfaces so a Kali/gateway agent on the LAN can reach the API.
+HOST="${HOST:-0.0.0.0}"
 
 echo "==> Lockwell local package"
 echo "    root: $ROOT"

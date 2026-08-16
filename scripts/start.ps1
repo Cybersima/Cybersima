@@ -5,7 +5,8 @@ $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
 $Port = if ($env:PORT) { $env:PORT } else { "5000" }
-$HostAddr = if ($env:HOST) { $env:HOST } else { "127.0.0.1" }
+# Bind on all interfaces so a Kali/gateway agent on the LAN can reach the API.
+$HostAddr = if ($env:HOST) { $env:HOST } else { "0.0.0.0" }
 
 Write-Host "==> Lockwell local package"
 Write-Host "    root: $Root"

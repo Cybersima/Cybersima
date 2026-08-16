@@ -27,6 +27,31 @@ Your normal Windows PC alone cannot protect the whole LAN unless it becomes the 
 A Kali laptop is a good test gateway if it has **two network interfaces**
 (example: Ethernet + Wi‑Fi, or Ethernet + USB-Ethernet).
 
+### Allow Kali to reach the Windows dashboard
+
+Lockwell must listen on the LAN, not only localhost:
+
+```powershell
+# On Windows, before start.ps1 / start.cmd
+$env:HOST="0.0.0.0"
+$env:PORT="5000"
+.\scripts\start.ps1
+```
+
+Allow inbound TCP 5000 (Admin PowerShell on Windows):
+
+```powershell
+New-NetFirewallRule -DisplayName "Lockwell API LAN" -Direction Inbound -Protocol TCP -LocalPort 5000 -Action Allow -Profile Private
+```
+
+From Kali, test:
+
+```bash
+curl http://192.168.0.101:5000/api/health
+```
+
+You want: `{"ok": true, ...}`
+
 ### A) Protect only the Kali laptop first (fastest)
 
 On Kali:
