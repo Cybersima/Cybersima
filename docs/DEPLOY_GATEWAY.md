@@ -22,6 +22,89 @@ A computer that sits **in front of** the rest of your network:
 
 Your normal Windows PC alone cannot protect the whole LAN unless it becomes the router (two network interfaces + routing). That is possible, but a small Linux box is cleaner.
 
+## Kali Linux laptop quickstart
+
+A Kali laptop is a good test gateway if it has **two network interfaces**
+(example: Ethernet + Wi‑Fi, or Ethernet + USB-Ethernet).
+
+### A) Protect only the Kali laptop first (fastest)
+
+On Kali:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+export LOCKWELL_API=http://<windows-pc-lan-ip>:5000
+export LOCKWELL_GUARD_TOKEN=<token from Network Guard>
+sudo -E .venv/bin/python -m network_guard.agent --mode enforce --force-simulate
+```
+
+Success line:
+
+```text
+mode=enforce backend=nftables
+```
+
+Check rules:
+
+```bash
+sudo nft list table inet lockwell
+```
+
+### B) Use Kali as the whole-LAN gateway
+
+1. Interfaces:
+   - `eth0` (or similar): cable toward modem/ONT (**WAN**)
+   - `wlan0` or second Ethernet: toward your home LAN / AP (**LAN**)
+2. List interfaces:
+
+```bash
+ip -br link
+```
+
+3. Enable forwarding:
+
+```bash
+sudo sysctl -w net.ipv4.ip_forward=1
+```
+
+4. Basic NAT example (adjust interface names):
+
+```bash
+sudo nft add table ip nat
+sudo nft 'add chain ip nat postrouting { type nat hook postrouting priority 100 ; }'
+sudo nft add rule ip nat postrouting oifname "eth0" masquerade
+```
+
+5. Point LAN devices at Kali as their gateway/DNS (or set DHCP on Kali).
+
+6. Run live enforce on the WAN-facing interface:
+
+```bash
+export LOCKWELL_API=http://<windows-pc-lan-ip>:5000
+export LOCKWELL_GUARD_TOKEN=<token>
+sudo -E .venv/bin/python -m network_guard.agent --mode enforce --interface eth0
+```
+
+Success line:
+
+```text
+mode=enforce backend=nftables live_capture=True
+```
+
+### Allow dashboard access from Kali
+
+On the Windows PC firewall, allow inbound TCP 5000 from the Kali LAN IP, and use the Windows LAN IP in `LOCKWELL_API` (not `127.0.0.1` from Kali).
+
+### Cleanup Lockwell nftables
+
+```bash
+sudo nft delete table inet lockwell
+```
+
 ## Recommended path: Linux mini‑PC / Raspberry Pi
 
 ### 1. Network wiring
