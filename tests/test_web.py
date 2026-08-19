@@ -20,3 +20,14 @@ def test_dashboard_and_kill_switch() -> None:
     css = client.get("/static/app.css")
     assert css.status_code == 200
     assert "--gold" in css.text
+    report = client.get("/api/report")
+    assert report.status_code == 200
+    assert report.json()["headers"][0] == "ID"
+    csv_file = client.get("/api/report.csv")
+    assert csv_file.status_code == 200
+    assert "text/csv" in csv_file.headers["content-type"]
+    assert "CyberSym-SecureTrade-profit-report.csv" in csv_file.headers["content-disposition"]
+    assert csv_file.content.startswith(b"\xef\xbb\xbf")
+    assert b"Detected Time" in csv_file.content
+    assert b"Paper Notional" in csv_file.content
+    assert "Export report" in page.text

@@ -3,6 +3,7 @@ const opps = document.getElementById("opps");
 const fills = document.getElementById("fills");
 const filter = document.getElementById("filter");
 const killBtn = document.getElementById("kill");
+const exportBtn = document.getElementById("export");
 const clock = document.getElementById("clock");
 const feedBadge = document.getElementById("feed-badge");
 const execBadge = document.getElementById("exec-badge");
@@ -78,6 +79,8 @@ function render() {
   feedBadge.textContent = Object.entries(feeds).map(([k, v]) => `${k}:${v}`).join(" · ") || "waiting";
   killBtn.classList.toggle("on", Boolean(s.killed));
   killBtn.textContent = s.killed ? "Resume" : "Kill switch";
+  const reportRows = s.report_rows ?? 0;
+  exportBtn.textContent = reportRows ? `Export report (${reportRows})` : "Export report";
 }
 
 filter.addEventListener("input", render);
@@ -85,6 +88,10 @@ filter.addEventListener("input", render);
 killBtn.addEventListener("click", async () => {
   const killed = Boolean(snapshot.stats && snapshot.stats.killed);
   await fetch(killed ? "/api/resume" : "/api/kill", { method: "POST" });
+});
+
+exportBtn.addEventListener("click", () => {
+  window.location.href = "/api/report.csv";
 });
 
 function connect() {

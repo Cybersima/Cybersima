@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import time
+from pathlib import Path
 from collections import deque
 
 from pulsearb.config import SPOT_VENUES, AppConfig
 from pulsearb.engine.arbitrage import detect_auto_cross, detect_cross_venue, detect_triangles, discover_triangles
 from pulsearb.engine.book import MarketBook
 from pulsearb.engine.broker import Broker, LiveBinanceBroker, PaperBroker
+from pulsearb.engine.report import ProfitLedger
 from pulsearb.engine.risk import RiskManager
 from pulsearb.feeds.binance import BinanceFeed
 from pulsearb.feeds.bitstamp import BitstampFeed
@@ -37,6 +39,7 @@ class Engine:
         )
         self.paper = PaperBroker(self.risk)
         self.broker: Broker = self.paper
+        self.report = ProfitLedger(Path("data") / "CyberSym-SecureTrade-profit-report.csv")
         if config.live_enabled():
             binance = config.markets.get("binance") or {}
             rest = binance.get("testnet_rest_url" if config.env.binance_testnet else "rest_url")
@@ -72,6 +75,7 @@ class Engine:
                 "execution": "live" if self.config.live_enabled() else "paper",
                 "uptime_s": round(time.time() - self.stats.started_at, 1),
                 "triangles": sum(len(items) for items in self.triangles_by_venue.values()),
+                "report_rows": len(self.report.rows),
             },
             "quotes": [q.to_dict() for q in quotes],
             "opportunities": [o.to_dict() for o in list(self.opportunities)[:40]],
@@ -234,13 +238,21 @@ class Engine:
                 self.seen.add(opp.id)
                 self.opportunities.appendleft(opp)
                 self.stats.opportunities += 1
-                if not opp.executable:
-                    continue
-                fills = await self.broker.execute(opp)
-                for fill in fills:
-                    self.fills.appendleft(fill)
-                    if fill.status == "blocked":
-                        self.stats.live_blocked += 1
+                fills: list[Fill] = []
+                if opp.executable:
+                    fills = await self.broker.execute(opp)
+                    for fill in fills:
+                        self.fills.appendleft(fill)
+                        if fill.status == "blocked":
+                            self.stats.live_blocked += 1
+                self.report.record_opportunity(
+                    opp,
+                    fills,
+                    paper=self.broker.paper,
+                    killed=self.risk.killed,
+                    fee_map=fee_map,
+                    slippage_bps=extra,
+                )
             self.stats.scans += 1
             self.stats.quotes = self.book.size()
             self.stats.markets_live = self.book.live_count(stale)

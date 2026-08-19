@@ -20,6 +20,8 @@ You need [Python 3.11+](https://www.python.org/downloads/) (Windows: tick **Add 
 
 That first run is **demo / paper trading**. No API keys, no real orders. Close the terminal window to stop.
 
+On the dashboard, click **Export report** to download a spreadsheet (`CyberSym-SecureTrade-profit-report.csv`) that Excel and Google Sheets can open. Columns include ID, Detected Time, Strategy, Market, Route, Expected/Realized P&L, venues, raw/net edge, fees, slippage, fill ratio, and Paper Notional. The same file is also written to `data/` while the scanner runs.
+
 To rebuild a zip locally: `bash scripts/make-zip.sh`
 
 ## What it does

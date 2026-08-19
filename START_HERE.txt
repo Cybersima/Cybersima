@@ -20,6 +20,9 @@ First launch installs packages (a few minutes). After that it starts quickly.
 This first run is DEMO / PAPER TRADING. No exchange keys. No real orders.
 Leave the black window open while you use the dashboard. Close it to stop.
 
+On the dashboard, click "Export report" to download a spreadsheet of Paper P&L
+(trade ID, times, strategy, venues, expected vs realized P&L, fees, slippage).
+
 Live market data from Coinbase, Kraken, Gemini, Bitstamp, and Yahoo
 (still paper trading):
    Windows:  start-live.bat

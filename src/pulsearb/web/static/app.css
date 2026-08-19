@@ -57,6 +57,15 @@ h1 { font-size: 18px; letter-spacing: 0.16em; text-transform: uppercase; margin:
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+#export {
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  padding: 8px 12px;
+  min-height: 44px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 #kill.on { background: var(--down); color: #1a0505; }
 
 .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 12px; }

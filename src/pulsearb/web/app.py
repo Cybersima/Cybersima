@@ -5,12 +5,13 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from pulsearb.branding import COMPANY, COPYRIGHT, PRODUCT, PRODUCT_SHORT, SIGNATURE
+from pulsearb.engine.report import REPORT_HEADERS
 from pulsearb.engine.runner import Engine, run_engine
 
 WEB_DIR = Path(__file__).resolve().parent
@@ -67,6 +68,23 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
         engine.risk.resume()
         await engine.broadcast()
         return {"killed": False}
+
+    @app.get("/api/report")
+    async def report_json() -> dict:
+        return {
+            "headers": REPORT_HEADERS,
+            "count": len(engine.report.rows),
+            "rows": engine.report.as_dicts(),
+        }
+
+    @app.get("/api/report.csv")
+    async def report_csv() -> Response:
+        filename = "CyberSym-SecureTrade-profit-report.csv"
+        return Response(
+            content=engine.report.to_csv_bytes(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     @app.websocket("/ws")
     async def ws_feed(ws: WebSocket) -> None:
