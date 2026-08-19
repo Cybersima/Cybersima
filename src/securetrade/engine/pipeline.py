@@ -14,6 +14,7 @@ from securetrade.engine.regime import RegimeDetector
 from securetrade.engine.scam import ScamDefense
 from securetrade.engine.simulate import simulate_fill
 from securetrade.engine.trust import TrustEngine
+from securetrade.engine.profit_report import position_extras
 from securetrade.engine.why import explain_trade
 from securetrade.journal import DecisionJournal
 from securetrade.models import (
@@ -61,7 +62,13 @@ class TradingPipeline:
         self.approvals: set[str] = set()
         self.commits: list[RecoveryCommitRecord] = []
 
-    def evaluate(self, opportunity: Opportunity, book: MarketBook, now: float | None = None) -> PipelineResult:
+    def evaluate(
+        self,
+        opportunity: Opportunity,
+        book: MarketBook,
+        now: float | None = None,
+        financial: str = "Paper",
+    ) -> PipelineResult:
         now = now or time.time()
         consensus = self.consensus.evaluate(opportunity, book, now=now)
         scam = self.scam.inspect(opportunity)
@@ -159,6 +166,7 @@ class TradingPipeline:
             expected_net_edge_bps=record.commit_edge_bps,
             trust_score=trust.score,
             now=now,
+            **position_extras(opportunity, financial=financial),
         )
         return PipelineResult(opportunity, state.value, record, position, False, False)
 

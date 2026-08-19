@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "dist" / "CyberSym-SecureTrade-2.zip"
+PREFIX = "CyberSym-SecureTrade-2"
 INCLUDE = [
     "README.md",
     "START_HERE.txt",
@@ -20,9 +21,20 @@ INCLUDE = [
     "start.command",
     "Dockerfile",
     "docker-compose.yml",
+    ".env.example",
+    ".gitignore",
     "src",
     "packaging",
 ]
+
+
+def _keep(path: Path) -> bool:
+    return (
+        path.is_file()
+        and "__pycache__" not in path.parts
+        and not any(part.endswith(".egg-info") for part in path.parts)
+        and path.suffix != ".pyc"
+    )
 
 
 def main() -> None:
@@ -30,12 +42,15 @@ def main() -> None:
     with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as zf:
         for item in INCLUDE:
             path = ROOT / item
+            if not path.exists():
+                continue
             if path.is_file():
-                zf.write(path, item)
-            else:
-                for file in path.rglob("*"):
-                    if file.is_file() and "__pycache__" not in file.parts:
-                        zf.write(file, file.relative_to(ROOT).as_posix())
+                zf.write(path, f"{PREFIX}/{item}")
+                continue
+            for file in path.rglob("*"):
+                if _keep(file):
+                    rel = file.relative_to(ROOT).as_posix()
+                    zf.write(file, f"{PREFIX}/{rel}")
     print(OUT)
 
 

@@ -117,6 +117,27 @@
 
     <section class="view" id="view-journal">
       <article class="panel">
+        <header>
+          <h2>Profit report</h2>
+          <div class="exports">
+            <a href="/api/profit-report.xlsx">Export Excel</a>
+            <a href="/api/profit-report.csv">Export CSV</a>
+          </div>
+        </header>
+        <p class="legend" aria-label="Market colors">
+          <span class="profit">Green profit</span>
+          <span class="loss">Red loss</span>
+          <span class="missed">Blue missed opportunity</span>
+          <span class="reversal">Orange reversal</span>
+        </p>
+        <div class="report-wrap">
+          <table class="report" id="profit-report">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+      <article class="panel">
         <header><h2>Immutable decision journal</h2><span id="chain">chain —</span></header>
         <ol id="journal" class="tape"></ol>
       </article>

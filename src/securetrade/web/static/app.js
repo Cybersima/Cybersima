@@ -74,13 +74,35 @@ function humanGates(gates) {
 }
 
 function toneClass(row) {
-  const outcome = (row.outcome || "").toUpperCase();
+  if (row.tone) return row.tone;
+  const outcome = (row.outcome || row["Close Reason"] || "").toUpperCase();
   if (outcome === "REVERSED") return "reversal";
-  if (outcome === "MISSED" || outcome === "EXPIRED") return "missed";
-  if (outcome === "CAPTURED" && Number(row.actual_pnl) < 0) return "loss";
-  if (outcome === "CAPTURED" || Number(row.actual_pnl) > 0) return "profit";
-  if (Number(row.actual_pnl) < 0) return "loss";
+  if (outcome === "MISSED" || outcome === "EXPIRED" || outcome === "CANCELLED" || outcome === "CANCEL" || outcome === "BLOCKED") return "missed";
+  const pnl = Number(row.actual_pnl ?? row["Realized Profit"] ?? 0);
+  if (outcome === "CAPTURED" && pnl < 0) return "loss";
+  if (outcome === "CAPTURED" || pnl > 0) return "profit";
+  if (pnl < 0) return "loss";
   return (row.outcome || "").toLowerCase();
+}
+
+function renderProfitReport(report) {
+  const table = $("profit-report");
+  if (!table) return;
+  const headers = report?.headers || [];
+  const rows = report?.rows || [];
+  table.querySelector("thead").innerHTML = "<tr>" + headers.map((h) => `<th>${h}</th>`).join("") + "</tr>";
+  if (!rows.length) {
+    table.querySelector("tbody").innerHTML = `<tr><td colspan="${Math.max(headers.length, 1)}">No closed trades yet. Captures, reversals, misses, and cancelled commits appear here.</td></tr>`;
+    return;
+  }
+  table.querySelector("tbody").innerHTML = rows.map((row) => {
+    const tone = row.tone || toneClass(row);
+    return "<tr>" + headers.map((header) => {
+      const cls = header === "Market" ? ` class="market ${tone}"` : "";
+      const value = row[header] ?? "";
+      return `<td${cls}>${value}</td>`;
+    }).join("") + "</tr>";
+  }).join("");
 }
 
 function render(snap) {
@@ -138,6 +160,7 @@ function render(snap) {
   $("pending").innerHTML = (snap.pending || []).map((o) => `<li>${o.pair || o.id} <button data-approve="${o.id}">Approve</button></li>`).join("");
   $("journal").innerHTML = (snap.journal || []).map((e) => `<li><b>${e.decision}</b> ${e.action} · ${e.opportunity_id}</li>`).join("");
   $("live-gates").innerHTML = humanGates(snap.live_prerequisites);
+  renderProfitReport(snap.profit_report);
 }
 
 document.querySelectorAll(".tabs button").forEach((btn) => {

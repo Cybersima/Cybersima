@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -23,6 +23,7 @@ from securetrade.branding import (
     TAGLINE,
     VERSION,
 )
+from securetrade.engine.profit_report import HEADERS
 from securetrade.engine.runner import Engine, run_engine
 from securetrade.models import KillSource, OperatingMode
 from securetrade.updates import check_for_updates
@@ -123,6 +124,35 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     @app.get("/api/journal")
     async def journal() -> dict:
         return {"entries": [e.to_dict() for e in engine.journal.entries], "chain_ok": engine.journal.verify_chain()}
+
+    @app.get("/api/profit-report")
+    async def profit_report() -> dict:
+        return {
+            "headers": HEADERS,
+            "legend": {
+                "profit": "green",
+                "loss": "red",
+                "missed": "blue",
+                "reversal": "orange",
+            },
+            "rows": [row.to_dict() for row in engine.profit_rows()],
+        }
+
+    @app.get("/api/profit-report.xlsx")
+    async def profit_report_xlsx() -> Response:
+        return Response(
+            content=engine.profit_report_xlsx(),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="CyberSym-SecureTrade-Profit-Report.xlsx"'},
+        )
+
+    @app.get("/api/profit-report.csv")
+    async def profit_report_csv() -> Response:
+        return Response(
+            content=engine.profit_report_csv(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="CyberSym-SecureTrade-Profit-Report.csv"'},
+        )
 
     @app.get("/api/academy")
     async def academy() -> dict:

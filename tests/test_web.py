@@ -39,6 +39,19 @@ def test_dashboard_and_kill_switch() -> None:
     assert ".tick.reversal" in css.text
     assert "Green profit" in page.text
     assert "Orange reversal" in page.text
+    assert "Export Excel" in page.text
+    assert "Export CSV" in page.text
+    assert "/api/profit-report.xlsx" in page.text
+    report = client.get("/api/profit-report").json()
+    assert report["headers"][0] == "ID"
+    assert "Market" in report["headers"]
+    assert report["headers"][-1] == "Paper Notional"
+    xlsx = client.get("/api/profit-report.xlsx")
+    assert xlsx.status_code == 200
+    assert "spreadsheetml" in xlsx.headers["content-type"]
+    csv_file = client.get("/api/profit-report.csv")
+    assert csv_file.status_code == 200
+    assert csv_file.text.splitlines()[0].startswith("ID,Detected Time,Strategy,Market")
     commit = client.get("/api/recovery-commit").json()
     assert "ATOMIC_READY" in commit["pipeline"]
     academy = client.get("/api/academy").json()

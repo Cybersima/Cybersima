@@ -14,6 +14,14 @@ from securetrade.engine.health import HealthMonitor
 from securetrade.engine.market_colors import latest_tones, pair_key
 from securetrade.engine.paper_lab import PaperLab
 from securetrade.engine.pipeline import TradingPipeline
+from securetrade.engine.profit_report import (
+    HEADERS,
+    ProfitReportRow,
+    row_from_opportunity,
+    row_from_position,
+    rows_to_csv,
+    rows_to_xlsx,
+)
 from securetrade.engine.risk import RiskManager
 from securetrade.engine.starter import get_rung, ladder_public
 from securetrade.engine.takeover import TakeoverGuard
@@ -82,6 +90,7 @@ class Engine:
         self.health = HealthMonitor()
         self.takeover = TakeoverGuard()
         self.alerts: deque[dict] = deque(maxlen=50)
+        self.profit_ledger: deque[ProfitReportRow] = deque(maxlen=500)
         self.pending: dict[str, Opportunity] = {}
         self.auto_trading = config.operating_mode is OperatingMode.AUTO and get_rung(config.starter_rung).allow_auto
         self.triangles_by_venue = {
@@ -191,6 +200,16 @@ class Engine:
             },
             "fills": [f.to_dict() for f in list(self.fills)[:40]],
             "paper_lab": closed,
+            "profit_report": {
+                "headers": HEADERS,
+                "legend": {
+                    "profit": "green",
+                    "loss": "red",
+                    "missed": "blue",
+                    "reversal": "orange",
+                },
+                "rows": [row.to_dict() for row in self.profit_rows()[:80]],
+            },
             "open_paper": [p.to_dict() for p in self.paper_lab.open.values()],
             "recovery_commit": [c.to_dict() for c in self.pipeline.commits[-40:]],
             "journal": [e.to_dict() for e in list(self.journal.entries)[:40]],
@@ -320,11 +339,12 @@ class Engine:
 
     async def ingest(self, opp: Opportunity, *, force_outcome: PaperOutcome | None = None, force_pnl: float | None = None) -> PipelineResultWrapper:
         opp = self._enrich_pair(opp)
-        result = self.pipeline.evaluate(opp, self.book)
+        result = self.pipeline.evaluate(opp, self.book, financial=self._financial())
         self.opportunities.appendleft(result.opportunity)
         self.stats.opportunities += 1
         if result.blocked:
             self.stats.guardian_blocks += 1
+            self._record_opportunity_row(result.opportunity, execution="—", close_reason="BLOCKED")
             self.alerts.appendleft(
                 {
                     "type": "guardian_block",
@@ -349,6 +369,14 @@ class Engine:
                 self.stats.recovery_research_pass += 1
             else:
                 self.stats.recovery_cancel += 1
+                self._record_opportunity_row(
+                    result.opportunity,
+                    execution=result.commit.decision,
+                    close_reason="CANCEL",
+                    expected_profit=result.opportunity.notional * (result.commit.commit_edge_bps / 10_000),
+                    net_edge_bps=result.commit.commit_edge_bps,
+                    edge_lifetime_s=result.commit.confirmation_age_ms / 1000.0,
+                )
         if result.position:
             self.stats.paper_opened += 1
             if self.pipeline.mode is not OperatingMode.LEARN or True:
@@ -383,7 +411,45 @@ class Engine:
         await self.broadcast()
         return PipelineResultWrapper(result, fills)
 
+    def _financial(self) -> str:
+        return "Live" if self.config.live_enabled() else "Paper"
+
+    def _record_opportunity_row(
+        self,
+        opportunity: Opportunity,
+        *,
+        execution: str,
+        close_reason: str,
+        expected_profit: float | None = None,
+        net_edge_bps: float | None = None,
+        edge_lifetime_s: float = 0.0,
+        realized_profit: float = 0.0,
+    ) -> ProfitReportRow:
+        row = row_from_opportunity(
+            opportunity,
+            financial=self._financial(),
+            execution=execution,
+            close_reason=close_reason,
+            realized_profit=realized_profit,
+            expected_profit=expected_profit,
+            edge_lifetime_s=edge_lifetime_s,
+            net_edge_bps=net_edge_bps,
+        )
+        self.profit_ledger.appendleft(row)
+        return row
+
+    def profit_rows(self) -> list[ProfitReportRow]:
+        open_rows = [row_from_position(position) for position in self.paper_lab.open.values()]
+        return open_rows + list(self.profit_ledger)
+
+    def profit_report_csv(self) -> str:
+        return rows_to_csv(self.profit_rows())
+
+    def profit_report_xlsx(self) -> bytes:
+        return rows_to_xlsx(self.profit_rows())
+
     def _apply_closed(self, closed: PaperPosition) -> None:
+        self.profit_ledger.appendleft(row_from_position(closed))
         self.paper.realize(closed.actual_pnl)
         self.stats.today_pnl += closed.actual_pnl
         self.stats.month_pnl += closed.actual_pnl
@@ -430,6 +496,8 @@ class Engine:
             "captured": (PaperOutcome.CAPTURED, 0.31),
             "reversed": (PaperOutcome.REVERSED, -0.20),
             "research": (PaperOutcome.CAPTURED, 0.15),
+            "missed": (PaperOutcome.MISSED, 0.0),
+            "loss": (PaperOutcome.CAPTURED, -0.12),
         }
         outcome, pnl = mapping[kind]
         opp = make_forced_opportunity(self.book, kind)

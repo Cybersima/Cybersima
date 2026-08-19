@@ -1,4 +1,4 @@
-from securetrade.engine.market_colors import latest_tones, outcome_tone, pair_key
+from securetrade.engine.market_colors import fill_ratio_for, latest_tones, outcome_tone, pair_key
 from securetrade.models import PaperPosition
 
 
@@ -13,6 +13,8 @@ def test_outcome_colors() -> None:
     assert outcome_tone("MISSED", 0) == "missed"
     assert outcome_tone("EXPIRED", 0) == "missed"
     assert outcome_tone("REVERSED", -0.20) == "reversal"
+    assert outcome_tone("CANCELLED", 0) == "missed"
+    assert fill_ratio_for("CAPTURED") == 1.0
 
 
 def test_latest_tone_wins() -> None:

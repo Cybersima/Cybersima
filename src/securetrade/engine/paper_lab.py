@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from typing import Any
 
+from securetrade.engine.market_colors import fill_ratio_for
 from securetrade.models import CommitDecision, PaperOutcome, PaperPosition
 
 
@@ -33,10 +35,12 @@ class PaperLab:
         expected_net_edge_bps: float,
         trust_score: int,
         now: float | None = None,
+        **extra: Any,
     ) -> PaperPosition | None:
         if commit_kind == CommitDecision.CANCEL.value:
             return None
         now = now or time.time()
+        extra.setdefault("detected_at", now)
         position = PaperPosition(
             opportunity_id=opportunity_id,
             pair=pair,
@@ -48,6 +52,7 @@ class PaperLab:
             opened_at=now,
             expected_net_edge_bps=expected_net_edge_bps,
             trust_score=trust_score,
+            **extra,
         )
         return self.admit(position)
 
@@ -56,6 +61,7 @@ class PaperLab:
         position.outcome = outcome.value
         position.actual_pnl = actual_pnl
         position.closed_at = time.time()
+        position.fill_ratio = fill_ratio_for(outcome.value)
         if position.notional:
             position.actual_net_edge_bps = actual_pnl / position.notional * 10_000
         if note:

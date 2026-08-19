@@ -305,6 +305,17 @@ class PaperPosition:
     actual_net_edge_bps: float = 0.0
     trust_score: int = 0
     notes: list[str] = field(default_factory=list)
+    detected_at: float = 0.0
+    strategy: str = ""
+    route: str = ""
+    financial: str = "Paper"
+    guardian: str = "ALLOW"
+    buy_venue: str = ""
+    sell_venue: str = ""
+    raw_edge_bps: float = 0.0
+    fee_bps: float = 0.0
+    slippage_bps: float = 0.0
+    fill_ratio: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

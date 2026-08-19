@@ -72,6 +72,21 @@ dl > div { display: flex; justify-content: space-between; border-bottom: 1px sol
 .tick.reversal { border-color: var(--rev); background: #201408; color: var(--rev); }
 .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; margin: 0; }
 .panel header { flex-wrap: wrap; }
+.exports { display: flex; gap: 8px; }
+.exports a {
+  background: #161c25; color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 12px; text-decoration: none; font-size: 13px;
+}
+.exports a:hover { border-color: var(--gold); color: var(--gold); }
+.report-wrap { overflow-x: auto; margin-top: 12px; }
+.report { width: 100%; border-collapse: collapse; font-size: 11px; }
+.report th, .report td { border: 1px solid var(--line); padding: 6px 8px; white-space: nowrap; text-align: left; }
+.report th { color: var(--muted); letter-spacing: 0.04em; font-weight: 600; }
+.report td.market { font-weight: 700; }
+.report td.market.profit { background: #1a3d2c; color: var(--up); }
+.report td.market.loss { background: #3d1a1a; color: var(--down); }
+.report td.market.missed { background: #152033; color: var(--miss); }
+.report td.market.reversal { background: #3d2a14; color: var(--rev); }
 .lessons article { border-top: 1px solid var(--line); padding: 10px 0; }
 .gates { white-space: pre-wrap; color: var(--muted); }
 .modal { position: fixed; inset: 0; background: #0008; display: grid; place-items: center; }
