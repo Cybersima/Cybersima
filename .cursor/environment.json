@@ -1,0 +1,22 @@
+{
+  "name": "Cybersima Threat API",
+  "install": "sudo apt-get update && sudo apt-get install -y python3.12-venv && python3 -m venv .venv && .venv/bin/pip install --upgrade pip && .venv/bin/pip install -r requirements.txt && .venv/bin/python -c \"from app import app, db; ctx = app.app_context(); ctx.push(); db.create_all(); ctx.pop()\"",
+  "terminals": [
+    {
+      "name": "web",
+      "command": ".venv/bin/python app.py",
+      "description": "Flask API server on http://127.0.0.1:5000 (GET /api/threats)."
+    },
+    {
+      "name": "generator",
+      "command": ".venv/bin/python -u threat_generator.py",
+      "description": "Background worker that inserts a random threat every 10 seconds."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 5000
+    }
+  ]
+}
