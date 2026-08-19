@@ -15,11 +15,14 @@ On Windows, tick "Add python.exe to PATH" during install.
 
 First launch installs packages (a few minutes). After that it starts quickly.
 
-This first run is DEMO / PAPER TRADING. No Binance keys. No real orders.
+This first run is DEMO / PAPER TRADING. No exchange keys. No real orders.
 Leave the black window open while you use the dashboard. Close it to stop.
 
-Live market data (still paper trading):
+Live market data from Coinbase, Kraken, Gemini, Bitstamp, and Yahoo
+(still paper trading):
    Windows:  start-live.bat
    Mac/Linux: ./start.sh --live
+
+Binance is off by default (not available in the US).
 
 This is a scanner, not a profit guarantee. Yahoo data is delayed.

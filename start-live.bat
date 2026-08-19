@@ -15,7 +15,7 @@ if not exist .venv (
   .venv\Scripts\pip.exe install -e .
 )
 
-echo Starting PulseArb with live Binance + Yahoo data (paper trading).
+echo Starting PulseArb with live Coinbase, Kraken, Gemini, Bitstamp, and Yahoo data (paper trading).
 echo Dashboard: http://127.0.0.1:8080
 start "" http://127.0.0.1:8080
 .venv\Scripts\python.exe -m pulsearb --host 127.0.0.1 --port 8080

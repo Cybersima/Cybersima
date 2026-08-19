@@ -22,7 +22,7 @@ fi
 MODE="--demo"
 if [[ "${1:-}" == "--live" ]]; then
   MODE=""
-  echo "Starting PulseArb with live Binance + Yahoo data (paper trading)."
+  echo "Starting PulseArb with live Coinbase / Kraken / Gemini / Bitstamp / Yahoo data (paper trading)."
 else
   echo "Starting PulseArb demo on http://127.0.0.1:8080"
 fi

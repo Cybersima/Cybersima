@@ -1,4 +1,9 @@
-from pulsearb.engine.arbitrage import detect_cross_venue, detect_triangles, discover_triangles
+from pulsearb.engine.arbitrage import (
+    detect_auto_cross,
+    detect_cross_venue,
+    detect_triangles,
+    discover_triangles,
+)
 from pulsearb.engine.book import MarketBook
 from pulsearb.models import OpportunityKind
 from tests.helpers import make_quote, seeded_book
@@ -70,3 +75,38 @@ def test_no_cross_when_inside_fees() -> None:
         notional=250,
     )
     assert opps == []
+
+
+def test_coinbase_vs_kraken_is_executable() -> None:
+    book = MarketBook()
+    book.update(make_quote("coinbase", "BTC-USD", 97000, 97010, executable=True))
+    book.update(make_quote("kraken", "XBTUSD", 98100, 98120, executable=True))
+    opps = detect_auto_cross(
+        book,
+        {"USD", "USDT", "USDC"},
+        min_edge_bps=5,
+        fee_bps_by_venue={"coinbase": 50, "kraken": 26},
+        extra_slippage_bps=2,
+        notional=250,
+    )
+    assert opps
+    assert any(o.executable and o.kind is OpportunityKind.CROSS_VENUE for o in opps)
+
+
+def test_coinbase_triangle_on_usd_book() -> None:
+    book = MarketBook()
+    book.update(make_quote("coinbase", "BTC-USD", 100000, 100010))
+    book.update(make_quote("coinbase", "ETH-USD", 2000, 2001))
+    book.update(make_quote("coinbase", "ETH-BTC", 0.0190, 0.0191))
+    triangles = discover_triangles(["BTC-USD", "ETH-USD", "ETH-BTC"])
+    opps = detect_triangles(
+        book,
+        triangles,
+        min_edge_bps=20,
+        taker_bps=10,
+        extra_slippage_bps=0,
+        notional=250,
+        venue="coinbase",
+    )
+    assert opps
+    assert max(opps, key=lambda o: o.net_edge_bps).net_edge_bps > 20

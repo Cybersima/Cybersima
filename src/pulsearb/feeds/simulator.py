@@ -7,61 +7,76 @@ import time
 from pulsearb.engine.book import MarketBook
 from pulsearb.feeds.base import Feed
 from pulsearb.models import Quote
-from pulsearb.symbols import canonical_from_binance, split_binance_symbol
+from pulsearb.symbols import canonical_from_pair, to_native_symbol
 
 
-SEED_PRICES: dict[str, float] = {
-    "BTCUSDT": 97500.0,
-    "ETHUSDT": 3520.0,
-    "BNBUSDT": 605.0,
-    "SOLUSDT": 178.0,
-    "XRPUSDT": 2.42,
-    "ADAUSDT": 0.78,
-    "DOGEUSDT": 0.32,
-    "AVAXUSDT": 38.5,
-    "DOTUSDT": 7.4,
-    "LINKUSDT": 18.2,
-    "ATOMUSDT": 6.1,
-    "LTCUSDT": 92.0,
-    "NEARUSDT": 5.4,
-    "APTUSDT": 9.8,
-    "ARBUSDT": 0.82,
-    "OPUSDT": 1.72,
-    "SUIUSDT": 3.35,
-    "TONUSDT": 5.55,
-    "TRXUSDT": 0.24,
-    "FILUSDT": 5.1,
-    "INJUSDT": 22.4,
-    "AAVEUSDT": 310.0,
-    "UNIUSDT": 9.4,
-    "LDOUSDT": 1.55,
-    "RENDERUSDT": 7.2,
-    "WIFUSDT": 1.85,
-    "PEPEUSDT": 0.000011,
-    "SHIBUSDT": 0.000018,
-    "BCHUSDT": 430.0,
-    "ETCUSDT": 26.5,
-    "XLMUSDT": 0.39,
-    "ALGOUSDT": 0.31,
-    "HBARUSDT": 0.27,
-    "SANDUSDT": 0.44,
-    "GRTUSDT": 0.21,
-    "STXUSDT": 1.72,
-    "IMXUSDT": 1.18,
-    "RUNEUSDT": 5.4,
-    "POLUSDT": 0.48,
-    "WLDUSDT": 2.15,
-    "SEIUSDT": 0.41,
-    "TIAUSDT": 6.4,
-    "JUPUSDT": 0.82,
-    "PENDLEUSDT": 4.1,
-    "ENAUSDT": 0.62,
-    "ONDOUSDT": 1.12,
-    "EURUSDT": 1.085,
-    "USDCUSDT": 1.0001,
-    "FDUSDUSDT": 0.9998,
-    "ETHEUR": 3240.0,
-    "BTCEUR": 89800.0,
+SEED: dict[str, float] = {
+    "BTC-USD": 97500.0,
+    "ETH-USD": 3520.0,
+    "SOL-USD": 178.0,
+    "XRP-USD": 2.42,
+    "ADA-USD": 0.78,
+    "DOGE-USD": 0.32,
+    "AVAX-USD": 38.5,
+    "DOT-USD": 7.4,
+    "LINK-USD": 18.2,
+    "ATOM-USD": 6.1,
+    "LTC-USD": 92.0,
+    "NEAR-USD": 5.4,
+    "APT-USD": 9.8,
+    "ARB-USD": 0.82,
+    "OP-USD": 1.72,
+    "SUI-USD": 3.35,
+    "FIL-USD": 5.1,
+    "INJ-USD": 22.4,
+    "AAVE-USD": 310.0,
+    "UNI-USD": 9.4,
+    "LDO-USD": 1.55,
+    "BCH-USD": 430.0,
+    "ETC-USD": 26.5,
+    "XLM-USD": 0.39,
+    "ALGO-USD": 0.31,
+    "HBAR-USD": 0.27,
+    "SHIB-USD": 0.000018,
+    "PEPE-USD": 0.000011,
+    "POL-USD": 0.48,
+    "WIF-USD": 1.85,
+    "RENDER-USD": 7.2,
+    "SEI-USD": 0.41,
+    "TIA-USD": 6.4,
+    "ONDO-USD": 1.12,
+    "ETH-BTC": 3520.0 / 97500.0,
+    "LTC-BTC": 92.0 / 97500.0,
+    "BTC-EUR": 89800.0,
+    "ETH-EUR": 3240.0,
+    "EUR-USD": 1.085,
+    "GBP-USD": 1.275,
+    "USD-JPY": 149.2,
+    "AUD-USD": 0.662,
+    "USD-CAD": 1.385,
+    "USD-CHF": 0.868,
+    "NZD-USD": 0.598,
+    "EUR-GBP": 0.851,
+    "EUR-JPY": 161.9,
+    "GBP-JPY": 190.2,
+    "EUR-CHF": 0.942,
+    "AUD-JPY": 98.8,
+    "USD-CNH": 7.24,
+    "USD-SEK": 10.55,
+    "USD-NOK": 10.72,
+    "USD-MXN": 18.45,
+    "XAU-USD": 2685.0,
+    "XAG-USD": 31.4,
+    "WTI-USD": 78.2,
+}
+
+VENUE_BIAS = {
+    "coinbase": 1.0,
+    "kraken": 1.00015,
+    "gemini": 0.99985,
+    "bitstamp": 1.00025,
+    "binance": 0.9997,
+    "yahoo": 1.0004,
 }
 
 
@@ -70,65 +85,17 @@ class SimulatorFeed(Feed):
 
     def __init__(
         self,
-        binance_symbols: list[str],
-        yahoo_symbols: list[dict[str, str]],
+        instruments: list[tuple[str, str, bool]],
         inject_gaps: bool = True,
         gap_every_seconds: float = 18.0,
     ) -> None:
-        self.binance_symbols = [s.upper() for s in binance_symbols]
-        self.yahoo_symbols = yahoo_symbols
+        # (venue, canonical, executable)
+        self.instruments = instruments
         self.inject_gaps = inject_gaps
         self.gap_every_seconds = gap_every_seconds
         self._mids: dict[str, float] = {}
-        self._bootstrap()
-
-    def _bootstrap(self) -> None:
-        for symbol in self.binance_symbols:
-            if symbol in SEED_PRICES:
-                self._mids[symbol] = SEED_PRICES[symbol]
-                continue
-            try:
-                base, quote = split_binance_symbol(symbol)
-            except ValueError:
-                self._mids[symbol] = 1.0
-                continue
-            base_usdt = SEED_PRICES.get(f"{base}USDT")
-            quote_usdt = SEED_PRICES.get(f"{quote}USDT")
-            if base_usdt and quote_usdt:
-                self._mids[symbol] = base_usdt / quote_usdt
-            elif base_usdt and quote == "EUR":
-                self._mids[symbol] = base_usdt / SEED_PRICES["EURUSDT"]
-            else:
-                self._mids[symbol] = 1.0
-        fx = {
-            "EUR-USD": 1.085,
-            "GBP-USD": 1.275,
-            "USD-JPY": 149.2,
-            "AUD-USD": 0.662,
-            "USD-CAD": 1.385,
-            "USD-CHF": 0.868,
-            "NZD-USD": 0.598,
-            "EUR-GBP": 0.851,
-            "EUR-JPY": 161.9,
-            "GBP-JPY": 190.2,
-            "EUR-CHF": 0.942,
-            "AUD-JPY": 98.8,
-            "USD-CNH": 7.24,
-            "USD-SEK": 10.55,
-            "USD-NOK": 10.72,
-            "USD-MXN": 18.45,
-            "BTC-USD": SEED_PRICES["BTCUSDT"] * 1.0004,
-            "ETH-USD": SEED_PRICES["ETHUSDT"] * 1.0003,
-            "SOL-USD": SEED_PRICES["SOLUSDT"] * 0.9997,
-            "XRP-USD": SEED_PRICES["XRPUSDT"] * 1.0002,
-            "BNB-USD": SEED_PRICES["BNBUSDT"] * 1.0001,
-            "XAU-USD": 2685.0,
-            "XAG-USD": 31.4,
-            "WTI-USD": 78.2,
-        }
-        for row in self.yahoo_symbols:
-            canonical = row["canonical"]
-            self._mids[canonical] = fx.get(canonical, 1.0)
+        for _venue, canon, _ok in instruments:
+            self._mids[canon] = SEED.get(canon, 1.0)
 
     async def run(self, book: MarketBook, status: dict[str, str]) -> None:
         status[self.name] = "live"
@@ -144,40 +111,28 @@ class SimulatorFeed(Feed):
 
     def _tick(self, book: MarketBook, inject: bool) -> None:
         now = time.time()
-        gap_symbol = random.choice(self.binance_symbols) if inject else None
-        for symbol in self.binance_symbols:
-            mid = self._walk(symbol)
-            if symbol == gap_symbol:
-                mid *= 0.994 if random.random() < 0.5 else 1.006
-            spread = mid * 0.00012
+        shock_canon = random.choice([c for _v, c, _e in self.instruments]) if inject else None
+        shock_venue = random.choice(["coinbase", "kraken", "gemini", "bitstamp"]) if inject else None
+        for venue, canon, executable in self.instruments:
+            mid = self._walk(canon) * VENUE_BIAS.get(venue, 1.0)
+            if inject and canon == shock_canon and venue == shock_venue:
+                mid *= 0.988 if random.random() < 0.5 else 1.012
+            spread = mid * (0.0002 if venue == "yahoo" else 0.00012)
+            native = canon if venue == "yahoo" else to_native_symbol(venue, canon)
+            try:
+                canonical_from_pair(canon)
+            except ValueError:
+                continue
             book.update(
                 Quote(
-                    venue="simulator",
-                    native_symbol=symbol,
-                    canonical=canonical_from_binance(symbol),
+                    venue=venue if venue != "simulator" else "coinbase",
+                    native_symbol=native,
+                    canonical=canon,
                     bid=mid - spread / 2,
                     ask=mid + spread / 2,
                     ts=now,
-                    asset_class="crypto",
-                    executable=True,
-                )
-            )
-        for row in self.yahoo_symbols:
-            canonical = row["canonical"]
-            mid = self._walk(canonical)
-            if inject and canonical.endswith("-USD") and random.random() < 0.4:
-                mid *= 1.004
-            spread = mid * 0.0002
-            book.update(
-                Quote(
-                    venue="yahoo",
-                    native_symbol=canonical,
-                    canonical=canonical,
-                    bid=mid - spread / 2,
-                    ask=mid + spread / 2,
-                    ts=now,
-                    asset_class=row.get("asset_class", "fx"),
-                    executable=False,
+                    asset_class="fx" if venue == "yahoo" and not canon.split("-")[0] in {"BTC", "ETH", "SOL", "XRP"} else "crypto",
+                    executable=executable,
                 )
             )
 

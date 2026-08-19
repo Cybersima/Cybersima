@@ -11,6 +11,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 PACKAGE_DIR = Path(__file__).resolve().parent
 DEFAULT_MARKETS = PACKAGE_DIR / "config" / "markets.yaml"
 DEFAULT_SETTINGS = PACKAGE_DIR / "config" / "settings.yaml"
+SPOT_VENUES = ("coinbase", "kraken", "gemini", "bitstamp", "binance")
+LIVE_FEEDS = SPOT_VENUES + ("yahoo",)
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -31,6 +33,7 @@ class EnvSettings(BaseSettings):
     binance_api_key: str = Field(default="", alias="BINANCE_API_KEY")
     binance_api_secret: str = Field(default="", alias="BINANCE_API_SECRET")
     binance_testnet: bool = Field(default=False, alias="BINANCE_TESTNET")
+    enable_binance: bool = Field(default=False, alias="PULSEARB_ENABLE_BINANCE")
     demo_only: bool = Field(default=False, alias="PULSEARB_DEMO_ONLY")
 
 
@@ -54,9 +57,11 @@ class AppConfig:
             self.settings["port"] = int(self.env.port)
         if self.env.execution_mode:
             self.settings.setdefault("execution", {})["mode"] = self.env.execution_mode.lower()
+        if self.env.enable_binance:
+            self.markets.setdefault("binance", {})["enabled"] = True
         if self.env.demo_only:
-            self.markets.setdefault("binance", {})["enabled"] = False
-            self.markets.setdefault("yahoo", {})["enabled"] = False
+            for venue in LIVE_FEEDS:
+                self.markets.setdefault(venue, {})["enabled"] = False
             self.settings.setdefault("simulator", {})["enabled"] = True
 
     @property
@@ -79,16 +84,23 @@ class AppConfig:
     def live_confirm_phrase(self) -> str:
         return str(self.settings.get("execution", {}).get("live_confirm_phrase", "I_UNDERSTAND_THE_RISK"))
 
+    def venue_enabled(self, venue: str) -> bool:
+        return bool((self.markets.get(venue) or {}).get("enabled"))
+
     def live_enabled(self) -> bool:
         return (
             self.execution_mode == "live"
             and self.env.live_confirm == self.live_confirm_phrase
             and bool(self.env.binance_api_key and self.env.binance_api_secret)
+            and self.venue_enabled("binance")
         )
+
+    def symbols(self, venue: str) -> list[str]:
+        return [str(item) for item in (self.markets.get(venue) or {}).get("symbols") or []]
 
     @property
     def binance_symbols(self) -> list[str]:
-        return list(self.markets.get("binance", {}).get("symbols") or [])
+        return self.symbols("binance")
 
     @property
     def yahoo_symbols(self) -> list[dict[str, str]]:
@@ -107,3 +119,10 @@ class AppConfig:
     def risk(self) -> dict[str, float]:
         raw = self.settings.get("risk") or {}
         return {str(k): float(v) for k, v in raw.items()}
+
+    def fee_map(self) -> dict[str, float]:
+        fees = self.fees
+        mapping = {}
+        for venue in (*SPOT_VENUES, "simulator", "yahoo"):
+            mapping[venue] = float(fees.get(f"{venue}_taker_bps", fees.get("binance_taker_bps", 10)))
+        return mapping

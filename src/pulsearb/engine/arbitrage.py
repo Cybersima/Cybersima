@@ -5,9 +5,11 @@ import itertools
 import time
 from collections import defaultdict
 
+import itertools
+
 from pulsearb.engine.book import MarketBook
 from pulsearb.models import Leg, Opportunity, OpportunityKind, Quote
-from pulsearb.symbols import split_binance_symbol
+from pulsearb.symbols import comparison_key, split_pair
 
 
 def _oid(*parts: str) -> str:
@@ -48,6 +50,44 @@ def detect_cross_venue(
                 now,
             )
         )
+    return found
+
+
+def detect_auto_cross(
+    book: MarketBook,
+    usd_equivalents: set[str],
+    min_edge_bps: float,
+    fee_bps_by_venue: dict[str, float],
+    extra_slippage_bps: float,
+    notional: float,
+    stale_seconds: float = 8.0,
+) -> list[Opportunity]:
+    groups: dict[str, list[Quote]] = {}
+    now = time.time()
+    for quote in book.snapshot():
+        if now - quote.ts > stale_seconds:
+            continue
+        key = comparison_key(quote.canonical, usd_equivalents)
+        groups.setdefault(key, []).append(quote)
+    found: list[Opportunity] = []
+    for key, quotes in groups.items():
+        unique_venues: dict[str, Quote] = {}
+        for quote in quotes:
+            unique_venues.setdefault(quote.venue, quote)
+        venue_quotes = list(unique_venues.values())
+        for left, right in itertools.combinations(venue_quotes, 2):
+            found.extend(
+                _cross_from_quotes(
+                    left,
+                    right,
+                    key,
+                    min_edge_bps,
+                    fee_bps_by_venue,
+                    extra_slippage_bps,
+                    notional,
+                    now,
+                )
+            )
     return found
 
 
@@ -103,7 +143,7 @@ def discover_triangles(symbols: list[str]) -> list[tuple[str, str, str]]:
     graph: dict[str, set[str]] = defaultdict(set)
     for symbol in symbols:
         try:
-            base, quote = split_binance_symbol(symbol)
+            base, quote = split_pair(symbol)
         except ValueError:
             continue
         graph[base].add(quote)
@@ -123,6 +163,7 @@ def detect_triangles(
     taker_bps: float,
     extra_slippage_bps: float,
     notional: float,
+    venue: str | None = None,
 ) -> list[Opportunity]:
     found: list[Opportunity] = []
     now = time.time()
@@ -135,8 +176,8 @@ def detect_triangles(
             ok = True
             prices: list[tuple[str, str, float]] = []
             for src, dst in legs_assets:
-                converted = book.convert(src, dst, amount)
-                quote = _quote_for_leg(book, src, dst)
+                converted = book.convert(src, dst, amount, venue=venue)
+                quote = _quote_for_leg(book, src, dst, venue=venue)
                 if converted is None or quote is None:
                     ok = False
                     break
@@ -148,24 +189,27 @@ def detect_triangles(
             net = raw_bps - fee
             if net < min_edge_bps:
                 continue
-            executable = True
             summary = (
-                f"{start} → {x} → {y} → {start}  "
+                f"{start} → {x} → {y} → {start} on {quote.venue}  "
                 f"{amount:.6f} per 1 {start}  net {net:.1f} bps"
             )
             legs = []
             cursor = 1.0
             for src, dst, _ratio in prices:
-                quote = _quote_for_leg(book, src, dst)
+                quote = _quote_for_leg(book, src, dst, venue=venue)
                 assert quote is not None
-                if quote.native_symbol.startswith(src):
+                try:
+                    base, _q = split_pair(quote.canonical)
+                except ValueError:
+                    base = src
+                if base == src:
                     action = "sell"
                     price = quote.bid
                 else:
                     action = "buy"
                     price = quote.ask
                 legs.append(Leg(action, quote.venue, quote.native_symbol, price, quote.executable))
-                nxt = book.convert(src, dst, cursor)
+                nxt = book.convert(src, dst, cursor, venue=venue)
                 cursor = nxt if nxt is not None else cursor
             found.append(
                 Opportunity(
@@ -175,16 +219,16 @@ def detect_triangles(
                     notional=notional,
                     legs=legs,
                     summary=summary,
-                    executable=executable,
+                    executable=all(leg.executable for leg in legs),
                     ts=now,
-                    id=_oid("tri", start, x, y, f"{net:.2f}"),
+                    id=_oid("tri", venue or "any", start, x, y, f"{net:.2f}"),
                 )
             )
     return found
 
 
-def _quote_for_leg(book: MarketBook, src: str, dst: str) -> Quote | None:
-    quote = book.binance_pair(src, dst)
+def _quote_for_leg(book: MarketBook, src: str, dst: str, venue: str | None = None) -> Quote | None:
+    quote = book.find_pair(src, dst, venue=venue)
     if quote:
         return quote
-    return book.binance_pair(dst, src)
+    return book.find_pair(dst, src, venue=venue)

@@ -1,8 +1,128 @@
-# 60+ markets scanned in parallel.
-# Binance symbols are executable (spot). Yahoo symbols are data-only.
+# Default venue set is US-accessible: Coinbase, Kraken, Gemini, Bitstamp, Yahoo.
+# Binance stays in this file but is OFF — it is not available to US residents.
+
+coinbase:
+  enabled: true
+  rest_url: https://api.exchange.coinbase.com
+  ws_url: wss://ws-feed.exchange.coinbase.com
+  poll_seconds: 1.0
+  symbols:
+    - BTC-USD
+    - ETH-USD
+    - SOL-USD
+    - XRP-USD
+    - ADA-USD
+    - DOGE-USD
+    - AVAX-USD
+    - DOT-USD
+    - LINK-USD
+    - ATOM-USD
+    - LTC-USD
+    - NEAR-USD
+    - APT-USD
+    - ARB-USD
+    - OP-USD
+    - SUI-USD
+    - FIL-USD
+    - INJ-USD
+    - AAVE-USD
+    - UNI-USD
+    - LDO-USD
+    - BCH-USD
+    - ETC-USD
+    - XLM-USD
+    - ALGO-USD
+    - HBAR-USD
+    - SHIB-USD
+    - PEPE-USD
+    - POL-USD
+    - WIF-USD
+    - RENDER-USD
+    - SEI-USD
+    - TIA-USD
+    - ONDO-USD
+    - ETH-BTC
+    - LTC-BTC
+    - BTC-EUR
+    - ETH-EUR
+
+kraken:
+  enabled: true
+  rest_url: https://api.kraken.com
+  poll_seconds: 1.0
+  symbols:
+    - BTC-USD
+    - ETH-USD
+    - SOL-USD
+    - XRP-USD
+    - ADA-USD
+    - DOGE-USD
+    - AVAX-USD
+    - DOT-USD
+    - LINK-USD
+    - ATOM-USD
+    - LTC-USD
+    - NEAR-USD
+    - APT-USD
+    - ARB-USD
+    - SUI-USD
+    - FIL-USD
+    - AAVE-USD
+    - UNI-USD
+    - BCH-USD
+    - XLM-USD
+    - ALGO-USD
+    - SHIB-USD
+    - PEPE-USD
+    - ETH-BTC
+    - LTC-BTC
+    - BTC-EUR
+    - ETH-EUR
+    - EUR-USD
+
+gemini:
+  enabled: true
+  rest_url: https://api.gemini.com
+  poll_seconds: 1.0
+  symbols:
+    - BTC-USD
+    - ETH-USD
+    - SOL-USD
+    - XRP-USD
+    - DOGE-USD
+    - AVAX-USD
+    - LINK-USD
+    - LTC-USD
+    - AAVE-USD
+    - UNI-USD
+    - FIL-USD
+    - BCH-USD
+    - PEPE-USD
+    - ETH-BTC
+    - BTC-EUR
+    - ETH-EUR
+
+bitstamp:
+  enabled: true
+  rest_url: https://www.bitstamp.net
+  poll_seconds: 1.0
+  symbols:
+    - BTC-USD
+    - ETH-USD
+    - SOL-USD
+    - XRP-USD
+    - ADA-USD
+    - DOGE-USD
+    - LINK-USD
+    - LTC-USD
+    - XLM-USD
+    - ETH-BTC
+    - BTC-EUR
+    - ETH-EUR
+    - EUR-USD
 
 binance:
-  enabled: true
+  enabled: false
   rest_url: https://api.binance.com
   ws_url: wss://stream.binance.com:9443
   testnet_rest_url: https://testnet.binance.vision
@@ -132,9 +252,6 @@ yahoo:
     - ticker: XRP-USD
       canonical: XRP-USD
       asset_class: crypto
-    - ticker: BNB-USD
-      canonical: BNB-USD
-      asset_class: crypto
     - ticker: GC=F
       canonical: XAU-USD
       asset_class: metal
@@ -145,30 +262,12 @@ yahoo:
       canonical: WTI-USD
       asset_class: energy
 
-# Treat these quote assets as USD-comparable for cross-venue checks.
 usd_equivalents:
   - USD
   - USDT
   - USDC
   - FDUSD
 
-# Explicit Yahoo (data) vs Binance (executable) comparisons.
-cross_venue:
-  - id: btc-usd
-    left: {venue: binance, symbol: BTCUSDT}
-    right: {venue: yahoo, symbol: BTC-USD}
-  - id: eth-usd
-    left: {venue: binance, symbol: ETHUSDT}
-    right: {venue: yahoo, symbol: ETH-USD}
-  - id: sol-usd
-    left: {venue: binance, symbol: SOLUSDT}
-    right: {venue: yahoo, symbol: SOL-USD}
-  - id: xrp-usd
-    left: {venue: binance, symbol: XRPUSDT}
-    right: {venue: yahoo, symbol: XRP-USD}
-  - id: bnb-usd
-    left: {venue: binance, symbol: BNBUSDT}
-    right: {venue: yahoo, symbol: BNB-USD}
-  - id: eur-usd
-    left: {venue: binance, symbol: EURUSDT}
-    right: {venue: yahoo, symbol: EUR-USD}
+# Explicit pairs are optional. The engine also auto-matches the same asset
+# across Coinbase / Kraken / Gemini / Bitstamp / Yahoo / Binance.
+cross_venue: []

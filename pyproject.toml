@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pulsearb"
 version = "0.1.0"
-description = "Multi-market crypto/FX dislocation scanner with paper trading and an iPad-ready dashboard."
+description = "Multi-market crypto/FX dislocation scanner for Coinbase, Kraken, Gemini, Bitstamp, and Yahoo, with an iPad-ready dashboard."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}

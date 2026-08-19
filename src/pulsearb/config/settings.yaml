@@ -1,23 +1,26 @@
 host: 0.0.0.0
 port: 8080
 
-# How often the engine re-evaluates the full book.
 scan_interval_ms: 250
 
-# Binance REST snapshot watchdog (WebSocket is primary).
+coinbase_poll_seconds: 1.0
+kraken_poll_seconds: 1.0
+gemini_poll_seconds: 1.0
+bitstamp_poll_seconds: 1.0
 binance_rest_poll_seconds: 1.0
-
-# Yahoo Finance is delayed / rate-limited. Do not hammer it at 1 Hz per ticker.
 yahoo_poll_seconds: 2.0
 
 fees:
+  coinbase_taker_bps: 50.0
+  kraken_taker_bps: 26.0
+  gemini_taker_bps: 40.0
+  bitstamp_taker_bps: 40.0
   binance_taker_bps: 10.0
+  simulator_taker_bps: 26.0
   yahoo_taker_bps: 0.0
   extra_slippage_bps: 2.0
 
-# Minimum net edge after fees before an opportunity is surfaced.
 min_edge_bps: 8.0
-# Executable Binance triangles need a higher bar (3 taker fees).
 min_executable_edge_bps: 25.0
 
 risk:
@@ -29,11 +32,9 @@ risk:
 
 execution:
   mode: paper
-  # Only used when mode=live AND PULSEARB_LIVE_CONFIRM is set.
   live_confirm_phrase: I_UNDERSTAND_THE_RISK
 
 simulator:
-  # Offline / first-run demo. Live mode uses Binance + Yahoo instead.
   enabled: false
   inject_gaps: true
   gap_every_seconds: 18

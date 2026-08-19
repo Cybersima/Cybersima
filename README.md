@@ -1,6 +1,8 @@
 # PulseArb
 
-Retail-friendly **crypto + FX dislocation scanner**. It watches 50+ markets at once, flags cross-venue and triangular gaps, and can paper-trade executable Binance legs. Live orders stay off until you opt in.
+Retail-friendly **crypto + FX dislocation scanner**. It watches 50+ markets at once across **Coinbase, Kraken, Gemini, Bitstamp, and Yahoo Finance**, flags cross-venue and triangular gaps, and paper-trades executable legs by default. Live orders stay off until you opt in.
+
+Binance is **disabled by default** because it is not available to US residents. You can turn it on with `--binance` if you are in a supported region.
 
 This is a scanner with hard risk limits. Public APIs are not an HFT pipe. Yahoo Finance is delayed. You will not outrun professional market makers, and nothing here is a profit guarantee or financial advice.
 
@@ -22,12 +24,14 @@ To rebuild a zip locally: `bash scripts/make-zip.sh`
 
 ## What it does
 
-- **Binance** public REST + WebSocket `bookTicker` for 50+ spot pairs (no API key for market data)
+- **Coinbase Exchange** public REST + WebSocket tickers (no API key for market data)
+- **Kraken, Gemini, and Bitstamp** public REST tickers
 - **Yahoo Finance** for FX, metals, and overlapping crypto indices (data only — not executable)
-- **Triangular arb** on Binance-style books (e.g. BTC / ETH / USDT)
-- **Cross-venue alerts** when Binance and Yahoo disagree on the same asset
+- **Cross-venue gaps** between those US exchanges (executable in paper mode) and vs Yahoo (alerts only)
+- **Triangular arb** inside a single venue (e.g. BTC / ETH / USD on Coinbase or Kraken)
 - **Paper broker** by default, with a kill switch, notional cap, cooldown, and daily loss limit
 - **iPad / tablet dashboard** at `http://<this-machine>:8080` (PWA-capable, large blotter, Add to Home Screen)
+- **Binance** remains optional (`python -m pulsearb --binance`) for non-US users
 
 ## Quick start
 
@@ -52,23 +56,26 @@ On an iPad on the same Wi-Fi, open `http://<your-lan-ip>:8080` and use Share →
 
 | File | Role |
 | --- | --- |
-| `src/pulsearb/config/markets.yaml` | Symbols (Binance + Yahoo) and cross-venue pairs |
+| `src/pulsearb/config/markets.yaml` | Symbols per venue (Coinbase, Kraken, Gemini, Bitstamp, Yahoo; Binance optional) |
 | `src/pulsearb/config/settings.yaml` | Scan rate, fees, edge thresholds, risk caps |
-| `.env.example` | Bind address, execution mode, Binance keys |
+| `.env.example` | Bind address, execution mode, optional Binance keys |
 
 Copy `.env.example` to `.env` if you need to change host/port or enable live orders.
 
-Yahoo is polled about every 2s on purpose. Hammering it at 1 Hz per ticker gets you blocked. Binance can update near once per second (REST watchdog) and faster over WebSocket.
+Yahoo is polled about every 2s on purpose. US exchange tickers refresh about once per second. Coinbase also has a WebSocket.
 
 ## Live execution (opt-in)
 
-Live Binance orders require **all** of:
+Paper trading is the default. Yahoo legs are never sent as orders.
 
-1. `PULSEARB_EXECUTION_MODE=live`
-2. `BINANCE_API_KEY` / `BINANCE_API_SECRET`
-3. `PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK`
+Optional Binance live orders (non-US) require **all** of:
 
-Yahoo legs are never sent as orders. Alerts stay alerts. Start on **testnet** (`BINANCE_TESTNET=1`) if you experiment at all. You can lose money.
+1. `PULSEARB_ENABLE_BINANCE=1` or `--binance`
+2. `PULSEARB_EXECUTION_MODE=live`
+3. `BINANCE_API_KEY` / `BINANCE_API_SECRET`
+4. `PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK`
+
+You can lose money. Coinbase/Kraken/Gemini/Bitstamp live order routing is not wired up yet — those venues are for market data and paper fills.
 
 ## Package for a laptop
 
@@ -92,7 +99,7 @@ pytest
 
 ## Honest limits
 
-- Retail Python + Yahoo + Binance public data is **seconds**, not microseconds.
+- Retail Python + public exchange APIs is **seconds**, not microseconds.
 - Many “gaps” vs Yahoo are stale data, not free money.
 - Fees, slippage, and withdraw/deposit time usually eat cross-venue crypto/FX differences.
 - 24/7 means **you** keep the process running (systemd, Docker, or a small VPS).

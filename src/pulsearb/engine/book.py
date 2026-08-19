@@ -4,7 +4,7 @@ import time
 from threading import RLock
 
 from pulsearb.models import Quote
-from pulsearb.symbols import split_binance_symbol
+from pulsearb.symbols import normalize_asset, split_pair
 
 
 class MarketBook:
@@ -22,7 +22,10 @@ class MarketBook:
 
     def get(self, venue: str, symbol: str) -> Quote | None:
         with self._lock:
-            return self._quotes.get((venue, symbol))
+            found = self._quotes.get((venue, symbol))
+            if found:
+                return found
+            return self._quotes.get((venue, symbol.upper())) or self._quotes.get((venue, symbol.lower()))
 
     def snapshot(self) -> list[Quote]:
         with self._lock:
@@ -33,13 +36,23 @@ class MarketBook:
         with self._lock:
             return [q for q in self._quotes.values() if q.canonical.upper() == target]
 
+    def find_pair(self, base: str, quote: str, venue: str | None = None) -> Quote | None:
+        base_n = normalize_asset(base)
+        quote_n = normalize_asset(quote)
+        with self._lock:
+            for item in self._quotes.values():
+                if venue and item.venue != venue:
+                    continue
+                try:
+                    left, right = split_pair(item.canonical)
+                except ValueError:
+                    continue
+                if left == base_n and right == quote_n:
+                    return item
+        return None
+
     def binance_pair(self, base: str, quote: str) -> Quote | None:
-        native = f"{base}{quote}".upper()
-        found = self.get("binance", native)
-        if found:
-            return found
-        # Simulator uses the same native symbols.
-        return self.get("simulator", native)
+        return self.find_pair(base, quote) or self.find_pair(base, quote, venue="simulator")
 
     def live_count(self, max_age: float) -> int:
         now = time.time()
@@ -50,31 +63,23 @@ class MarketBook:
         with self._lock:
             return len(self._quotes)
 
-    def convert(self, src: str, dst: str, amount: float) -> float | None:
-        """Walk bid/ask from src asset to dst using Binance/simulator pairs."""
-        src, dst = src.upper(), dst.upper()
+    def convert(self, src: str, dst: str, amount: float, venue: str | None = None) -> float | None:
+        src, dst = normalize_asset(src), normalize_asset(dst)
         if src == dst:
             return amount
-        direct = self._leg(src, dst, amount)
-        if direct is not None:
-            return direct
-        return None
+        return self._leg(src, dst, amount, venue)
 
-    def _leg(self, src: str, dst: str, amount: float) -> float | None:
-        quote = self.binance_pair(src, dst)
+    def _leg(self, src: str, dst: str, amount: float, venue: str | None) -> float | None:
+        quote = self.find_pair(src, dst, venue=venue)
         if quote:
-            # Selling SRC (base) for DST (quote) hits the bid.
             return amount * quote.bid
-        quote = self.binance_pair(dst, src)
-        if quote:
-            # Buying DST (base) with SRC (quote) hits the ask.
-            if quote.ask <= 0:
-                return None
+        quote = self.find_pair(dst, src, venue=venue)
+        if quote and quote.ask > 0:
             return amount / quote.ask
         return None
 
     def pair_assets(self, native_symbol: str) -> tuple[str, str] | None:
         try:
-            return split_binance_symbol(native_symbol)
+            return split_pair(native_symbol)
         except ValueError:
             return None
