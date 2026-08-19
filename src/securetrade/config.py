@@ -32,6 +32,7 @@ class EnvSettings(BaseSettings):
     port: int | None = Field(default=None, alias="SECURETRADE_PORT")
     execution_mode: str | None = Field(default=None, alias="SECURETRADE_EXECUTION_MODE")
     operating_mode: str | None = Field(default=None, alias="SECURETRADE_OPERATING_MODE")
+    starter_rung: str | None = Field(default=None, alias="SECURETRADE_STARTER_RUNG")
     live_confirm: str = Field(default="", alias="SECURETRADE_LIVE_CONFIRM")
     edition: str | None = Field(default=None, alias="SECURETRADE_EDITION")
     engine_url: str = Field(default="", alias="SECURETRADE_ENGINE_URL")
@@ -63,6 +64,9 @@ class AppConfig:
         self._apply_env_overrides()
 
     def _apply_env_overrides(self) -> None:
+        if self.env.starter_rung:
+            self.settings["starter_rung"] = self.env.starter_rung.lower()
+        self.apply_rung(str(self.settings.get("starter_rung", "learn_100")))
         host = self.env.host or self.env.pulse_host
         port = self.env.port or self.env.pulse_port
         execution = self.env.execution_mode or self.env.pulse_execution_mode
@@ -189,5 +193,33 @@ class AppConfig:
         return mapping
 
     @property
+    def starter_rung(self) -> str:
+        return str(self.settings.get("starter_rung", "learn_100")).lower()
+
+    def apply_rung(self, rung_id: str) -> None:
+        from securetrade.engine.starter import get_rung
+
+        rung = get_rung(rung_id)
+        self.settings["starter_rung"] = rung.id
+        self.settings["operating_mode"] = rung.default_mode.value
+        risk = self.settings.setdefault("risk", {})
+        capital = self.settings.setdefault("capital", {})
+        paper = self.settings.setdefault("paper", {})
+        risk["max_notional_usdt"] = rung.max_ticket
+        risk["daily_loss_limit_usdt"] = rung.daily_loss
+        risk["max_drawdown_pct"] = rung.max_drawdown_pct
+        capital["max_trade_size"] = rung.max_ticket
+        capital["max_position_exposure"] = rung.max_ticket
+        capital["max_daily_loss"] = rung.daily_loss
+        capital["max_drawdown_pct"] = rung.max_drawdown_pct
+        paper["starting_equity"] = rung.equity
+        if not rung.allow_live:
+            self.settings.setdefault("execution", {})["mode"] = "paper"
+
+    @property
+    def ticket_size(self) -> float:
+        return float(self.risk.get("max_notional_usdt", 100))
+
+    @property
     def starting_equity(self) -> float:
-        return float(self.settings.get("paper", {}).get("starting_equity", 25000))
+        return float(self.settings.get("paper", {}).get("starting_equity", 100))

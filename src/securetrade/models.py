@@ -162,6 +162,7 @@ class Opportunity:
             "estimated_slippage_bps": round(self.estimated_slippage_bps, 2),
             "max_anticipated_loss": round(self.max_anticipated_loss, 4),
             "liquidity_usd": round(self.liquidity_usd, 2),
+            "expected_profit_usd": round(self.notional * ((self.expected_net_edge_bps or self.net_edge_bps) / 10_000), 4),
             "why": list(self.why),
             "why_blocked": list(self.why_blocked),
             "guardian_allowed": self.guardian_allowed,

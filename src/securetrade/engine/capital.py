@@ -25,15 +25,20 @@ class CapitalProtection:
         self.min_net_edge_bps = float(settings.get("min_net_edge_bps", 8))
         self.open_exposure = 0.0
         self.daily_pnl = 0.0
+        self.account_value = float(settings.get("account_value", settings.get("max_position_exposure", 100)))
 
     def record(self, pnl: float, exposure_delta: float = 0.0) -> None:
         self.daily_pnl += pnl
         self.open_exposure = max(0.0, self.open_exposure + exposure_delta)
+        self.account_value = max(0.0, self.account_value + pnl)
 
     def allow(self, opportunity: Opportunity, *, confidence: float = 1.0) -> CapitalDecision:
         _ = confidence  # confidence never overrides customer limits
         if opportunity.notional > self.max_trade_size:
             return CapitalDecision(False, "trade size exceeds capital policy")
+        if opportunity.notional > 0 and hasattr(self, "account_value") and self.account_value > 0:
+            if opportunity.notional > self.account_value + 1e-9:
+                return CapitalDecision(False, "trade size exceeds account value")
         if self.open_exposure + opportunity.notional > self.max_position_exposure:
             return CapitalDecision(False, "position exposure exceeds capital policy")
         if self.daily_pnl <= -abs(self.max_daily_loss):

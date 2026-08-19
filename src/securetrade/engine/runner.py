@@ -14,7 +14,9 @@ from securetrade.engine.health import HealthMonitor
 from securetrade.engine.paper_lab import PaperLab
 from securetrade.engine.pipeline import TradingPipeline
 from securetrade.engine.risk import RiskManager
+from securetrade.engine.starter import get_rung, ladder_public
 from securetrade.engine.takeover import TakeoverGuard
+from securetrade.engine.why import customer_details
 from securetrade.feeds.binance import BinanceFeed
 from securetrade.feeds.bitstamp import BitstampFeed
 from securetrade.feeds.coinbase import CoinbaseFeed
@@ -67,7 +69,7 @@ class Engine:
                 paper_fallback=self.paper,
             )
         self.journal = DecisionJournal()
-        self.capital = CapitalProtection(config.capital)
+        self.capital = CapitalProtection({**config.capital, "account_value": equity})
         self.paper_lab = PaperLab(timeout_seconds=float(config.settings.get("paper", {}).get("capture_timeout_seconds", 12)))
         self.pipeline = TradingPipeline(
             guardian=Guardian(config.guardian),
@@ -80,7 +82,7 @@ class Engine:
         self.takeover = TakeoverGuard()
         self.alerts: deque[dict] = deque(maxlen=50)
         self.pending: dict[str, Opportunity] = {}
-        self.auto_trading = config.operating_mode is OperatingMode.AUTO
+        self.auto_trading = config.operating_mode is OperatingMode.AUTO and get_rung(config.starter_rung).allow_auto
         self.triangles_by_venue = {
             venue: discover_triangles(config.symbols(venue))
             for venue in SPOT_VENUES
@@ -89,10 +91,42 @@ class Engine:
         self._lock = asyncio.Lock()
         self.takeover.observe("command-center", "127.0.0.1", "local")
 
-    def set_mode(self, mode: OperatingMode) -> None:
+    def set_mode(self, mode: OperatingMode) -> dict:
+        rung = get_rung(self.config.starter_rung)
+        if mode is OperatingMode.AUTO and not rung.allow_auto:
+            self.pipeline.mode = OperatingMode.ASSIST if rung.allow_live else OperatingMode.LEARN
+            self.config.settings["operating_mode"] = self.pipeline.mode.value
+            self.auto_trading = False
+            return {
+                "ok": False,
+                "mode": self.pipeline.mode.value,
+                "reason": "Auto stays off on the Starter ladder. Use Assist after paper, or keep Learn.",
+            }
         self.pipeline.mode = mode
         self.config.settings["operating_mode"] = mode.value
         self.auto_trading = mode is OperatingMode.AUTO
+        return {"ok": True, "mode": mode.value}
+
+    def apply_starter(self, rung_id: str) -> dict:
+        self.config.apply_rung(rung_id)
+        rung = get_rung(rung_id)
+        equity = rung.equity
+        self.stats.account_value = equity
+        self.stats.peak_equity = equity
+        self.risk.max_notional_usdt = rung.max_ticket
+        self.risk.daily_loss_limit_usdt = rung.daily_loss
+        self.risk.max_drawdown_pct = rung.max_drawdown_pct
+        self.risk.peak_equity = equity
+        self.risk.realized_pnl = 0.0
+        self.capital.max_trade_size = rung.max_ticket
+        self.capital.max_position_exposure = rung.max_ticket
+        self.capital.max_daily_loss = rung.daily_loss
+        self.capital.max_drawdown_pct = rung.max_drawdown_pct
+        self.capital.account_value = equity
+        self.capital.daily_pnl = 0.0
+        self.set_mode(rung.default_mode)
+        self.auto_trading = False
+        return {"ok": True, "rung": rung.id, "equity": equity, "max_ticket": rung.max_ticket}
 
     def subscribe(self) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue(maxsize=8)
@@ -128,7 +162,7 @@ class Engine:
                 "edition": self.config.edition,
                 "system": "PROTECTED" if not self.takeover.suspended else "SUSPENDED",
                 "trading": "ACTIVE" if not self.risk.killed else "STOPPED",
-                "daily_loss_limit": float(self.config.risk.get("daily_loss_limit_usdt", 150)),
+                "daily_loss_limit": float(self.config.risk.get("daily_loss_limit_usdt", 5)),
                 "today_pnl": round(self.stats.today_pnl, 2),
                 "month_pnl": round(self.stats.month_pnl, 2),
                 "account_value": round(self.stats.account_value, 2),
@@ -137,10 +171,19 @@ class Engine:
                 "recovery_commit_pass": self.stats.recovery_commit_pass,
                 "recovery_research_pass": self.stats.recovery_research_pass,
                 "paper_opened": self.stats.paper_opened,
+                "starter_rung": self.config.starter_rung,
+                "max_ticket": float(self.config.ticket_size),
             },
             "quotes": [q.to_dict() for q in quotes],
             "opportunities": [o.to_dict() for o in list(ranked)[:40]],
             "best": best.to_dict() if best else None,
+            "best_details": customer_details(best) if best else None,
+            "starter": {
+                "rung": self.config.starter_rung,
+                "ladder": ladder_public(),
+                "allow_auto": get_rung(self.config.starter_rung).allow_auto,
+                "allow_live": get_rung(self.config.starter_rung).allow_live,
+            },
             "fills": [f.to_dict() for f in list(self.fills)[:40]],
             "paper_lab": closed,
             "open_paper": [p.to_dict() for p in self.paper_lab.open.values()],
@@ -379,9 +422,9 @@ class Engine:
                 opened_at=time.time(),
             )
         mapping = {
-            "captured": (PaperOutcome.CAPTURED, 12.5),
-            "reversed": (PaperOutcome.REVERSED, -8.4),
-            "research": (PaperOutcome.CAPTURED, 4.1),
+            "captured": (PaperOutcome.CAPTURED, 0.31),
+            "reversed": (PaperOutcome.REVERSED, -0.20),
+            "research": (PaperOutcome.CAPTURED, 0.15),
         }
         outcome, pnl = mapping[kind]
         opp = make_forced_opportunity(self.book, kind)
@@ -399,7 +442,7 @@ class Engine:
         extra = float(self.config.fees.get("extra_slippage_bps", 2))
         min_alert = float(self.config.settings.get("min_edge_bps", 8))
         min_exec = float(self.config.settings.get("min_executable_edge_bps", 25))
-        notional = float(self.config.risk.get("max_notional_usdt", 250))
+        notional = min(float(self.config.ticket_size), max(0.0, self.stats.account_value))
         stale = float(self.config.risk.get("stale_quote_seconds", 8))
         while True:
             started = time.perf_counter()

@@ -7,7 +7,7 @@ from securetrade.security.credentials import CredentialVault
 
 def test_academy_covers_core_topics() -> None:
     ids = {item["id"] for item in LESSONS}
-    for needed in ("arbitrage", "slippage", "phishing", "why-rejected", "learn-assist-auto"):
+    for needed in ("arbitrage", "slippage", "phishing", "why-rejected", "learn-assist-auto", "starter-ladder"):
         assert needed in ids
     assert lesson("limit-orders") is not None
     explained = explain_rejection(["Unusual liquidity behavior"])

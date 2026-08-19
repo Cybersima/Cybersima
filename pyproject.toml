@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cybersym-securetrade"
-version = "2.0.0"
+version = "2.0.1"
 description = "CyberSym SecureTrade 2 — security-first trading intelligence with Guardian, Paper Lab, and a 24/7 engine."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -1,11 +1,76 @@
 const $ = (id) => document.getElementById(id);
 const money = (n) => (n < 0 ? "-" : "") + "$" + Math.abs(Number(n || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+let lastDetails = null;
+let lastStarter = null;
+
 function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
   ws.onmessage = (ev) => render(JSON.parse(ev.data));
   ws.onclose = () => setTimeout(connect, 1200);
+}
+
+function renderDetails(details) {
+  if (!details) {
+    $("modal-title").textContent = "No opportunity yet";
+    $("modal-body").innerHTML = "<p>When SecureTrade finds a candidate, this card explains it in plain language — expected dollars, fees, security, and why Guardian allowed or blocked it. You will never need to read source code here.</p>";
+    return;
+  }
+  $("modal-kicker").textContent = details.headline || "Why this trade?";
+  $("modal-title").textContent = details.title || "Opportunity";
+  const why = (details.why || []).map((line) => `<li>${line}</li>`).join("");
+  const blocked = (details.why_blocked || []).map((line) => `<li class="loss">${line}</li>`).join("");
+  const legs = (details.legs || []).map((line) => `<li>${line}</li>`).join("");
+  $("modal-body").innerHTML = `
+    <dl>
+      <div><dt>Ticket</dt><dd>${money(details.ticket_usd)}</dd></div>
+      <div><dt>Expected net edge</dt><dd>${Number(details.expected_net_edge_pct || 0).toFixed(2)}%</dd></div>
+      <div><dt>Expected profit</dt><dd>${money(details.expected_profit_usd)}</dd></div>
+      <div><dt>Fees (est.)</dt><dd>${Number(details.fees_pct || 0).toFixed(2)}%</dd></div>
+      <div><dt>Slippage (est.)</dt><dd>${Number(details.slippage_pct || 0).toFixed(2)}%</dd></div>
+      <div><dt>Max anticipated loss</dt><dd>${money(details.max_anticipated_loss_usd)}</dd></div>
+      <div><dt>Trust / security</dt><dd>${details.trust_score || 0}/100 · ${details.security_score || 0}/100</dd></div>
+      <div><dt>Execution confidence</dt><dd>${Number(details.execution_confidence_pct || 0).toFixed(0)}%</dd></div>
+      <div><dt>Guardian</dt><dd>${details.guardian || "—"}</dd></div>
+    </dl>
+    <p class="why-label">What the system would do</p>
+    <ul>${legs}</ul>
+    <p class="why-label">Why?</p>
+    <ul class="why">${why}</ul>
+    ${blocked ? `<p class="why-label">Blocked because</p><ul>${blocked}</ul>` : ""}
+    <p class="honest">${details.honest_note || ""}</p>
+  `;
+}
+
+function renderLadder(starter) {
+  lastStarter = starter;
+  const current = starter?.rung;
+  $("ladder").innerHTML = (starter?.ladder || []).map((rung) => `
+    <button type="button" data-rung="${rung.id}" class="${rung.id === current ? "on" : ""}">
+      <b>${rung.title}</b>
+      <span>${rung.summary}</span>
+    </button>
+  `).join("");
+  const active = (starter?.ladder || []).find((r) => r.id === current);
+  if (active) $("starter-state").textContent = active.title;
+}
+
+function humanGates(gates) {
+  const labels = {
+    paper_is_default: "Paper trading is the default",
+    exchange_connectivity: "Exchange connectivity",
+    security_configuration: "Security configuration",
+    risk_limits: "Risk limits set",
+    safety_checks: "Withdrawal-disabled keys / safety checks",
+    live_confirm: "Live confirmation phrase",
+    api_keys: "API keys stored",
+    binance_enabled: "Binance enabled (optional, non-US)",
+  };
+  return Object.entries(gates || {}).map(([key, ok]) => {
+    const mark = ok ? "✓" : "○";
+    return `<li>${mark} ${labels[key] || key}</li>`;
+  }).join("");
 }
 
 function render(snap) {
@@ -25,18 +90,21 @@ function render(snap) {
   $("dd").textContent = Number(s.max_drawdown || 0).toFixed(1) + "%";
   $("auto-state").textContent = s.auto_trading ? "ON" : "OFF";
   $("mode-state").textContent = (s.operating_mode || "learn").toUpperCase();
-  $("dll").textContent = money(s.daily_loss_limit || 150);
+  $("dll").textContent = money(s.daily_loss_limit || 5);
   $("kill").textContent = s.killed ? "Resume" : "Emergency Stop";
 
+  if (snap.starter) renderLadder(snap.starter);
+
   const best = snap.best;
+  lastDetails = snap.best_details || null;
   if (best) {
     $("best-pair").textContent = best.pair || "—";
-    $("best-edge").textContent = Number(best.expected_net_edge_bps || best.net_edge_bps || 0).toFixed(2) / 100 + "%".replace("0.", "0.");
     $("best-edge").textContent = (Number(best.expected_net_edge_bps || best.net_edge_bps || 0) / 100).toFixed(2) + "%";
+    $("best-usd").textContent = money(best.expected_profit_usd);
+    $("best-ticket").textContent = money(best.notional);
     $("best-sec").textContent = (best.security_score || best.trust_score || 0) + "/100";
     $("best-conf").textContent = Math.round((best.execution_confidence || 0) * 100) + "%";
     $("best-why").innerHTML = (best.why || []).map((line) => `<li>${line}</li>`).join("");
-    $("best-details").dataset.payload = JSON.stringify(best, null, 2);
   }
 
   const filter = ($("filter").value || "").toLowerCase();
@@ -54,7 +122,7 @@ function render(snap) {
   $("blocks").innerHTML = (snap.alerts || []).map((a) => `<li class="loss"><b>${a.title || a.type}</b><div>${(a.reasons || []).join(" · ")}</div></li>`).join("");
   $("pending").innerHTML = (snap.pending || []).map((o) => `<li>${o.pair || o.id} <button data-approve="${o.id}">Approve</button></li>`).join("");
   $("journal").innerHTML = (snap.journal || []).map((e) => `<li><b>${e.decision}</b> ${e.action} · ${e.opportunity_id}</li>`).join("");
-  $("live-gates").textContent = JSON.stringify(snap.live_prerequisites || {}, null, 2);
+  $("live-gates").innerHTML = humanGates(snap.live_prerequisites);
 }
 
 document.querySelectorAll(".tabs button").forEach((btn) => {
@@ -79,15 +147,18 @@ $("kill").onclick = async () => {
 
 $("best-details").onclick = () => {
   $("modal").classList.remove("hidden");
-  $("modal-body").textContent = $("best-details").dataset.payload || "";
+  renderDetails(lastDetails);
 };
 $("close-modal").onclick = () => $("modal").classList.add("hidden");
-
-$("filter").addEventListener("input", () => {});
+$("modal").addEventListener("click", (ev) => {
+  if (ev.target.id === "modal") $("modal").classList.add("hidden");
+});
 
 document.addEventListener("click", async (ev) => {
   const id = ev.target.dataset?.approve;
   if (id) await fetch("/api/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ opportunity_id: id }) });
+  const rung = ev.target.closest("[data-rung]")?.dataset?.rung;
+  if (rung) await fetch("/api/starter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rung }) });
 });
 
 $("finish-wizard").onclick = async () => {
@@ -104,5 +175,6 @@ fetch("/api/wizard").then((r) => r.json()).then((data) => {
 fetch("/api/journal").then((r) => r.json()).then((data) => {
   $("chain").textContent = data.chain_ok ? "chain verified" : "chain broken";
 });
+fetch("/api/starter").then((r) => r.json()).then(renderLadder);
 
 connect();

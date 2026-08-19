@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from starlette.requests import Request
 
 from securetrade.academy import LESSONS, explain_rejection
+from securetrade.engine.why import customer_details
 from securetrade.branding import (
     COMPANY,
     COPYRIGHT,
@@ -33,6 +34,10 @@ WEB_DIR = Path(__file__).resolve().parent
 
 class ModeBody(BaseModel):
     mode: str
+
+
+class StarterBody(BaseModel):
+    rung: str
 
 
 class ApproveBody(BaseModel):
@@ -151,9 +156,27 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     @app.post("/api/mode")
     async def set_mode(body: ModeBody) -> dict:
         mode = OperatingMode(body.mode.lower())
-        engine.set_mode(mode)
+        result = engine.set_mode(mode)
         await engine.broadcast()
-        return {"mode": engine.pipeline.mode.value}
+        return result
+
+    @app.get("/api/starter")
+    async def starter_state() -> dict:
+        snap = engine.snapshot()
+        return snap["starter"]
+
+    @app.post("/api/starter")
+    async def set_starter(body: StarterBody) -> dict:
+        result = engine.apply_starter(body.rung)
+        await engine.broadcast()
+        return result
+
+    @app.get("/api/why/{opportunity_id}")
+    async def why_trade(opportunity_id: str) -> dict:
+        for opp in engine.opportunities:
+            if opp.id == opportunity_id:
+                return customer_details(opp)
+        return {"title": "Opportunity", "honest_note": "No opportunity selected.", "why": []}
 
     @app.post("/api/approve")
     async def approve(body: ApproveBody) -> dict:

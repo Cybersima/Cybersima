@@ -30,6 +30,7 @@ def test_why_this_trade_lists_controls() -> None:
     assert "fees calculated" in joined
     assert "within your risk limits" in joined
     assert "92/100" in joined
+    assert "expected about $" in joined
 
 
 def test_abnormal_regime_on_spectacular_edge() -> None:

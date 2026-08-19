@@ -52,6 +52,11 @@ LESSONS: list[dict[str, str]] = [
         "body": "Learn Mode uses simulated money and explanations. Assist Mode finds opportunities but waits for your approval. Auto Mode executes only inside the limits you set. One product, three levels of control.",
     },
     {
+        "id": "starter-ladder",
+        "title": "Starting with $10 or $100",
+        "body": "Everyone can start in Learn with simulated $10 or $100. A 0.31% capture on $100 is about 31 cents — SecureTrade shows dollars, not just percents. Paper $100 is the practice floor. Micro live $100 is optional after paper, with Auto off and a $5 daily loss cap. Live $10 is not offered because exchange fees would dominate such a small ticket. This is access to the opportunity to learn safely, not a promise of profit.",
+    },
+    {
         "id": "trust-score",
         "title": "CyberSym Trust Score",
         "body": "Every idea gets a 0–100 score: venue reliability, asset reputation, liquidity, book quality, volatility, data consistency, abnormal behavior, security indicators, and execution risk. 92/100 — Low Risk is more useful than a bare BUY.",

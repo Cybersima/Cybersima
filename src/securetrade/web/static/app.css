@@ -69,7 +69,15 @@ dl > div { display: flex; justify-content: space-between; border-bottom: 1px sol
 .gates { white-space: pre-wrap; color: var(--muted); }
 .modal { position: fixed; inset: 0; background: #0008; display: grid; place-items: center; }
 .modal.hidden { display: none; }
-.modal-card { background: var(--panel); border: 1px solid var(--gold); border-radius: 16px; padding: 20px; width: min(640px, 92vw); }
+.modal-card { background: var(--panel); border: 1px solid var(--gold); border-radius: 16px; padding: 20px; width: min(640px, 92vw); max-height: 88vh; overflow: auto; }
+.close { float: right; background: none; border: 0; color: var(--text); font-size: 22px; cursor: pointer; }
+.details-body dl { margin: 12px 0; }
+.details-body .honest { color: var(--gold); font-size: 13px; line-height: 1.45; }
+.ladder { display: grid; gap: 8px; margin: 12px 0 18px; }
+.ladder button { text-align: left; background: #0c1118; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 12px; cursor: pointer; }
+.ladder button.on { border-color: var(--gold); }
+.ladder button b { display: block; }
+.ladder button span { color: var(--muted); font-size: 12px; }
 .close { float: right; background: none; border: 0; color: var(--text); font-size: 22px; cursor: pointer; }
 .sig { padding: 12px 18px 24px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
 input[type=search] { background: #0c1118; border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 8px 10px; }

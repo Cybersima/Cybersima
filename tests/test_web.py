@@ -12,7 +12,15 @@ def test_dashboard_and_kill_switch() -> None:
     assert page.status_code == 200
     assert "CyberSym SecureTrade" in page.text
     assert "A CyberSym product" in page.text
-    assert "Guardian" in page.text
+    assert "Why this trade?" in page.text
+    assert "Expected profit" in page.text
+    starter = client.get("/api/starter").json()
+    assert starter["rung"] == "learn_100"
+    assert {row["id"] for row in starter["ladder"]} == {"learn_10", "learn_100", "paper_100", "live_100"}
+    switched = client.post("/api/starter", json={"rung": "learn_10"}).json()
+    assert switched["equity"] == 10
+    blocked_auto = client.post("/api/mode", json={"mode": "auto"}).json()
+    assert blocked_auto["ok"] is False
     health = client.get("/api/health").json()
     assert health["ok"] is True
     assert health["killed"] is False

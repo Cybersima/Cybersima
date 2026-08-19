@@ -52,7 +52,7 @@ def make_forced_opportunity(book: MarketBook, kind: str) -> Opportunity:
             kind=OpportunityKind.CROSS_VENUE,
             edge_bps=32.0,
             net_edge_bps=28.0,
-            notional=250,
+            notional=100,
             legs=[
                 Leg("buy", "coinbase", "BTC-USD", 97010, True, 8),
                 Leg("sell", "kraken", "XBTUSD", 97320, True, 6),
@@ -74,7 +74,7 @@ def make_forced_opportunity(book: MarketBook, kind: str) -> Opportunity:
         kind=OpportunityKind.CROSS_VENUE,
         edge_bps=32.0,
         net_edge_bps=28.0,
-        notional=250,
+        notional=100,
         legs=[
             Leg("buy", "coinbase", "BTC-USD", cheap.ask, True, cheap.ask_size),
             Leg("sell", "kraken", "XBTUSD", rich.bid, True, rich.bid_size),

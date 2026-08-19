@@ -18,6 +18,9 @@ def test_default_markets_cover_fifty_plus_us_venues() -> None:
     assert config.venue_enabled("bitstamp")
     assert not config.venue_enabled("binance")
     assert config.execution_mode == "paper"
+    assert config.starting_equity == 100
+    assert config.ticket_size == 100
+    assert config.starter_rung == "learn_100"
 
 
 def test_triangles_discovered_from_coinbase_universe() -> None:

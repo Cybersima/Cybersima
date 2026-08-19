@@ -47,7 +47,19 @@ Final Commit is an advisory/measurement gate. `CANCEL` never enters Paper Lab.
 |---|---|
 | **Learn** | Simulated money and explanations (default) |
 | **Assist** | Finds opportunities; you approve |
-| **Auto** | Executes only inside customer-defined limits |
+| **Auto** | Executes only inside customer-defined limits. Off on the Starter ladder. |
+
+## Starter ladder (everyone can start)
+
+| Rung | What it is |
+|---|---|
+| **Learn · $10** | Simulated $10. See expected cents. Not live. |
+| **Learn · $100** | Recommended first step. Simulated $100. A 0.31% capture is about $0.31. |
+| **Paper · $100** | Same $100 ticket through Paper Lab. Still simulated. |
+| **Micro live · $100** | First live floor after paper. $100 max ticket, $5 daily loss, Auto off. |
+
+Live $10 is not offered: exchange fees would dominate. **View Details** shows expected profit in dollars, fees, slippage, and why Guardian allowed or blocked the trade — not source code.
+
 
 ## Install
 

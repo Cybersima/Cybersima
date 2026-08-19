@@ -4,6 +4,7 @@ port: 8000
 scan_interval_ms: 250
 operating_mode: learn
 edition: professional
+starter_rung: learn_100
 
 coinbase_poll_seconds: 1.0
 kraken_poll_seconds: 1.0
@@ -26,18 +27,18 @@ min_edge_bps: 8.0
 min_executable_edge_bps: 25.0
 
 risk:
-  max_notional_usdt: 250
+  max_notional_usdt: 100
   max_open_orders: 4
-  daily_loss_limit_usdt: 150
+  daily_loss_limit_usdt: 5
   cooldown_seconds: 8
   stale_quote_seconds: 8
-  max_drawdown_pct: 5.0
+  max_drawdown_pct: 10.0
 
 capital:
-  max_trade_size: 250
-  max_position_exposure: 1000
-  max_daily_loss: 150
-  max_drawdown_pct: 5.0
+  max_trade_size: 100
+  max_position_exposure: 100
+  max_daily_loss: 5
+  max_drawdown_pct: 10.0
   allowed_assets:
     - BTC
     - ETH
@@ -66,7 +67,7 @@ guardian:
   block_abnormal_regime: true
 
 paper:
-  starting_equity: 25430.18
+  starting_equity: 100.00
   capture_timeout_seconds: 12
   miss_edge_floor_bps: 2.0
 

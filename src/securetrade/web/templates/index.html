@@ -60,6 +60,8 @@
           <header><h2>BEST OPPORTUNITY</h2><span id="best-pair">—</span></header>
           <dl>
             <div><dt>Expected Net Edge</dt><dd id="best-edge">—</dd></div>
+            <div><dt>Expected profit</dt><dd id="best-usd">—</dd></div>
+            <div><dt>Ticket size</dt><dd id="best-ticket">—</dd></div>
             <div><dt>Security Score</dt><dd id="best-sec">—</dd></div>
             <div><dt>Execution Confidence</dt><dd id="best-conf">—</dd></div>
           </dl>
@@ -68,6 +70,7 @@
           <button id="best-details" type="button">View details</button>
         </article>
         <aside class="panel controls">
+          <div class="row"><span>STARTER PATH</span><strong id="starter-state">Learn · $100</strong></div>
           <div class="row"><span>AUTO TRADING</span><strong id="auto-state">OFF</strong></div>
           <div class="row"><span>MODE</span><strong id="mode-state">LEARN</strong></div>
           <div class="row"><span>DAILY LOSS LIMIT</span><strong id="dll">$150</strong></div>
@@ -76,7 +79,7 @@
             <button data-mode="assist">Assist</button>
             <button data-mode="auto">Auto</button>
           </div>
-          <p class="hint">Learn uses simulated money. Assist waits for approval. Auto stays inside your limits.</p>
+          <p class="hint">Learn uses simulated money — start at $10 or $100. Paper $100 is the practice floor. Micro live $100 is optional after paper. Auto stays off on Starter.</p>
           <ol id="outcomes" class="tape"></ol>
         </aside>
       </div>
@@ -123,18 +126,21 @@
     <section class="view" id="view-setup">
       <article class="panel">
         <header><h2>Setup Wizard</h2></header>
+        <p class="lede">Everyone can start. Learn with $10 or $100 of simulated money. Live $10 is not offered because fees would eat the account.</p>
+        <div id="ladder" class="ladder"></div>
         <ol id="wizard" class="lessons"></ol>
         <button id="finish-wizard" type="button">Finish first-run setup</button>
         <p class="hint">Paper is the default. Live trading stays locked until connectivity, security, risk limits, and safety checks pass.</p>
-        <pre id="live-gates" class="gates"></pre>
+        <ul id="live-gates" class="why"></ul>
       </article>
     </section>
 
-    <div id="modal" class="modal hidden" role="dialog">
+    <div id="modal" class="modal hidden" role="dialog" aria-labelledby="modal-title">
       <div class="modal-card">
-        <button class="close" id="close-modal" type="button">×</button>
-        <h3 id="modal-title">Why this trade?</h3>
-        <pre id="modal-body"></pre>
+        <button class="close" id="close-modal" type="button" aria-label="Close">×</button>
+        <p class="kicker" id="modal-kicker">Why this trade?</p>
+        <h3 id="modal-title">Best opportunity</h3>
+        <div id="modal-body" class="details-body"></div>
       </div>
     </div>
   </div>
