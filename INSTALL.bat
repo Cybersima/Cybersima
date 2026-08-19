@@ -44,6 +44,6 @@ if errorlevel 1 (
 
 echo.
 echo Installed. Double-click start.bat to run the demo dashboard.
-echo Browser: http://127.0.0.1:8080
+echo If 8080 is already in use, SecureTrade will pick the next free port.
 echo.
 pause

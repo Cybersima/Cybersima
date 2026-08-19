@@ -3,6 +3,10 @@ setlocal
 cd /d "%~dp0"
 title CyberSym SecureTrade
 
+rem Avoid the Windows "Could not find platform independent libraries <prefix>" warning.
+set PYTHONHOME=
+set PYTHONPATH=
+
 set "PY=python"
 py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
 if not errorlevel 1 set "PY=py -3"
@@ -31,9 +35,9 @@ if not exist .venv (
 )
 
 echo.
-echo Starting CyberSym SecureTrade demo on http://127.0.0.1:8080
+echo Starting CyberSym SecureTrade...
+echo If port 8080 is already in use, the app will pick the next free port.
 echo Leave this window open. Close it to stop the scanner.
 echo.
-start "" http://127.0.0.1:8080
-.venv\Scripts\python.exe -m pulsearb --demo --host 127.0.0.1 --port 8080
+.venv\Scripts\python.exe -E -m pulsearb --demo --host 127.0.0.1 --port 8080 --open-browser
 pause

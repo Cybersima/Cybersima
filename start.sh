@@ -2,6 +2,9 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+unset PYTHONHOME || true
+unset PYTHONPATH || true
+
 PY=""
 if command -v python3 >/dev/null 2>&1; then
   PY=python3
@@ -24,16 +27,10 @@ if [[ "${1:-}" == "--live" ]]; then
   MODE=""
   echo "Starting CyberSym SecureTrade with live Coinbase / Kraken / Gemini / Bitstamp / Yahoo data (paper trading)."
 else
-  echo "Starting CyberSym SecureTrade demo on http://127.0.0.1:8080"
+  echo "Starting CyberSym SecureTrade..."
 fi
 
-URL="http://127.0.0.1:8080"
-if command -v open >/dev/null 2>&1; then
-  (sleep 2 && open "$URL") &
-elif command -v xdg-open >/dev/null 2>&1; then
-  (sleep 2 && xdg-open "$URL") &
-fi
-
+echo "If port 8080 is already in use, the app will pick the next free port."
 echo "Leave this window open. Close it or press Ctrl+C to stop."
 # shellcheck disable=SC2086
-exec .venv/bin/python -m pulsearb $MODE --host 127.0.0.1 --port 8080
+exec .venv/bin/python -E -m pulsearb $MODE --host 127.0.0.1 --port 8080 --open-browser

@@ -18,7 +18,9 @@ You need [Python 3.11+](https://www.python.org/downloads/). On Windows, tick **A
    - **Windows:** double-click `INSTALL.bat`, then `start.bat`
    - **Mac:** double-click `Install.command`, then `start.command` (right-click → Open if macOS blocks it)
    - **Linux:** `./install.sh && ./start.sh`
-3. Open [http://127.0.0.1:8080](http://127.0.0.1:8080)
+3. Open [http://127.0.0.1:8080](http://127.0.0.1:8080) (or 8081+ if 8080 is already in use).
+
+If Windows says the port is already in use, close the other black SecureTrade window and start again. The latest build also tries 8081, 8082, and so on automatically.
 
 That first run is **demo / paper trading**. No API keys, no real orders. Close the terminal window to stop.
 

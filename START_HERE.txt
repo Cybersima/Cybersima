@@ -18,6 +18,8 @@ A CyberSym product.
 
 First launch can take a few minutes while packages install.
 Leave the black window open while you use the dashboard. Close it to stop.
+If you see "port already in use", close the other SecureTrade window — or just
+start again; it will use 8081, 8082, and so on automatically.
 
 This first run is DEMO / PAPER TRADING. No exchange keys. No real orders.
 

@@ -1,22 +1,18 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+title CyberSym SecureTrade live
 
-where python >nul 2>nul
-if errorlevel 1 (
-  echo Python was not found. Install 3.11+ from https://www.python.org/downloads/
+set PYTHONHOME=
+set PYTHONPATH=
+
+if not exist .venv (
+  echo Run INSTALL.bat first.
   pause
   exit /b 1
 )
 
-if not exist .venv (
-  python -m venv .venv
-  .venv\Scripts\python.exe -m pip install -U pip
-  .venv\Scripts\pip.exe install -e .
-)
-
 echo Starting CyberSym SecureTrade with live Coinbase, Kraken, Gemini, Bitstamp, and Yahoo data (paper trading).
-echo Dashboard: http://127.0.0.1:8080
-start "" http://127.0.0.1:8080
-.venv\Scripts\python.exe -m pulsearb --host 127.0.0.1 --port 8080
+echo If port 8080 is already in use, the app will pick the next free port.
+.venv\Scripts\python.exe -E -m pulsearb --host 127.0.0.1 --port 8080 --open-browser
 pause
