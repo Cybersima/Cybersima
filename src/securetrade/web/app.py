@@ -33,6 +33,13 @@ from securetrade.wizard import STEPS, mark_complete, needs_wizard
 WEB_DIR = Path(__file__).resolve().parent
 
 
+class NoCacheStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return response
+
+
 class ModeBody(BaseModel):
     mode: str
 
@@ -65,10 +72,10 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
 
     app = FastAPI(title=PRODUCT, docs_url=None, redoc_url=None, lifespan=lifespan)
     templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
-    app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
+    app.mount("/static", NoCacheStaticFiles(directory=str(WEB_DIR / "static")), name="static")
 
     def page(request: Request, name: str = "index.html") -> HTMLResponse:
-        return templates.TemplateResponse(
+        response = templates.TemplateResponse(
             request,
             name,
             {
@@ -85,6 +92,8 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
                 "needs_wizard": needs_wizard(),
             },
         )
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        return response
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:
@@ -106,6 +115,11 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
 
     @app.get("/api/snapshot")
     async def snapshot() -> dict:
+        return engine.snapshot()
+
+    @app.get("/api/state")
+    async def state() -> dict:
+        """Compatibility alias — older cached dashboards polled /api/state."""
         return engine.snapshot()
 
     @app.get("/api/recovery-commit")

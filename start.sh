@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
+unset PYTHONHOME PYTHONPATH || true
 
 PY=""
 if command -v python3 >/dev/null 2>&1; then
@@ -16,8 +17,9 @@ if [[ ! -d .venv ]]; then
   echo "Creating virtual environment..."
   "$PY" -m venv .venv
   .venv/bin/python -m pip install -U pip
-  .venv/bin/pip install -e .
 fi
+
+.venv/bin/python -m pip install -e . -q
 
 echo "Starting CyberSym SecureTrade 2 command center on http://127.0.0.1:8000"
 echo "Paper trading is the default. The engine keeps running in this window."

@@ -3,12 +3,37 @@ const money = (n) => (n < 0 ? "-" : "") + "$" + Math.abs(Number(n || 0)).toLocal
 
 let lastDetails = null;
 let lastStarter = null;
+let wsLive = false;
+
+function setLive(mode) {
+  const el = $("live-dot");
+  if (!el) return;
+  el.className = "live-dot " + mode;
+  el.textContent = mode === "live" ? "LIVE" : "SYNC";
+}
 
 function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => {
+    wsLive = true;
+    setLive("live");
+  };
   ws.onmessage = (ev) => render(JSON.parse(ev.data));
-  ws.onclose = () => setTimeout(connect, 1200);
+  ws.onclose = () => {
+    wsLive = false;
+    setLive("poll");
+    setTimeout(connect, 1200);
+  };
+}
+
+async function pullSnapshot() {
+  try {
+    const response = await fetch("/api/snapshot", { cache: "no-store" });
+    if (response.ok) render(await response.json());
+  } catch (_err) {
+    /* engine may still be starting */
+  }
 }
 
 function renderDetails(details) {
@@ -124,6 +149,9 @@ function render(snap) {
   $("mode-state").textContent = (s.operating_mode || "learn").toUpperCase();
   $("dll").textContent = money(s.daily_loss_limit || 5);
   $("kill").textContent = s.killed ? "Resume" : "Emergency Stop";
+  document.querySelectorAll(".modes button").forEach((btn) => {
+    btn.classList.toggle("on", btn.dataset.mode === (s.operating_mode || "learn"));
+  });
 
   if (snap.starter) renderLadder(snap.starter);
 
@@ -139,7 +167,7 @@ function render(snap) {
     $("best-why").innerHTML = (best.why || []).map((line) => `<li>${line}</li>`).join("");
   }
 
-  const filter = ($("filter").value || "").toLowerCase();
+  const filter = (($("filter") || {}).value || "").toLowerCase();
   const labels = { profit: "Profit", loss: "Loss", missed: "Missed opportunity", reversal: "Reversal" };
   $("grid").innerHTML = (snap.quotes || [])
     .filter((q) => `${q.venue} ${q.native_symbol} ${q.canonical}`.toLowerCase().includes(filter))
@@ -215,4 +243,8 @@ fetch("/api/journal").then((r) => r.json()).then((data) => {
 });
 fetch("/api/starter").then((r) => r.json()).then(renderLadder);
 
+pullSnapshot();
+setInterval(() => {
+  if (!wsLive) pullSnapshot();
+}, 2000);
 connect();

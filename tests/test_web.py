@@ -39,9 +39,19 @@ def test_dashboard_and_kill_switch() -> None:
     assert ".tick.reversal" in css.text
     assert "Green profit" in page.text
     assert "Orange reversal" in page.text
+    assert "Export profit report" in page.text
     assert "Export Excel" in page.text
     assert "Export CSV" in page.text
     assert "/api/profit-report.xlsx" in page.text
+    assert f"/static/app.css?v=" in page.text
+    assert f"/static/app.js?v=" in page.text
+    assert "no-store" in page.headers.get("cache-control", "")
+    state = client.get("/api/state")
+    assert state.status_code == 200
+    assert "stats" in state.json()
+    assert "quotes" in state.json()
+    snap = client.get("/api/snapshot").json()
+    assert snap["stats"]["edition"] == state.json()["stats"]["edition"]
     report = client.get("/api/profit-report").json()
     assert report["headers"][0] == "ID"
     assert "Market" in report["headers"]

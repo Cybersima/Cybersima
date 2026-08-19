@@ -9,8 +9,8 @@
   <meta name="theme-color" content="#07090d" />
   <meta name="application-name" content="{{ product }}" />
   <title>{{ product }} — {{ company }}</title>
-  <link rel="manifest" href="/static/manifest.json" />
-  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="manifest" href="/static/manifest.json?v={{ version }}" />
+  <link rel="stylesheet" href="/static/app.css?v={{ version }}" />
 </head>
 <body>
   <div id="app">
@@ -34,42 +34,54 @@
         <button data-view="academy">Academy</button>
         <button data-view="setup">Setup</button>
       </nav>
-      <div class="clock" id="clock">--:--:--</div>
-      <button id="kill" class="kill" type="button">Emergency Stop</button>
+      <div class="top-actions">
+        <span id="live-dot" class="live-dot poll">SYNC</span>
+        <div class="clock" id="clock">--:--:--</div>
+        <a class="btn primary" id="export-xlsx" href="/api/profit-report.xlsx">Export profit report</a>
+        <a class="btn" id="export-csv" href="/api/profit-report.csv">CSV</a>
+        <button id="kill" class="kill" type="button">Emergency Stop</button>
+      </div>
     </header>
 
     <section class="view on" id="view-home">
       <div class="hero-card">
-        <p class="kicker">{{ product }}</p>
-        <div class="status-grid">
-          <div><span>SYSTEM</span><strong id="sys-state" class="ok">● PROTECTED</strong></div>
-          <div><span>TRADING</span><strong id="tr-state" class="ok">● ACTIVE</strong></div>
-          <div><span>SECURITY</span><strong id="sec-score">98 / 100</strong></div>
-          <div><span>MARKETS MONITORED</span><strong id="mkt-count">0</strong></div>
+        <div class="hero-bar">
+          <div>
+            <p class="kicker">{{ product }}</p>
+            <h2 class="hero-title">Command center</h2>
+          </div>
+          <p class="hero-note">Paper is the default. Guardian sits above the profit engine.</p>
         </div>
-        <div class="money-grid">
-          <div><span>ACCOUNT VALUE</span><strong id="acct">$0.00</strong></div>
-          <div><span>TODAY</span><strong id="today">$0.00</strong></div>
-          <div><span>THIS MONTH</span><strong id="month">$0.00</strong></div>
-          <div><span>MAX DRAWDOWN</span><strong id="dd">0.0%</strong></div>
+        <div class="kpis status-grid">
+          <article class="kpi"><span>SYSTEM</span><strong id="sys-state" class="ok">● PROTECTED</strong></article>
+          <article class="kpi"><span>TRADING</span><strong id="tr-state" class="ok">● ACTIVE</strong></article>
+          <article class="kpi"><span>SECURITY</span><strong id="sec-score">98 / 100</strong></article>
+          <article class="kpi"><span>MARKETS MONITORED</span><strong id="mkt-count">0</strong></article>
+        </div>
+        <div class="kpis money-grid">
+          <article class="kpi"><span>ACCOUNT VALUE</span><strong id="acct">$0.00</strong></article>
+          <article class="kpi"><span>TODAY</span><strong id="today">$0.00</strong></article>
+          <article class="kpi"><span>THIS MONTH</span><strong id="month">$0.00</strong></article>
+          <article class="kpi"><span>MAX DRAWDOWN</span><strong id="dd">0.0%</strong></article>
         </div>
       </div>
 
       <div class="split">
         <article class="panel best" id="best-card">
-          <header><h2>BEST OPPORTUNITY</h2><span id="best-pair">—</span></header>
+          <header><h2>Best opportunity</h2><span id="best-pair" class="pair-chip">—</span></header>
           <dl>
-            <div><dt>Expected Net Edge</dt><dd id="best-edge">—</dd></div>
+            <div><dt>Expected net edge</dt><dd id="best-edge">—</dd></div>
             <div><dt>Expected profit</dt><dd id="best-usd">—</dd></div>
             <div><dt>Ticket size</dt><dd id="best-ticket">—</dd></div>
-            <div><dt>Security Score</dt><dd id="best-sec">—</dd></div>
-            <div><dt>Execution Confidence</dt><dd id="best-conf">—</dd></div>
+            <div><dt>Security score</dt><dd id="best-sec">—</dd></div>
+            <div><dt>Execution confidence</dt><dd id="best-conf">—</dd></div>
           </dl>
           <p class="why-label">Why?</p>
           <ul id="best-why" class="why"></ul>
           <button id="best-details" type="button">View details</button>
         </article>
         <aside class="panel controls">
+          <header><h2>Session</h2></header>
           <div class="row"><span>STARTER PATH</span><strong id="starter-state">Learn · $100</strong></div>
           <div class="row"><span>AUTO TRADING</span><strong id="auto-state">OFF</strong></div>
           <div class="row"><span>MODE</span><strong id="mode-state">LEARN</strong></div>
@@ -88,7 +100,7 @@
     <section class="view" id="view-markets">
       <div class="panel">
         <header>
-          <h2>Exchange Connector · Market Scanner</h2>
+          <h2>Exchange connector · Market scanner</h2>
           <p class="legend" aria-label="Market colors">
             <span class="profit">Green profit</span>
             <span class="loss">Red loss</span>
@@ -120,8 +132,8 @@
         <header>
           <h2>Profit report</h2>
           <div class="exports">
-            <a href="/api/profit-report.xlsx">Export Excel</a>
-            <a href="/api/profit-report.csv">Export CSV</a>
+            <a class="btn primary" href="/api/profit-report.xlsx">Export Excel</a>
+            <a class="btn" href="/api/profit-report.csv">Export CSV</a>
           </div>
         </header>
         <p class="legend" aria-label="Market colors">
@@ -152,7 +164,7 @@
 
     <section class="view" id="view-setup">
       <article class="panel">
-        <header><h2>Setup Wizard</h2></header>
+        <header><h2>Setup wizard</h2></header>
         <p class="lede">Everyone can start. Learn with $10 or $100 of simulated money. Live $10 is not offered because fees would eat the account.</p>
         <div id="ladder" class="ladder"></div>
         <ol id="wizard" class="lessons"></ol>
@@ -176,6 +188,6 @@
     <span>{{ tagline }}</span>
     <span>{{ signature }} · v{{ version }} · {{ copyright }}</span>
   </footer>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v={{ version }}"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 services:
   engine:
     build: .
-    image: cybersym/securetrade:2.0.1
+    image: cybersym/securetrade:2.0.2
     ports:
       - "8000:8000"
     environment:
