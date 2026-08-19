@@ -21,13 +21,13 @@ if not exist .venv (
     pause
     exit /b 1
   )
-  echo Installing PulseArb...
+  echo Installing CyberSym SecureTrade...
   .venv\Scripts\python.exe -m pip install -U pip
   .venv\Scripts\pip.exe install -e .
 )
 
 echo.
-echo Starting PulseArb demo on http://127.0.0.1:8080
+echo Starting CyberSym SecureTrade demo on http://127.0.0.1:8080
 echo Leave this window open. Close it to stop the scanner.
 echo.
 start "" http://127.0.0.1:8080

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build PulseArb.zip for copying onto another computer."""
+"""Build a branded zip you can copy to another computer."""
 
 from __future__ import annotations
 
@@ -9,8 +9,9 @@ import zipfile
 from pathlib import Path
 
 SKIP_DIRS = {".git", ".venv", ".pytest_cache", "__pycache__", "dist", ".mypy_cache"}
-SKIP_NAMES = {"PulseArb.zip"}
+SKIP_NAMES = {"PulseArb.zip", "CyberSym-SecureTrade.zip"}
 EXECUTABLE = {"start.sh", "start.command", "install.sh", "make-zip.sh"}
+FOLDER = "CyberSym-SecureTrade"
 
 
 def should_skip(rel: Path) -> bool:
@@ -27,7 +28,7 @@ def should_skip(rel: Path) -> bool:
 
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
-    out = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / "PulseArb.zip"
+    out = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / "CyberSym-SecureTrade.zip"
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
         out.unlink()
@@ -39,7 +40,7 @@ def main() -> None:
             rel = path.relative_to(root)
             if should_skip(rel):
                 continue
-            arcname = f"PulseArb/{rel.as_posix()}"
+            arcname = f"{FOLDER}/{rel.as_posix()}"
             info = zipfile.ZipInfo.from_file(path, arcname)
             if path.name in EXECUTABLE or path.suffix in {".sh", ".command"}:
                 info.external_attr = (stat.S_IFREG | 0o755) << 16

@@ -5,17 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="{{ product_short }}" />
   <meta name="theme-color" content="#0b0d10" />
-  <title>{{ title }} — multi-market scanner</title>
+  <meta name="application-name" content="{{ product }}" />
+  <title>{{ product }} — {{ company }}</title>
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
   <header class="top">
     <div class="brand">
-      <span class="mark">▣</span>
+      <svg class="mark" viewBox="0 0 40 44" aria-hidden="true">
+        <path class="shield" d="M20 2 L36 8 V22 C36 32 28 40 20 42 C12 40 4 32 4 22 V8 Z"/>
+        <text x="20" y="27" text-anchor="middle">CS</text>
+      </svg>
       <div>
-        <h1>PulseArb</h1>
+        <p class="company">{{ company }}</p>
+        <h1>{{ product_short }}</h1>
         <p class="tag">coinbase · kraken · gemini · bitstamp</p>
       </div>
     </div>
@@ -56,8 +62,16 @@
     </aside>
   </main>
 
-  <footer class="note">
-    Public feeds are not an HFT pipe. Yahoo is delayed. US default venues are Coinbase, Kraken, Gemini, and Bitstamp. This is a scanner, not a profit guarantee.
+  <footer class="sig">
+    <div class="sig-mark">{{ company }}</div>
+    <div>
+      <strong>{{ product }}</strong>
+      <span>{{ signature }}</span>
+    </div>
+    <p class="note">
+      Public feeds are not an HFT pipe. Yahoo is delayed. US default venues are Coinbase, Kraken, Gemini, and Bitstamp.
+      This is a scanner, not a profit guarantee. {{ copyright }}
+    </p>
   </footer>
   <script src="/static/app.js"></script>
 </body>

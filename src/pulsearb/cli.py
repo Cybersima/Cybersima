@@ -5,6 +5,7 @@ from pathlib import Path
 
 import uvicorn
 
+from pulsearb.branding import PRODUCT
 from pulsearb.config import AppConfig
 from pulsearb.engine.runner import Engine
 from pulsearb.web.app import create_app
@@ -12,8 +13,8 @@ from pulsearb.web.app import create_app
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="pulsearb",
-        description="Scan 50+ crypto and FX markets on Coinbase, Kraken, Gemini, Bitstamp, and Yahoo. Paper trading by default.",
+        prog="securetrade",
+        description=f"{PRODUCT}: scan 50+ crypto and FX markets on Coinbase, Kraken, Gemini, Bitstamp, and Yahoo. Paper trading by default.",
     )
     parser.add_argument("--host", help="Dashboard bind host (default 0.0.0.0 for LAN / iPad)")
     parser.add_argument("--port", type=int, help="Dashboard port")

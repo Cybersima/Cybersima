@@ -1,6 +1,7 @@
 {
-  "name": "PulseArb",
-  "short_name": "PulseArb",
+  "name": "CyberSym SecureTrade",
+  "short_name": "SecureTrade",
+  "description": "CyberSym multi-market scanner",
   "display": "standalone",
   "background_color": "#0b0d10",
   "theme_color": "#0b0d10",

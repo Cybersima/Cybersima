@@ -10,7 +10,9 @@ def test_dashboard_and_kill_switch() -> None:
     client = TestClient(create_app(engine))
     page = client.get("/")
     assert page.status_code == 200
-    assert "PulseArb" in page.text
+    assert "CyberSym SecureTrade" in page.text
+    assert "A CyberSym product" in page.text
+    assert "SecureTrade" in page.text
     assert client.get("/api/health").json() == {"ok": True, "killed": False}
     assert client.post("/api/kill").json() == {"killed": True}
     assert client.get("/api/health").json()["killed"] is True

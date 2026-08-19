@@ -1,8 +1,8 @@
-# PulseArb
+# CyberSym SecureTrade
 
-Retail-friendly **crypto + FX dislocation scanner**. It watches 50+ markets at once across **Coinbase, Kraken, Gemini, Bitstamp, and Yahoo Finance**, flags cross-venue and triangular gaps, and paper-trades executable legs by default. Live orders stay off until you opt in.
+**CyberSym SecureTrade** is CyberSym’s retail-friendly crypto + FX dislocation scanner. It watches 50+ markets at once across **Coinbase, Kraken, Gemini, Bitstamp, and Yahoo Finance**, flags cross-venue and triangular gaps, and paper-trades executable legs by default. Live orders stay off until you opt in.
 
-Binance is **disabled by default** because it is not available to US residents. You can turn it on with `--binance` if you are in a supported region.
+A CyberSym product. Binance is **disabled by default** because it is not available to US residents. You can turn it on with `--binance` if you are in a supported region.
 
 This is a scanner with hard risk limits. Public APIs are not an HFT pipe. Yahoo Finance is delayed. You will not outrun professional market makers, and nothing here is a profit guarantee or financial advice.
 
@@ -10,7 +10,7 @@ This is a scanner with hard risk limits. Public APIs are not an HFT pipe. Yahoo 
 
 You need [Python 3.11+](https://www.python.org/downloads/) (Windows: tick **Add python.exe to PATH**).
 
-1. Download the zip: [PulseArb.zip](https://github.com/Cybersima/Cybersima/archive/refs/heads/cursor/pulsearb-multimarket-scanner-c11f.zip)
+1. Download the zip: [CyberSym SecureTrade](https://github.com/Cybersima/Cybersima/archive/refs/heads/cursor/pulsearb-multimarket-scanner-c11f.zip)
 2. Unzip it.
 3. Open `START_HERE.txt`, then:
    - **Windows:** double-click `start.bat`
@@ -81,14 +81,14 @@ You can lose money. Coinbase/Kraken/Gemini/Bitstamp live order routing is not wi
 
 ```bash
 pip install .
-pulsearb --demo
+securetrade --demo
 ```
 
 Docker:
 
 ```bash
-docker build -t pulsearb .
-docker run --rm -p 8080:8080 pulsearb
+docker build -t cybersym-securetrade .
+docker run --rm -p 8080:8080 cybersym-securetrade
 ```
 
 ## Tests
@@ -103,3 +103,7 @@ pytest
 - Many “gaps” vs Yahoo are stale data, not free money.
 - Fees, slippage, and withdraw/deposit time usually eat cross-venue crypto/FX differences.
 - 24/7 means **you** keep the process running (systemd, Docker, or a small VPS).
+
+---
+
+CyberSym SecureTrade · A CyberSym product · © CyberSym. All rights reserved.

@@ -1,5 +1,7 @@
-PulseArb — test this on your computer
-=====================================
+CyberSym SecureTrade — test this on your computer
+=================================================
+
+A CyberSym product.
 
 You need Python 3.11 or newer (https://www.python.org/downloads/).
 On Windows, tick "Add python.exe to PATH" during install.
@@ -26,3 +28,5 @@ Live market data from Coinbase, Kraken, Gemini, Bitstamp, and Yahoo
 Binance is off by default (not available in the US).
 
 This is a scanner, not a profit guarantee. Yahoo data is delayed.
+
+© CyberSym. All rights reserved.

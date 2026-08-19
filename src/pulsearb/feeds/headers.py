@@ -1,2 +1,3 @@
-USER_AGENT = "PulseArb/0.1 (market-data scanner)"
+from pulsearb.branding import USER_AGENT
+
 HTTP_HEADERS = {"User-Agent": USER_AGENT, "Accept": "application/json"}

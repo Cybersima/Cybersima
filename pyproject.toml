@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pulsearb"
 version = "0.1.0"
-description = "Multi-market crypto/FX dislocation scanner for Coinbase, Kraken, Gemini, Bitstamp, and Yahoo, with an iPad-ready dashboard."
+description = "CyberSym SecureTrade — multi-market crypto and FX scanner for Coinbase, Kraken, Gemini, Bitstamp, and Yahoo."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
-authors = [{name = "Cybersima"}]
+authors = [{name = "CyberSym"}]
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
@@ -31,6 +31,7 @@ dev = [
 
 [project.scripts]
 pulsearb = "pulsearb.cli:main"
+securetrade = "pulsearb.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

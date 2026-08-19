@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
+from pulsearb.branding import COMPANY, COPYRIGHT, PRODUCT, PRODUCT_SHORT, SIGNATURE
 from pulsearb.engine.runner import Engine, run_engine
 
 WEB_DIR = Path(__file__).resolve().parent
@@ -27,7 +28,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
             with suppress(asyncio.CancelledError):
                 await task
 
-    app = FastAPI(title="PulseArb", docs_url=None, redoc_url=None, lifespan=lifespan)
+    app = FastAPI(title=PRODUCT, docs_url=None, redoc_url=None, lifespan=lifespan)
     templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
     app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
 
@@ -37,7 +38,12 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
             request,
             "index.html",
             {
-                "title": "PulseArb",
+                "title": PRODUCT,
+                "company": COMPANY,
+                "product": PRODUCT,
+                "product_short": PRODUCT_SHORT,
+                "signature": SIGNATURE,
+                "copyright": COPYRIGHT,
                 "execution": "live" if engine.config.live_enabled() else "paper",
             },
         )
