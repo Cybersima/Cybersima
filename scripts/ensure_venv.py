@@ -69,12 +69,6 @@ def remove_venv() -> None:
 def create_venv() -> None:
     print("Creating a fresh Python environment...")
     subprocess.check_call([sys.executable, "-m", "venv", str(VENV), "--clear"], cwd=ROOT)
-    write_pyvenv_cfg(
-        VENV,
-        home=sys.base_prefix,
-        executable=sys.executable,
-        version="%s.%s.%s" % sys.version_info[:3],
-    )
 
 
 def install_app(python: Path) -> None:
@@ -86,11 +80,6 @@ def install_app(python: Path) -> None:
 def main() -> None:
     if sys.version_info < (3, 11):
         raise SystemExit("Python 3.11 or newer is required. Install it from https://www.python.org/downloads/")
-    if sys.version_info >= (3, 14):
-        print(
-            "Python 3.14 is installed. If SecureTrade will not start, install Python 3.12 from python.org\n"
-            '(tick "Add python.exe to PATH") and run REPAIR.bat.'
-        )
     python = venv_python()
     if venv_ok(python):
         probe = subprocess.run(
@@ -111,8 +100,8 @@ def main() -> None:
     if not venv_ok(python):
         raise SystemExit(
             "Python still cannot start after rebuilding .venv.\n"
-            "Install Python 3.12 from https://www.python.org/downloads/ (not 3.14),\n"
-            'tick "Add python.exe to PATH", then double-click REPAIR.bat.'
+            "Use the same Python 3.14 (or 3.11+) that already runs v01.3,\n"
+            "close other SecureTrade windows, then run REPAIR.bat again."
         )
     install_app(python)
 

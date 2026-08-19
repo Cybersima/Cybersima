@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 title CyberSym SecureTrade repair
 echo.
-echo Repairing the local Python environment...
+echo This is optional. v01.3-style start.bat does not need it.
 echo Close any other SecureTrade windows first.
 echo.
 call "%~dp0repair-venv.bat"

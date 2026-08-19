@@ -24,9 +24,12 @@ if not exist "keys\coinbase.json" (
 echo Press Ctrl+C to cancel, or
 pause
 
-call "%~dp0repair-venv.bat"
-if errorlevel 1 (
-  echo Run REPAIR.bat first.
+set "PY=python"
+py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
+if not errorlevel 1 set "PY=py -3"
+
+if not exist .venv (
+  echo Run INSTALL.bat first.
   pause
   exit /b 1
 )
@@ -38,5 +41,5 @@ set PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK
 echo.
 echo Starting live trading...
 echo.
-.venv\Scripts\python.exe -m pulsearb --live-trading --host 127.0.0.1 --port 8080 --open-browser
+.venv\Scripts\python.exe -E -m pulsearb --live-trading --host 127.0.0.1 --port 8080 --open-browser
 pause

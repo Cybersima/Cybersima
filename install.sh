@@ -17,7 +17,12 @@ fi
   exit 1
 }
 
-"$PY" scripts/ensure_venv.py
+if [[ ! -d .venv ]]; then
+  echo "Creating virtual environment..."
+  "$PY" -m venv .venv
+fi
+.venv/bin/python -m pip install -U pip
+.venv/bin/pip install -e .
 echo
 echo "Installed CyberSym SecureTrade."
 echo "Start with: ./start.sh   or double-click start.command"
