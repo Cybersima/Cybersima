@@ -174,14 +174,20 @@ class ProfitLedger:
 
     def __init__(self, csv_path: Path | None = None, max_rows: int = 5000) -> None:
         self.rows: deque[dict[str, Any]] = deque(maxlen=max_rows)
-        self.csv_path = csv_path
-        if csv_path:
-            csv_path.parent.mkdir(parents=True, exist_ok=True)
+        self.csv_path = csv_path.resolve() if csv_path else None
+        self.total_rows = 0
+        if self.csv_path:
+            self.csv_path.parent.mkdir(parents=True, exist_ok=True)
 
     def record(self, row: dict[str, Any]) -> None:
         self.rows.append(row)
+        self.total_rows += 1
         if self.csv_path:
-            self._append_csv(row)
+            try:
+                self._append_csv(row)
+            except OSError:
+                # Excel or another program may have the file open on Windows.
+                pass
 
     def record_opportunity(
         self,
@@ -214,6 +220,15 @@ class ProfitLedger:
         for row in self.rows:
             writer.writerow(ordered_values(row))
         return buffer.getvalue().encode("utf-8-sig")
+
+    def export_csv_bytes(self) -> bytes:
+        """Prefer the on-disk log (full session) over the in-memory window."""
+        if self.csv_path and self.csv_path.exists() and self.csv_path.stat().st_size > 32:
+            try:
+                return self.csv_path.read_bytes()
+            except OSError:
+                pass
+        return self.to_csv_bytes()
 
     def _append_csv(self, row: dict[str, Any]) -> None:
         assert self.csv_path is not None

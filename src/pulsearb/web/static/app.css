@@ -57,7 +57,9 @@ h1 { font-size: 18px; letter-spacing: 0.16em; text-transform: uppercase; margin:
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-#export {
+.export-btn {
+  display: inline-flex;
+  align-items: center;
   background: transparent;
   color: var(--gold);
   border: 1px solid var(--gold);
@@ -65,6 +67,7 @@ h1 { font-size: 18px; letter-spacing: 0.16em; text-transform: uppercase; margin:
   min-height: 44px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-decoration: none;
 }
 #kill.on { background: var(--down); color: #1a0505; }
 

@@ -23,7 +23,14 @@ start again; it will use 8081, 8082, and so on automatically.
 
 This first run is DEMO / PAPER TRADING. No exchange keys. No real orders.
 
-On the dashboard, click "Export report" to download a spreadsheet of Paper P&L.
+Profit / trades spreadsheet:
+   While the scanner is running it writes:
+      data\CyberSym-SecureTrade-profit-report.csv
+   If the dashboard Export button does nothing, open that file in Excel
+   (do not stop the 12-hour run). On Windows you can also double-click
+   Open-Report.bat — it copies the file to your Desktop and opens it.
+
+On the dashboard, click "Export report" to download the same spreadsheet.
 
 Live market data (still paper trading):
    Windows:  start-live.bat

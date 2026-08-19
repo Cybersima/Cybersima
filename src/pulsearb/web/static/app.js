@@ -3,13 +3,15 @@ const opps = document.getElementById("opps");
 const fills = document.getElementById("fills");
 const filter = document.getElementById("filter");
 const killBtn = document.getElementById("kill");
-const exportBtn = document.getElementById("export");
+const exportBtn = document.getElementById("export-report");
 const clock = document.getElementById("clock");
 const feedBadge = document.getElementById("feed-badge");
 const execBadge = document.getElementById("exec-badge");
+const reportPath = document.getElementById("report-path");
 
 let snapshot = { quotes: [], opportunities: [], fills: [], stats: {} };
 let lastMids = new Map();
+let renderTimer = null;
 
 function fmt(n, d = 2) {
   if (n === undefined || n === null || Number.isNaN(n)) return "—";
@@ -81,6 +83,11 @@ function render() {
   killBtn.textContent = s.killed ? "Resume" : "Kill switch";
   const reportRows = s.report_rows ?? 0;
   exportBtn.textContent = reportRows ? `Export report (${reportRows})` : "Export report";
+  if (reportPath) {
+    reportPath.textContent = s.report_path
+      ? `Profit report file: ${s.report_path}`
+      : "";
+  }
 }
 
 filter.addEventListener("input", render);
@@ -90,16 +97,52 @@ killBtn.addEventListener("click", async () => {
   await fetch(killed ? "/api/resume" : "/api/kill", { method: "POST" });
 });
 
-exportBtn.addEventListener("click", () => {
-  window.location.href = "/api/report.csv";
+exportBtn.addEventListener("click", async (ev) => {
+  ev.preventDefault();
+  const previous = exportBtn.textContent;
+  exportBtn.textContent = "Saving…";
+  try {
+    const res = await fetch("/api/report.csv", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const blob = await res.blob();
+    if (blob.size < 8) throw new Error("report is empty");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "CyberSym-SecureTrade-profit-report.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    exportBtn.textContent = "Saved CSV";
+  } catch (err) {
+    const path = (snapshot.stats && snapshot.stats.report_path) || "data\\CyberSym-SecureTrade-profit-report.csv";
+    window.alert(
+      "Browser export failed. Open the CSV already on disk in Excel:\n\n" +
+        path +
+        "\n\n" +
+        err
+    );
+    exportBtn.textContent = previous;
+    return;
+  }
+  setTimeout(render, 1500);
 });
+
+function scheduleRender() {
+  if (renderTimer) return;
+  renderTimer = setTimeout(() => {
+    renderTimer = null;
+    render();
+  }, 500);
+}
 
 function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
   ws.onmessage = (ev) => {
     snapshot = JSON.parse(ev.data);
-    render();
+    scheduleRender();
   };
   ws.onclose = () => setTimeout(connect, 1200);
 }

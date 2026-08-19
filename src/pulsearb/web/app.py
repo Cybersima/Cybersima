@@ -81,9 +81,12 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     async def report_csv() -> Response:
         filename = "CyberSym-SecureTrade-profit-report.csv"
         return Response(
-            content=engine.report.to_csv_bytes(),
-            media_type="text/csv; charset=utf-8",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            content=engine.report.export_csv_bytes(),
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Cache-Control": "no-store",
+            },
         )
 
     @app.websocket("/ws")

@@ -30,7 +30,7 @@
       <span class="badge" id="exec-badge">{{ execution }}</span>
       <span class="badge dim" id="feed-badge">connecting</span>
     </div>
-    <button id="export" type="button">Export report</button>
+    <a id="export-report" class="export-btn" href="/api/report.csv" download="CyberSym-SecureTrade-profit-report.csv">Export report</a>
     <button id="kill" type="button">Kill switch</button>
   </header>
 
@@ -69,6 +69,7 @@
       <strong>{{ product }}</strong>
       <span>{{ signature }}</span>
     </div>
+    <p class="note" id="report-path"></p>
     <p class="note">
       Public feeds are not an HFT pipe. Yahoo is delayed. US default venues are Coinbase, Kraken, Gemini, and Bitstamp.
       This is a scanner, not a profit guarantee. {{ copyright }}

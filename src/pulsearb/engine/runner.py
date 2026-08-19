@@ -39,7 +39,7 @@ class Engine:
         )
         self.paper = PaperBroker(self.risk)
         self.broker: Broker = self.paper
-        self.report = ProfitLedger(Path("data") / "CyberSym-SecureTrade-profit-report.csv")
+        self.report = ProfitLedger(Path.cwd() / "data" / "CyberSym-SecureTrade-profit-report.csv")
         if config.live_enabled():
             binance = config.markets.get("binance") or {}
             rest = binance.get("testnet_rest_url" if config.env.binance_testnet else "rest_url")
@@ -75,7 +75,8 @@ class Engine:
                 "execution": "live" if self.config.live_enabled() else "paper",
                 "uptime_s": round(time.time() - self.stats.started_at, 1),
                 "triangles": sum(len(items) for items in self.triangles_by_venue.values()),
-                "report_rows": len(self.report.rows),
+                "report_rows": self.report.total_rows,
+                "report_path": str(self.report.csv_path) if self.report.csv_path else "",
             },
             "quotes": [q.to_dict() for q in quotes],
             "opportunities": [o.to_dict() for o in list(self.opportunities)[:40]],

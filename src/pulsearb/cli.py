@@ -58,6 +58,8 @@ def main(argv: list[str] | None = None) -> None:
     display_host = "127.0.0.1" if config.host in {"0.0.0.0", "::"} else config.host
     url = f"http://{display_host}:{port}"
     print(f"{PRODUCT} dashboard: {url}")
+    if engine.report.csv_path:
+        print(f"{PRODUCT} profit report: {engine.report.csv_path}")
     print("Leave this window open. Close it or press Ctrl+C to stop.")
     if args.open_browser:
         webbrowser.open(url)

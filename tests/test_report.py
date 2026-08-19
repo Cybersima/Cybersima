@@ -114,3 +114,30 @@ def test_csv_round_trip(tmp_path) -> None:
     assert parsed[1][0] == "gap-1"
     assert parsed[1][2] == "Alert"
     assert parsed[1][10] == "0.0" or float(parsed[1][10]) == 0.0
+    assert ledger.export_csv_bytes().startswith(b"\xef\xbb\xbf")
+    assert b"gap-1" in ledger.export_csv_bytes()
+
+
+def test_export_prefers_full_disk_file_over_memory_window(tmp_path) -> None:
+    path = tmp_path / "report.csv"
+    ledger = ProfitLedger(csv_path=path, max_rows=2)
+    for index in range(5):
+        row = build_report_row(
+            _opp(executable=False),
+            [],
+            paper=True,
+            killed=False,
+            fee_map={"coinbase": 50, "yahoo": 0},
+            slippage_bps=2,
+            closed_at=1_700_000_000.4,
+        )
+        row["ID"] = f"gap-{index}"
+        ledger.record(row)
+    assert len(ledger.rows) == 2
+    assert ledger.total_rows == 5
+    exported = ledger.export_csv_bytes().decode("utf-8-sig")
+    assert "gap-0" in exported
+    assert "gap-4" in exported
+    memory_only = ledger.to_csv_bytes().decode("utf-8-sig")
+    assert "gap-0" not in memory_only
+    assert "gap-3" in memory_only

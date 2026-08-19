@@ -15,4 +15,7 @@ Then:
 
 Dashboard: http://127.0.0.1:8080
 
+Profit report (Excel): data\CyberSym-SecureTrade-profit-report.csv
+Windows: double-click Open-Report.bat if the Export button does not download.
+
 © CyberSym. All rights reserved.

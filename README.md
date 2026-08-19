@@ -26,7 +26,9 @@ That first run is **demo / paper trading**. No API keys, no real orders. Close t
 
 See `DOWNLOAD.txt` in the zip for the same steps.
 
-On the dashboard, click **Export report** to download a spreadsheet (`CyberSym-SecureTrade-profit-report.csv`) that Excel and Google Sheets can open. Columns include ID, Detected Time, Strategy, Market, Route, Expected/Realized P&L, venues, raw/net edge, fees, slippage, fill ratio, and Paper Notional. The same file is also written to `data/` while the scanner runs.
+The profit/trades spreadsheet is written continuously to `data/CyberSym-SecureTrade-profit-report.csv` in the folder you started from. Open that file in Excel even if the dashboard **Export report** button fails — you do not need to stop the scanner. On Windows, **Open-Report.bat** copies it to the Desktop and opens it.
+
+Dashboard **Export report** downloads the full on-disk file (`CyberSym-SecureTrade-profit-report.csv`). Columns include ID, Detected Time, Strategy, Market, Route, Expected/Realized P&L, venues, raw/net edge, fees, slippage, fill ratio, and Paper Notional.
 
 To rebuild a zip locally: `bash scripts/make-zip.sh`
 
