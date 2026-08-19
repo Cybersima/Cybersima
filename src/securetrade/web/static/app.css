@@ -1,0 +1,79 @@
+:root {
+  --bg: #07090d;
+  --panel: #10141b;
+  --line: #1e2630;
+  --text: #e8eef6;
+  --muted: #8b96a8;
+  --gold: #e3b341;
+  --up: #3dd68c;
+  --down: #ff6b6b;
+  --miss: #6cb6ff;
+  --rev: #f5a14a;
+  --ok: #3dd68c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
+body { min-height: 100vh; display: flex; flex-direction: column; }
+.top {
+  display: flex; align-items: center; gap: 16px; padding: 14px 18px;
+  border-bottom: 1px solid var(--line); position: sticky; top: 0; background: #07090de6; z-index: 4;
+  flex-wrap: wrap;
+}
+.brand { display: flex; gap: 10px; align-items: center; min-width: 220px; }
+.mark { width: 40px; height: 44px; }
+.shield { fill: #152033; stroke: var(--gold); stroke-width: 1.6; }
+.mark text { fill: var(--gold); font-size: 11px; font-weight: 700; }
+.company { margin: 0; letter-spacing: 0.28em; font-size: 10px; color: var(--gold); }
+h1 { margin: 0; font-size: 22px; letter-spacing: 0.12em; }
+.ver { color: var(--gold); font-size: 14px; }
+.tag { margin: 2px 0 0; color: var(--muted); font-size: 11px; max-width: 360px; }
+.tabs { display: flex; gap: 6px; flex: 1; }
+.tabs button, .modes button, #best-details, #finish-wizard, .kill {
+  background: #161c25; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer;
+}
+.tabs button.on, .modes button.on { border-color: var(--gold); color: var(--gold); }
+.clock { font-variant-numeric: tabular-nums; color: var(--muted); }
+.kill { background: #2a1416; border-color: #5c2428; color: #ff8d8d; }
+.view { display: none; padding: 18px; }
+.view.on { display: block; }
+.hero-card, .panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-bottom: 16px;
+}
+.kicker { letter-spacing: 0.35em; color: var(--gold); font-size: 12px; margin: 0 0 14px; }
+.status-grid, .money-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.status-grid span, .money-grid span, dt, .row span { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
+.status-grid strong, .money-grid strong, dd, .row strong { display: block; font-size: 22px; margin-top: 4px; }
+.ok { color: var(--up); }
+.bad { color: var(--down); }
+.split { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+.panel header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+h2 { margin: 0; font-size: 14px; letter-spacing: 0.14em; }
+dl { display: grid; gap: 8px; }
+dl > div { display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 6px 0; }
+.why { list-style: none; padding: 0; }
+.why li::before { content: "✓ "; color: var(--up); }
+.why-label { color: var(--muted); }
+.row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.modes { display: flex; gap: 8px; margin: 12px 0; }
+.hint { color: var(--muted); font-size: 12px; }
+.tape { list-style: none; padding: 0; margin: 0; max-height: 360px; overflow: auto; }
+.tape li { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.captured { color: var(--up); }
+.loss, .reversed { color: var(--down); }
+.reversed { color: var(--rev); }
+.missed { color: var(--miss); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.tick { background: #0c1118; border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 12px; }
+.tick b { display: block; }
+.lessons article { border-top: 1px solid var(--line); padding: 10px 0; }
+.gates { white-space: pre-wrap; color: var(--muted); }
+.modal { position: fixed; inset: 0; background: #0008; display: grid; place-items: center; }
+.modal.hidden { display: none; }
+.modal-card { background: var(--panel); border: 1px solid var(--gold); border-radius: 16px; padding: 20px; width: min(640px, 92vw); }
+.close { float: right; background: none; border: 0; color: var(--text); font-size: 22px; cursor: pointer; }
+.sig { padding: 12px 18px 24px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+input[type=search] { background: #0c1118; border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 8px 10px; }
+@media (max-width: 900px) {
+  .status-grid, .money-grid, .split { grid-template-columns: 1fr 1fr; }
+  .tabs { width: 100%; overflow: auto; }
+}

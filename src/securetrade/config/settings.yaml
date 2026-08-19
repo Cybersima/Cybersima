@@ -1,0 +1,93 @@
+host: 0.0.0.0
+port: 8000
+
+scan_interval_ms: 250
+operating_mode: learn
+edition: professional
+
+coinbase_poll_seconds: 1.0
+kraken_poll_seconds: 1.0
+gemini_poll_seconds: 1.0
+bitstamp_poll_seconds: 1.0
+binance_rest_poll_seconds: 1.0
+yahoo_poll_seconds: 2.0
+
+fees:
+  coinbase_taker_bps: 50.0
+  kraken_taker_bps: 26.0
+  gemini_taker_bps: 40.0
+  bitstamp_taker_bps: 40.0
+  binance_taker_bps: 10.0
+  simulator_taker_bps: 26.0
+  yahoo_taker_bps: 0.0
+  extra_slippage_bps: 2.0
+
+min_edge_bps: 8.0
+min_executable_edge_bps: 25.0
+
+risk:
+  max_notional_usdt: 250
+  max_open_orders: 4
+  daily_loss_limit_usdt: 150
+  cooldown_seconds: 8
+  stale_quote_seconds: 8
+  max_drawdown_pct: 5.0
+
+capital:
+  max_trade_size: 250
+  max_position_exposure: 1000
+  max_daily_loss: 150
+  max_drawdown_pct: 5.0
+  allowed_assets:
+    - BTC
+    - ETH
+    - SOL
+    - XRP
+    - ADA
+    - LTC
+    - LINK
+    - USD
+    - USDT
+    - USDC
+    - EUR
+  allowed_exchanges:
+    - coinbase
+    - kraken
+    - gemini
+    - bitstamp
+    - simulator
+  min_net_edge_bps: 8.0
+
+guardian:
+  min_trust_score: 55
+  block_below_trust: 40
+  min_quality: 0.0
+  require_consensus: true
+  block_abnormal_regime: true
+
+paper:
+  starting_equity: 25430.18
+  capture_timeout_seconds: 12
+  miss_edge_floor_bps: 2.0
+
+execution:
+  mode: paper
+  live_confirm_phrase: I_UNDERSTAND_THE_RISK
+  default_order_type: limit
+  ioc: true
+
+security:
+  mfa_required: true
+  withdrawal_disabled: true
+  ip_allowlist_enabled: false
+  session_minutes: 30
+  tamper_detection: true
+
+simulator:
+  enabled: false
+  inject_gaps: true
+  gap_every_seconds: 18
+
+updates:
+  channel: stable
+  require_signature: true

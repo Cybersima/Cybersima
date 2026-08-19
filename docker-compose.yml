@@ -1,0 +1,13 @@
+services:
+  engine:
+    build: .
+    image: cybersym/securetrade:2.0.0
+    ports:
+      - "8000:8000"
+    environment:
+      SECURETRADE_DEMO_ONLY: "1"
+      SECURETRADE_OPERATING_MODE: learn
+      SECURETRADE_EDITION: professional
+    restart: unless-stopped
+    # Keep the engine running even when the desktop/laptop is asleep.
+    # Point the desktop command center at http://<this-host>:8000

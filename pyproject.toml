@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cybersym-securetrade"
+version = "2.0.0"
+description = "CyberSym SecureTrade 2 — security-first trading intelligence with Guardian, Paper Lab, and a 24/7 engine."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Proprietary"}
+authors = [{name = "CyberSym"}]
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "jinja2>=3.1",
+    "websockets>=12.0",
+    "httpx>=0.27",
+    "pydantic>=2.5",
+    "pydantic-settings>=2.2",
+    "pyyaml>=6.0",
+    "yfinance>=0.2.40",
+    "python-dotenv>=1.0",
+    "cryptography>=42.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+desktop = [
+    "pywebview>=5.0",
+]
+
+[project.scripts]
+securetrade = "securetrade.cli:main"
+pulsearb = "securetrade.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+securetrade = [
+    "config/*.yaml",
+    "web/templates/*.html",
+    "web/static/*",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["src", "."]
+testpaths = ["tests"]

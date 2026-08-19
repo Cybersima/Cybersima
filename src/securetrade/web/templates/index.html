@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="{{ product_short }}" />
+  <meta name="theme-color" content="#07090d" />
+  <meta name="application-name" content="{{ product }}" />
+  <title>{{ product }} — {{ company }}</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="top">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 40 44" aria-hidden="true">
+          <path class="shield" d="M20 2 L36 8 V22 C36 32 28 40 20 42 C12 40 4 32 4 22 V8 Z"/>
+          <text x="20" y="27" text-anchor="middle">CS</text>
+        </svg>
+        <div>
+          <p class="company">{{ company }}</p>
+          <h1>SECURETRADE <span class="ver">2</span></h1>
+          <p class="tag">{{ tagline }}</p>
+        </div>
+      </div>
+      <nav class="tabs" aria-label="Command center">
+        <button data-view="home" class="on">Home</button>
+        <button data-view="markets">Markets</button>
+        <button data-view="guardian">Guardian</button>
+        <button data-view="journal">Journal</button>
+        <button data-view="academy">Academy</button>
+        <button data-view="setup">Setup</button>
+      </nav>
+      <div class="clock" id="clock">--:--:--</div>
+      <button id="kill" class="kill" type="button">Emergency Stop</button>
+    </header>
+
+    <section class="view on" id="view-home">
+      <div class="hero-card">
+        <p class="kicker">{{ product }}</p>
+        <div class="status-grid">
+          <div><span>SYSTEM</span><strong id="sys-state" class="ok">● PROTECTED</strong></div>
+          <div><span>TRADING</span><strong id="tr-state" class="ok">● ACTIVE</strong></div>
+          <div><span>SECURITY</span><strong id="sec-score">98 / 100</strong></div>
+          <div><span>MARKETS MONITORED</span><strong id="mkt-count">0</strong></div>
+        </div>
+        <div class="money-grid">
+          <div><span>ACCOUNT VALUE</span><strong id="acct">$0.00</strong></div>
+          <div><span>TODAY</span><strong id="today">$0.00</strong></div>
+          <div><span>THIS MONTH</span><strong id="month">$0.00</strong></div>
+          <div><span>MAX DRAWDOWN</span><strong id="dd">0.0%</strong></div>
+        </div>
+      </div>
+
+      <div class="split">
+        <article class="panel best" id="best-card">
+          <header><h2>BEST OPPORTUNITY</h2><span id="best-pair">—</span></header>
+          <dl>
+            <div><dt>Expected Net Edge</dt><dd id="best-edge">—</dd></div>
+            <div><dt>Security Score</dt><dd id="best-sec">—</dd></div>
+            <div><dt>Execution Confidence</dt><dd id="best-conf">—</dd></div>
+          </dl>
+          <p class="why-label">Why?</p>
+          <ul id="best-why" class="why"></ul>
+          <button id="best-details" type="button">View details</button>
+        </article>
+        <aside class="panel controls">
+          <div class="row"><span>AUTO TRADING</span><strong id="auto-state">OFF</strong></div>
+          <div class="row"><span>MODE</span><strong id="mode-state">LEARN</strong></div>
+          <div class="row"><span>DAILY LOSS LIMIT</span><strong id="dll">$150</strong></div>
+          <div class="modes">
+            <button data-mode="learn">Learn</button>
+            <button data-mode="assist">Assist</button>
+            <button data-mode="auto">Auto</button>
+          </div>
+          <p class="hint">Learn uses simulated money. Assist waits for approval. Auto stays inside your limits.</p>
+          <ol id="outcomes" class="tape"></ol>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="view-markets">
+      <div class="panel">
+        <header>
+          <h2>Exchange Connector · Market Scanner</h2>
+          <input id="filter" type="search" placeholder="Filter BTC, EUR, coinbase…" />
+        </header>
+        <div id="grid" class="grid"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-guardian">
+      <div class="split">
+        <article class="panel">
+          <header><h2>{{ guardian }}</h2></header>
+          <p class="lede">The profit engine asks “Can I make this trade?” Guardian asks “Should I allow this trade?”</p>
+          <ol id="blocks" class="tape"></ol>
+        </article>
+        <article class="panel">
+          <header><h2>Pending approval</h2></header>
+          <ol id="pending" class="tape"></ol>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" id="view-journal">
+      <article class="panel">
+        <header><h2>Immutable decision journal</h2><span id="chain">chain —</span></header>
+        <ol id="journal" class="tape"></ol>
+      </article>
+    </section>
+
+    <section class="view" id="view-academy">
+      <article class="panel">
+        <header><h2>CyberSym Academy</h2></header>
+        <div id="lessons" class="lessons"></div>
+      </article>
+    </section>
+
+    <section class="view" id="view-setup">
+      <article class="panel">
+        <header><h2>Setup Wizard</h2></header>
+        <ol id="wizard" class="lessons"></ol>
+        <button id="finish-wizard" type="button">Finish first-run setup</button>
+        <p class="hint">Paper is the default. Live trading stays locked until connectivity, security, risk limits, and safety checks pass.</p>
+        <pre id="live-gates" class="gates"></pre>
+      </article>
+    </section>
+
+    <div id="modal" class="modal hidden" role="dialog">
+      <div class="modal-card">
+        <button class="close" id="close-modal" type="button">×</button>
+        <h3 id="modal-title">Why this trade?</h3>
+        <pre id="modal-body"></pre>
+      </div>
+    </div>
+  </div>
+  <footer class="sig">
+    <strong>{{ product }}</strong>
+    <span>{{ tagline }}</span>
+    <span>{{ signature }} · v{{ version }} · {{ copyright }}</span>
+  </footer>
+  <script src="/static/app.js"></script>
+</body>
+</html>

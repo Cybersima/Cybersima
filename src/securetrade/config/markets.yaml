@@ -1,0 +1,273 @@
+# Default venue set is US-accessible: Coinbase, Kraken, Gemini, Bitstamp, Yahoo.
+# Binance stays in this file but is OFF — it is not available to US residents.
+
+coinbase:
+  enabled: true
+  rest_url: https://api.exchange.coinbase.com
+  ws_url: wss://ws-feed.exchange.coinbase.com
+  poll_seconds: 1.0
+  symbols:
+    - BTC-USD
+    - ETH-USD
+    - SOL-USD
+    - XRP-USD
+    - ADA-USD
+    - DOGE-USD
+    - AVAX-USD
+    - DOT-USD
+    - LINK-USD
+    - ATOM-USD
+    - LTC-USD
+    - NEAR-USD
+    - APT-USD
+    - ARB-USD
+    - OP-USD
+    - SUI-USD
+    - FIL-USD
+    - INJ-USD
+    - AAVE-USD
+    - UNI-USD
+    - LDO-USD
+    - BCH-USD
+    - ETC-USD
+    - XLM-USD
+    - ALGO-USD
+    - HBAR-USD
+    - SHIB-USD
+    - PEPE-USD
+    - POL-USD
+    - WIF-USD
+    - RENDER-USD
+    - SEI-USD
+    - TIA-USD
+    - ONDO-USD
+    - ETH-BTC
+    - LTC-BTC
+    - BTC-EUR
+    - ETH-EUR
+
+kraken:
+  enabled: true
+  rest_url: https://api.kraken.com
+  poll_seconds: 1.0
+  symbols:
+    - BTC-USD
+    - ETH-USD
+    - SOL-USD
+    - XRP-USD
+    - ADA-USD
+    - DOGE-USD
+    - AVAX-USD
+    - DOT-USD
+    - LINK-USD
+    - ATOM-USD
+    - LTC-USD
+    - NEAR-USD
+    - APT-USD
+    - ARB-USD
+    - SUI-USD
+    - FIL-USD
+    - AAVE-USD
+    - UNI-USD
+    - BCH-USD
+    - XLM-USD
+    - ALGO-USD
+    - SHIB-USD
+    - PEPE-USD
+    - ETH-BTC
+    - LTC-BTC
+    - BTC-EUR
+    - ETH-EUR
+    - EUR-USD
+
+gemini:
+  enabled: true
+  rest_url: https://api.gemini.com
+  poll_seconds: 1.0
+  symbols:
+    - BTC-USD
+    - ETH-USD
+    - SOL-USD
+    - XRP-USD
+    - DOGE-USD
+    - AVAX-USD
+    - LINK-USD
+    - LTC-USD
+    - AAVE-USD
+    - UNI-USD
+    - FIL-USD
+    - BCH-USD
+    - PEPE-USD
+    - ETH-BTC
+    - BTC-EUR
+    - ETH-EUR
+
+bitstamp:
+  enabled: true
+  rest_url: https://www.bitstamp.net
+  poll_seconds: 1.0
+  symbols:
+    - BTC-USD
+    - ETH-USD
+    - SOL-USD
+    - XRP-USD
+    - ADA-USD
+    - DOGE-USD
+    - LINK-USD
+    - LTC-USD
+    - XLM-USD
+    - ETH-BTC
+    - BTC-EUR
+    - ETH-EUR
+    - EUR-USD
+
+binance:
+  enabled: false
+  rest_url: https://api.binance.com
+  ws_url: wss://stream.binance.com:9443
+  testnet_rest_url: https://testnet.binance.vision
+  testnet_ws_url: wss://stream.testnet.binance.vision
+  symbols:
+    - BTCUSDT
+    - ETHUSDT
+    - BNBUSDT
+    - SOLUSDT
+    - XRPUSDT
+    - ADAUSDT
+    - DOGEUSDT
+    - AVAXUSDT
+    - DOTUSDT
+    - LINKUSDT
+    - ATOMUSDT
+    - LTCUSDT
+    - NEARUSDT
+    - APTUSDT
+    - ARBUSDT
+    - OPUSDT
+    - SUIUSDT
+    - TONUSDT
+    - TRXUSDT
+    - FILUSDT
+    - INJUSDT
+    - AAVEUSDT
+    - UNIUSDT
+    - LDOUSDT
+    - RENDERUSDT
+    - WIFUSDT
+    - PEPEUSDT
+    - SHIBUSDT
+    - BCHUSDT
+    - ETCUSDT
+    - XLMUSDT
+    - ALGOUSDT
+    - HBARUSDT
+    - SANDUSDT
+    - GRTUSDT
+    - STXUSDT
+    - IMXUSDT
+    - RUNEUSDT
+    - POLUSDT
+    - WLDUSDT
+    - SEIUSDT
+    - TIAUSDT
+    - JUPUSDT
+    - PENDLEUSDT
+    - ENAUSDT
+    - ONDOUSDT
+    - ETHBTC
+    - BNBBTC
+    - SOLBTC
+    - XRPBTC
+    - ADABTC
+    - LINKBTC
+    - LTCBTC
+    - ATOMETH
+    - ETHEUR
+    - BTCEUR
+    - EURUSDT
+    - USDCUSDT
+    - FDUSDUSDT
+
+yahoo:
+  enabled: true
+  poll_seconds: 2.0
+  symbols:
+    - ticker: EURUSD=X
+      canonical: EUR-USD
+      asset_class: fx
+    - ticker: GBPUSD=X
+      canonical: GBP-USD
+      asset_class: fx
+    - ticker: USDJPY=X
+      canonical: USD-JPY
+      asset_class: fx
+    - ticker: AUDUSD=X
+      canonical: AUD-USD
+      asset_class: fx
+    - ticker: USDCAD=X
+      canonical: USD-CAD
+      asset_class: fx
+    - ticker: USDCHF=X
+      canonical: USD-CHF
+      asset_class: fx
+    - ticker: NZDUSD=X
+      canonical: NZD-USD
+      asset_class: fx
+    - ticker: EURGBP=X
+      canonical: EUR-GBP
+      asset_class: fx
+    - ticker: EURJPY=X
+      canonical: EUR-JPY
+      asset_class: fx
+    - ticker: GBPJPY=X
+      canonical: GBP-JPY
+      asset_class: fx
+    - ticker: EURCHF=X
+      canonical: EUR-CHF
+      asset_class: fx
+    - ticker: AUDJPY=X
+      canonical: AUD-JPY
+      asset_class: fx
+    - ticker: USDCNH=X
+      canonical: USD-CNH
+      asset_class: fx
+    - ticker: USDSEK=X
+      canonical: USD-SEK
+      asset_class: fx
+    - ticker: USDNOK=X
+      canonical: USD-NOK
+      asset_class: fx
+    - ticker: USDMXN=X
+      canonical: USD-MXN
+      asset_class: fx
+    - ticker: BTC-USD
+      canonical: BTC-USD
+      asset_class: crypto
+    - ticker: ETH-USD
+      canonical: ETH-USD
+      asset_class: crypto
+    - ticker: SOL-USD
+      canonical: SOL-USD
+      asset_class: crypto
+    - ticker: XRP-USD
+      canonical: XRP-USD
+      asset_class: crypto
+    - ticker: GC=F
+      canonical: XAU-USD
+      asset_class: metal
+    - ticker: SI=F
+      canonical: XAG-USD
+      asset_class: metal
+    - ticker: CL=F
+      canonical: WTI-USD
+      asset_class: energy
+
+usd_equivalents:
+  - USD
+  - USDT
+  - USDC
+  - FDUSD
+
+# Explicit pairs are optional. The engine also auto-matches the same asset
+# across Coinbase / Kraken / Gemini / Bitstamp / Yahoo / Binance.
+cross_venue: []
