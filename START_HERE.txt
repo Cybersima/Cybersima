@@ -4,8 +4,8 @@ CyberSym SecureTrade — download and install
 A CyberSym product.
 
 1. Unzip this folder anywhere.
-2. Install Python 3.11+ if needed: https://www.python.org/downloads/
-   Windows: tick "Add python.exe to PATH".
+2. Install Python 3.12 if needed: https://www.python.org/downloads/
+   Windows: tick "Add python.exe to PATH". Avoid Python 3.14 if launch fails.
 3. Install the app:
    • Windows:  double-click INSTALL.bat
    • Mac:      double-click Install.command
@@ -22,8 +22,9 @@ then refresh the page (Ctrl+F5). Windows: Use-This-Logo.bat opens that folder.
 
 First launch can take a few minutes while packages install.
 Leave the black window open while you use the dashboard. Close it to stop.
-If you see "port already in use", close the other SecureTrade window — or just
-start again; it will use 8081, 8082, and so on automatically.
+If you see "No module named encodings" or "platform independent libraries":
+   close every SecureTrade window, then double-click REPAIR.bat.
+   Prefer Python 3.12 from python.org (Python 3.14 often breaks on Windows).
 
 This first run is DEMO / PAPER TRADING. No exchange keys. No real orders.
 

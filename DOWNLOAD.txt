@@ -5,8 +5,8 @@ Direct installer zip (unzip, then install):
 
 https://github.com/Cybersima/Cybersima/raw/cursor/pulsearb-multimarket-scanner-c11f/releases/CyberSym-SecureTrade.zip
 
-You need Python 3.11+ from https://www.python.org/downloads/
-Windows: tick "Add python.exe to PATH".
+You need Python 3.12 from https://www.python.org/downloads/
+Windows: tick "Add python.exe to PATH". Avoid Python 3.14 if start.bat fails.
 
 Then:
   Windows:  double-click INSTALL.bat, then start.bat

@@ -25,13 +25,19 @@ if [[ "${confirm}" != "YES" ]]; then
   exit 1
 fi
 
-if [[ ! -d .venv ]]; then
-  echo "Run ./install.sh first."
+PY=""
+if command -v python3 >/dev/null 2>&1; then
+  PY=python3
+elif command -v python >/dev/null 2>&1; then
+  PY=python
+else
+  echo "Python 3.11+ is required."
   exit 1
 fi
+"$PY" scripts/ensure_venv.py
 
 unset PULSEARB_DEMO_ONLY || true
 export PULSEARB_EXECUTION_MODE=live
 export PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK
 
-exec .venv/bin/python -E -m pulsearb --live-trading --host 127.0.0.1 --port 8080 --open-browser
+exec .venv/bin/python -m pulsearb --live-trading --host 127.0.0.1 --port 8080 --open-browser
