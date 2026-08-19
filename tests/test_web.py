@@ -33,9 +33,12 @@ def test_dashboard_and_kill_switch() -> None:
     assert css.status_code == 200
     assert "--gold" in css.text
     assert "--up" in css.text  # CAPTURED green
-    assert ".captured" in css.text
-    assert ".reversed" in css.text
-    assert ".missed" in css.text
+    assert ".tick.profit" in css.text
+    assert ".tick.loss" in css.text
+    assert ".tick.missed" in css.text
+    assert ".tick.reversal" in css.text
+    assert "Green profit" in page.text
+    assert "Orange reversal" in page.text
     commit = client.get("/api/recovery-commit").json()
     assert "ATOMIC_READY" in commit["pipeline"]
     academy = client.get("/api/academy").json()

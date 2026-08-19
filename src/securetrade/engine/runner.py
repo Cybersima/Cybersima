@@ -11,6 +11,7 @@ from securetrade.engine.broker import Broker, LiveBinanceBroker, PaperBroker
 from securetrade.engine.capital import CapitalProtection
 from securetrade.engine.guardian import Guardian
 from securetrade.engine.health import HealthMonitor
+from securetrade.engine.market_colors import latest_tones, pair_key
 from securetrade.engine.paper_lab import PaperLab
 from securetrade.engine.pipeline import TradingPipeline
 from securetrade.engine.risk import RiskManager
@@ -148,6 +149,7 @@ class Engine:
             drawdown = max(0.0, (self.stats.peak_equity - self.stats.account_value) / self.stats.peak_equity * 100)
         self.stats.max_drawdown = drawdown
         closed = [p.to_dict() for p in list(self.paper_lab.closed)[:40]]
+        tones = latest_tones(list(self.paper_lab.closed))
         return {
             "stats": {
                 **self.stats.to_dict(),
@@ -174,7 +176,10 @@ class Engine:
                 "starter_rung": self.config.starter_rung,
                 "max_ticket": float(self.config.ticket_size),
             },
-            "quotes": [q.to_dict() for q in quotes],
+            "quotes": [
+                {**q.to_dict(), "tone": tones.get(pair_key(q.canonical), "")}
+                for q in quotes
+            ],
             "opportunities": [o.to_dict() for o in list(ranked)[:40]],
             "best": best.to_dict() if best else None,
             "best_details": customer_details(best) if best else None,

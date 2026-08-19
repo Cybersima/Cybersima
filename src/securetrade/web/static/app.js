@@ -73,6 +73,16 @@ function humanGates(gates) {
   }).join("");
 }
 
+function toneClass(row) {
+  const outcome = (row.outcome || "").toUpperCase();
+  if (outcome === "REVERSED") return "reversal";
+  if (outcome === "MISSED" || outcome === "EXPIRED") return "missed";
+  if (outcome === "CAPTURED" && Number(row.actual_pnl) < 0) return "loss";
+  if (outcome === "CAPTURED" || Number(row.actual_pnl) > 0) return "profit";
+  if (Number(row.actual_pnl) < 0) return "loss";
+  return (row.outcome || "").toLowerCase();
+}
+
 function render(snap) {
   const s = snap.stats || {};
   $("clock").textContent = new Date().toLocaleTimeString();
@@ -108,14 +118,19 @@ function render(snap) {
   }
 
   const filter = ($("filter").value || "").toLowerCase();
+  const labels = { profit: "Profit", loss: "Loss", missed: "Missed opportunity", reversal: "Reversal" };
   $("grid").innerHTML = (snap.quotes || [])
     .filter((q) => `${q.venue} ${q.native_symbol} ${q.canonical}`.toLowerCase().includes(filter))
     .slice(0, 84)
-    .map((q) => `<div class="tick"><b>${q.venue} · ${q.native_symbol}</b>${Number(q.mid).toPrecision(7)}<div>${Number(q.spread_bps).toFixed(1)} bps</div></div>`)
+    .map((q) => {
+      const tone = q.tone || "";
+      const label = labels[tone] ? `<div class="tone">${labels[tone]}</div>` : "";
+      return `<div class="tick ${tone}"><b>${q.venue} · ${q.native_symbol}</b>${Number(q.mid).toPrecision(7)}<div>${Number(q.spread_bps).toFixed(1)} bps</div>${label}</div>`;
+    })
     .join("");
 
   $("outcomes").innerHTML = (snap.paper_lab || []).map((p) => {
-    const cls = (p.outcome || "").toLowerCase();
+    const cls = toneClass(p);
     return `<li class="${cls}"><b>${p.outcome}</b> ${p.pair} ${money(p.actual_pnl)}</li>`;
   }).join("");
 

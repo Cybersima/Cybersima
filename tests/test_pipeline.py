@@ -25,6 +25,8 @@ async def test_forced_profitable_capture(engine: Engine) -> None:
     assert engine.stats.paper_opened >= 1
     assert engine.stats.handoff_atomic_ready >= 1
     assert engine.paper.pnl > 0
+    tones = {q["canonical"]: q.get("tone") for q in engine.snapshot()["quotes"]}
+    assert tones.get("BTC-USD") == "profit"
 
 
 @pytest.mark.asyncio
@@ -33,6 +35,8 @@ async def test_forced_reversal_closes_negative(engine: Engine) -> None:
     assert closed.outcome == PaperOutcome.REVERSED.value
     assert closed.actual_pnl < 0
     assert engine.stats.reversed >= 1
+    tones = {q["canonical"]: q.get("tone") for q in engine.snapshot()["quotes"]}
+    assert tones.get("BTC-USD") == "reversal"
 
 
 @pytest.mark.asyncio

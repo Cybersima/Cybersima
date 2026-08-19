@@ -58,13 +58,20 @@ dl > div { display: flex; justify-content: space-between; border-bottom: 1px sol
 .hint { color: var(--muted); font-size: 12px; }
 .tape { list-style: none; padding: 0; margin: 0; max-height: 360px; overflow: auto; }
 .tape li { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
-.captured { color: var(--up); }
-.loss, .reversed { color: var(--down); }
-.reversed { color: var(--rev); }
+.captured, .profit { color: var(--up); }
+.loss { color: var(--down); }
+.reversed, .reversal { color: var(--rev); }
 .missed { color: var(--miss); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
 .tick { background: #0c1118; border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 12px; }
 .tick b { display: block; }
+.tick .tone { font-size: 10px; letter-spacing: 0.08em; margin-top: 6px; text-transform: uppercase; }
+.tick.profit { border-color: var(--up); background: #102018; color: var(--up); }
+.tick.loss { border-color: var(--down); background: #201010; color: var(--down); }
+.tick.missed { border-color: var(--miss); background: #101820; color: var(--miss); }
+.tick.reversal { border-color: var(--rev); background: #201408; color: var(--rev); }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; margin: 0; }
+.panel header { flex-wrap: wrap; }
 .lessons article { border-top: 1px solid var(--line); padding: 10px 0; }
 .gates { white-space: pre-wrap; color: var(--muted); }
 .modal { position: fixed; inset: 0; background: #0008; display: grid; place-items: center; }
