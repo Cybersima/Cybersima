@@ -16,6 +16,10 @@ A CyberSym product.
    • Linux:    ./start.sh
 5. Open http://127.0.0.1:8080
 
+Company logo: copy your CyberSym crest PNG into
+   branding\cybersym-logo.png
+then refresh the page (Ctrl+F5). Windows: Use-This-Logo.bat opens that folder.
+
 First launch can take a few minutes while packages install.
 Leave the black window open while you use the dashboard. Close it to stop.
 If you see "port already in use", close the other SecureTrade window — or just

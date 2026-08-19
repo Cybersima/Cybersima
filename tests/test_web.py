@@ -50,3 +50,14 @@ def test_dashboard_and_kill_switch() -> None:
     missed = client.post("/api/invest", json={"id": "missing"})
     assert missed.status_code == 200
     assert missed.json()["ok"] is False
+
+
+def test_dashboard_serves_dropped_branding_logo(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "branding").mkdir()
+    payload = b"\x89PNG\r\n\x1a\n" + b"official-crest"
+    (tmp_path / "branding" / "cybersym-logo.png").write_bytes(payload)
+    client = TestClient(create_app(Engine(AppConfig())))
+    logo = client.get("/static/logo.png")
+    assert logo.status_code == 200
+    assert logo.content == payload

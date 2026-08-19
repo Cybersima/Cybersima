@@ -5,12 +5,12 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
-from pulsearb.branding import COMPANY, COPYRIGHT, PRODUCT, PRODUCT_SHORT, SIGNATURE
+from pulsearb.branding import COMPANY, COPYRIGHT, PRODUCT, PRODUCT_SHORT, SIGNATURE, resolve_logo_path
 from pulsearb.engine.report import REPORT_HEADERS
 from pulsearb.engine.runner import Engine, run_engine
 
@@ -31,6 +31,19 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
 
     app = FastAPI(title=PRODUCT, docs_url=None, redoc_url=None, lifespan=lifespan)
     templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
+
+    @app.get("/static/logo.png")
+    async def branded_logo() -> FileResponse:
+        path = resolve_logo_path(WEB_DIR)
+        suffix = path.suffix.lower()
+        media = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+        }.get(suffix, "image/png")
+        return FileResponse(path, media_type=media, headers={"Cache-Control": "no-store"})
+
     app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
 
     @app.get("/", response_class=HTMLResponse)

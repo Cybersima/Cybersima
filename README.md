@@ -26,7 +26,9 @@ That first run is **demo / paper trading**. No API keys, no real orders. Close t
 
 See `DOWNLOAD.txt` in the zip for the same steps.
 
-On the dashboard, set **How much to invest**, choose coins and exchanges, then tap **Invest** on a trade (or turn on Auto). The CyberSym crest is in the header.
+On the dashboard, set **How much to invest**, choose coins and exchanges, then tap **Invest** on a trade (or turn on Auto).
+
+Your official crest: save it as `branding/cybersym-logo.png` next to `start.bat`, then refresh (Ctrl+F5). Windows: **Use-This-Logo.bat** opens that folder.
 
 The profit/trades spreadsheet is written to `data/CyberSym-SecureTrade-profit-report.csv`. Dashboard **Export report** downloads that file. Columns include ID, Detected Time, Strategy, Market, Route, Expected/Realized P&L, venues, raw/net edge, fees, slippage, fill ratio, and Paper Notional.
 
