@@ -21,6 +21,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--host", help="Dashboard bind host (default 0.0.0.0 for LAN / iPad)")
     parser.add_argument("--port", type=int, help="Dashboard port")
     parser.add_argument("--demo", action="store_true", help="Offline simulator only — no live APIs")
+    parser.add_argument(
+        "--live-trading",
+        action="store_true",
+        help="Send real Coinbase orders. Requires keys/coinbase.json and PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK",
+    )
     parser.add_argument("--binance", action="store_true", help="Also enable Binance (not available to US residents)")
     parser.add_argument("--open-browser", action="store_true", help="Open the dashboard in a browser")
     parser.add_argument("--strict-port", action="store_true", help="Fail if the requested port is busy instead of trying the next one")
@@ -38,6 +43,10 @@ def main(argv: list[str] | None = None) -> None:
     if args.demo:
         config.env.demo_only = True
         config._apply_env_overrides()
+    if args.live_trading and args.demo:
+        raise SystemExit("Cannot combine --demo and --live-trading.")
+    if args.live_trading:
+        config.settings.setdefault("execution", {})["mode"] = "live"
     if args.host:
         config.settings["host"] = args.host
     if args.port:
@@ -54,12 +63,24 @@ def main(argv: list[str] | None = None) -> None:
             )
     config.settings["port"] = port
     engine = Engine(config)
+    if args.live_trading and not config.live_enabled():
+        raise SystemExit(
+            "Live trading is not armed.\n"
+            "1. Save the Coinbase API JSON as keys/coinbase.json (see LIVE.txt)\n"
+            "2. Set PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK\n"
+            "Or double-click GO-LIVE.bat"
+        )
     app = create_app(engine, start_engine=True)
     display_host = "127.0.0.1" if config.host in {"0.0.0.0", "::"} else config.host
     url = f"http://{display_host}:{port}"
     print(f"{PRODUCT} dashboard: {url}")
     if engine.report.csv_path:
         print(f"{PRODUCT} profit report: {engine.report.csv_path}")
+    if config.live_enabled():
+        venues = ", ".join(config.live_venue_names()) or "none"
+        print(f"{PRODUCT} LIVE TRADING ON ({venues}). Real market orders.")
+        print(f"{PRODUCT} live cap: ${config.live_notional():.0f} per trade. Cross-venue stays paper.")
+        print("A failed live leg trips the kill switch. Close this window to stop.")
     print("Leave this window open. Close it or press Ctrl+C to stop.")
     if args.open_browser:
         webbrowser.open(url)

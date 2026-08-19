@@ -8,6 +8,8 @@ const clock = document.getElementById("clock");
 const feedBadge = document.getElementById("feed-badge");
 const execBadge = document.getElementById("exec-badge");
 const reportPath = document.getElementById("report-path");
+const liveBanner = document.getElementById("live-banner");
+const pnlLabel = document.getElementById("kpi-pnl-label");
 
 let snapshot = { quotes: [], opportunities: [], fills: [], stats: {} };
 let lastMids = new Map();
@@ -74,9 +76,28 @@ function render() {
   const pnlEl = document.getElementById("kpi-pnl");
   pnlEl.textContent = fmt(pnl, 2);
   pnlEl.className = pnl >= 0 ? "up" : "down";
+  const live = String(s.execution || "").startsWith("live");
+  if (pnlLabel) pnlLabel.textContent = live ? "Live P&L" : "Paper P&L";
+  execBadge.textContent = s.execution || execBadge.textContent;
+  execBadge.classList.toggle("exec-live", live);
+  if (liveBanner) {
+    liveBanner.classList.toggle("show", live);
+    liveBanner.hidden = !live;
+    if (live) {
+      const bals = s.balances || {};
+      const top = Object.entries(bals)
+        .slice(0, 6)
+        .map(([k, v]) => `${k} ${fmt(v, 4)}`)
+        .join(" · ");
+      liveBanner.textContent = [
+        s.live_note || "LIVE trading is on. Real money.",
+        s.live_notional ? `Cap $${fmt(s.live_notional, 0)} / trade.` : "",
+        top ? `Balances: ${top}` : "",
+      ].filter(Boolean).join(" ");
+    }
+  }
   document.getElementById("kpi-tri").textContent = s.triangles ?? 0;
   document.getElementById("kpi-up").textContent = `${fmt(s.uptime_s, 0)}s`;
-  execBadge.textContent = s.execution || execBadge.textContent;
   const feeds = s.feed_status || {};
   feedBadge.textContent = Object.entries(feeds).map(([k, v]) => `${k}:${v}`).join(" · ") || "waiting";
   killBtn.classList.toggle("on", Boolean(s.killed));

@@ -35,6 +35,9 @@ class EnvSettings(BaseSettings):
     binance_testnet: bool = Field(default=False, alias="BINANCE_TESTNET")
     enable_binance: bool = Field(default=False, alias="PULSEARB_ENABLE_BINANCE")
     demo_only: bool = Field(default=False, alias="PULSEARB_DEMO_ONLY")
+    coinbase_api_key: str = Field(default="", alias="COINBASE_API_KEY")
+    coinbase_api_secret: str = Field(default="", alias="COINBASE_API_SECRET")
+    coinbase_api_json: str = Field(default="", alias="COINBASE_API_JSON")
 
 
 class AppConfig:
@@ -84,16 +87,47 @@ class AppConfig:
     def live_confirm_phrase(self) -> str:
         return str(self.settings.get("execution", {}).get("live_confirm_phrase", "I_UNDERSTAND_THE_RISK"))
 
-    def venue_enabled(self, venue: str) -> bool:
-        return bool((self.markets.get(venue) or {}).get("enabled"))
+    def coinbase_credentials(self) -> tuple[str, str] | None:
+        from pulsearb.engine.keys import load_coinbase_credentials
+
+        return load_coinbase_credentials(
+            cwd=Path.cwd(),
+            json_path=self.env.coinbase_api_json or None,
+            api_key=self.env.coinbase_api_key,
+            api_secret=self.env.coinbase_api_secret,
+        )
+
+    def binance_live_ready(self) -> bool:
+        return bool(
+            self.venue_enabled("binance")
+            and self.env.binance_api_key
+            and self.env.binance_api_secret
+        )
 
     def live_enabled(self) -> bool:
-        return (
-            self.execution_mode == "live"
-            and self.env.live_confirm == self.live_confirm_phrase
-            and bool(self.env.binance_api_key and self.env.binance_api_secret)
-            and self.venue_enabled("binance")
-        )
+        if self.execution_mode != "live":
+            return False
+        if self.env.live_confirm != self.live_confirm_phrase:
+            return False
+        return self.coinbase_credentials() is not None or self.binance_live_ready()
+
+    def live_notional(self) -> float:
+        paper = float(self.risk.get("max_notional_usdt", 250))
+        if not self.live_enabled():
+            return paper
+        live_cap = float(self.risk.get("live_max_notional_usdt", 25))
+        return min(paper, live_cap)
+
+    def live_venue_names(self) -> list[str]:
+        names: list[str] = []
+        if self.coinbase_credentials() is not None:
+            names.append("coinbase")
+        if self.binance_live_ready():
+            names.append("binance")
+        return names
+
+    def venue_enabled(self, venue: str) -> bool:
+        return bool((self.markets.get(venue) or {}).get("enabled"))
 
     def symbols(self, venue: str) -> list[str]:
         return [str(item) for item in (self.markets.get(venue) or {}).get("symbols") or []]

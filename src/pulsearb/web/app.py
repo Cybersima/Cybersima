@@ -45,7 +45,11 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
                 "product_short": PRODUCT_SHORT,
                 "signature": SIGNATURE,
                 "copyright": COPYRIGHT,
-                "execution": "live" if engine.config.live_enabled() else "paper",
+                "execution": (
+                    f"live {'+'.join(engine.config.live_venue_names())}".strip()
+                    if engine.config.live_enabled()
+                    else "paper"
+                ),
             },
         )
 

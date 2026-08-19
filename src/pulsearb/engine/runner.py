@@ -5,10 +5,12 @@ import time
 from pathlib import Path
 from collections import deque
 
+from pulsearb.branding import PRODUCT
 from pulsearb.config import SPOT_VENUES, AppConfig
 from pulsearb.engine.arbitrage import detect_auto_cross, detect_cross_venue, detect_triangles, discover_triangles
 from pulsearb.engine.book import MarketBook
-from pulsearb.engine.broker import Broker, LiveBinanceBroker, PaperBroker
+from pulsearb.engine.broker import Broker, LiveBinanceBroker, LiveRouter, PaperBroker
+from pulsearb.engine.coinbase_live import LiveCoinbaseBroker
 from pulsearb.engine.report import ProfitLedger
 from pulsearb.engine.risk import RiskManager
 from pulsearb.feeds.binance import BinanceFeed
@@ -32,7 +34,7 @@ class Engine:
         self.seen: set[str] = set()
         self.listeners: set[asyncio.Queue] = set()
         self.risk = RiskManager(
-            max_notional_usdt=float(config.risk.get("max_notional_usdt", 250)),
+            max_notional_usdt=config.live_notional(),
             max_open_orders=int(config.risk.get("max_open_orders", 4)),
             daily_loss_limit_usdt=float(config.risk.get("daily_loss_limit_usdt", 100)),
             cooldown_seconds=float(config.risk.get("cooldown_seconds", 8)),
@@ -41,15 +43,30 @@ class Engine:
         self.broker: Broker = self.paper
         self.report = ProfitLedger(Path.cwd() / "data" / "CyberSym-SecureTrade-profit-report.csv")
         if config.live_enabled():
-            binance = config.markets.get("binance") or {}
-            rest = binance.get("testnet_rest_url" if config.env.binance_testnet else "rest_url")
-            self.broker = LiveBinanceBroker(
-                risk=self.risk,
-                api_key=config.env.binance_api_key,
-                api_secret=config.env.binance_api_secret,
-                rest_url=str(rest),
-                paper_fallback=self.paper,
-            )
+            coinbase_broker = None
+            binance_broker = None
+            creds = config.coinbase_credentials()
+            if creds:
+                key_name, secret = creds
+                coinbase_cfg = config.markets.get("coinbase") or {}
+                coinbase_broker = LiveCoinbaseBroker(
+                    risk=self.risk,
+                    api_key=key_name,
+                    api_secret=secret,
+                    paper_fallback=self.paper,
+                    rest_url=str(coinbase_cfg.get("brokerage_url") or "https://api.coinbase.com"),
+                )
+            if config.binance_live_ready():
+                binance = config.markets.get("binance") or {}
+                rest = binance.get("testnet_rest_url" if config.env.binance_testnet else "rest_url")
+                binance_broker = LiveBinanceBroker(
+                    risk=self.risk,
+                    api_key=config.env.binance_api_key,
+                    api_secret=config.env.binance_api_secret,
+                    rest_url=str(rest),
+                    paper_fallback=self.paper,
+                )
+            self.broker = LiveRouter(self.paper, coinbase=coinbase_broker, binance=binance_broker)
         self.triangles_by_venue = {
             venue: discover_triangles(config.symbols(venue))
             for venue in SPOT_VENUES
@@ -67,16 +84,30 @@ class Engine:
 
     def snapshot(self) -> dict:
         quotes = sorted(self.book.snapshot(), key=lambda q: (q.venue, q.native_symbol))
+        live = self.config.live_enabled()
+        live_pnl = float(getattr(self.broker, "live_pnl", 0.0)) if live else 0.0
+        venues = "+".join(getattr(self.broker, "live_venues", None) or self.config.live_venue_names())
+        execution = f"live {venues}".strip() if live else "paper"
+        balances = getattr(self.broker, "balances", {}) if live else {}
         return {
             "stats": {
                 **self.stats.to_dict(),
-                "paper_pnl": round(self.paper.pnl, 4),
+                "paper_pnl": round(self.paper.pnl + live_pnl, 4),
+                "live_pnl": round(live_pnl, 4),
                 "killed": self.risk.killed,
-                "execution": "live" if self.config.live_enabled() else "paper",
+                "execution": execution,
                 "uptime_s": round(time.time() - self.stats.started_at, 1),
                 "triangles": sum(len(items) for items in self.triangles_by_venue.values()),
                 "report_rows": self.report.total_rows,
                 "report_path": str(self.report.csv_path) if self.report.csv_path else "",
+                "balances": {str(k): round(float(v), 8) for k, v in (balances or {}).items() if float(v) > 0},
+                "live_note": (
+                    "LIVE Coinbase: real market orders for Coinbase-only triangles. "
+                    "Cross-venue stays paper. Kill switch stops new orders."
+                    if live
+                    else ""
+                ),
+                "live_notional": self.config.live_notional(),
             },
             "quotes": [q.to_dict() for q in quotes],
             "opportunities": [o.to_dict() for o in list(self.opportunities)[:40]],
@@ -197,7 +228,7 @@ class Engine:
         extra = float(self.config.fees.get("extra_slippage_bps", 2))
         min_alert = float(self.config.settings.get("min_edge_bps", 8))
         min_exec = float(self.config.settings.get("min_executable_edge_bps", 25))
-        notional = float(self.config.risk.get("max_notional_usdt", 250))
+        notional = self.config.live_notional()
         stale = float(self.config.risk.get("stale_quote_seconds", 8))
         while True:
             started = time.perf_counter()
@@ -249,7 +280,7 @@ class Engine:
                 self.report.record_opportunity(
                     opp,
                     fills,
-                    paper=self.broker.paper,
+                    paper=all(fill.paper for fill in fills) if fills else self.broker.paper,
                     killed=self.risk.killed,
                     fee_map=fee_map,
                     slippage_bps=extra,
@@ -263,4 +294,11 @@ class Engine:
 
 
 async def run_engine(engine: Engine) -> None:
+    coinbase = getattr(engine.broker, "coinbase", None)
+    if coinbase is not None and hasattr(coinbase, "refresh_balances"):
+        balances = await coinbase.refresh_balances()
+        shown = ", ".join(
+            f"{asset} {amount:.6g}" for asset, amount in list(balances.items())[:8]
+        ) or "(empty)"
+        print(f"{PRODUCT} Coinbase account: {shown}")
     await asyncio.gather(engine.run_feeds(), engine.run_scanner())

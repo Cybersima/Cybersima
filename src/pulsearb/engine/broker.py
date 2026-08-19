@@ -108,6 +108,7 @@ class LiveBinanceBroker(Broker):
         self.rest_url = rest_url.rstrip("/")
         self.paper_fallback = paper_fallback
         self.fills: list[Fill] = []
+        self.pnl = 0.0
 
     @property
     def paper(self) -> bool:
@@ -164,5 +165,67 @@ class LiveBinanceBroker(Broker):
                         break
         finally:
             self.risk.on_complete()
+        self.fills.extend(fills)
+        return fills
+
+
+class LiveRouter(Broker):
+    """Send live orders only when every executable leg is on one armed venue."""
+
+    PAPER_CROSS_NOTE = (
+        "paper: live orders only when every leg is on Coinbase. "
+        "Cross-venue needs funds parked on both exchanges — that is not instant."
+    )
+
+    def __init__(
+        self,
+        paper_fallback: PaperBroker,
+        coinbase: Broker | None = None,
+        binance: Broker | None = None,
+    ) -> None:
+        self.paper_fallback = paper_fallback
+        self.coinbase = coinbase
+        self.binance = binance
+        self.fills: list[Fill] = []
+
+    @property
+    def paper(self) -> bool:
+        return False
+
+    @property
+    def live_pnl(self) -> float:
+        total = 0.0
+        if self.coinbase is not None:
+            total += float(getattr(self.coinbase, "pnl", 0.0))
+        if self.binance is not None:
+            total += float(getattr(self.binance, "pnl", 0.0))
+        return total
+
+    @property
+    def balances(self) -> dict[str, float]:
+        if self.coinbase is not None:
+            return dict(getattr(self.coinbase, "balances", {}) or {})
+        return {}
+
+    @property
+    def live_venues(self) -> list[str]:
+        names: list[str] = []
+        if self.coinbase is not None:
+            names.append("coinbase")
+        if self.binance is not None:
+            names.append("binance")
+        return names
+
+    async def execute(self, opportunity: Opportunity) -> list[Fill]:
+        venues = {leg.venue for leg in opportunity.legs}
+        if venues == {"coinbase"} and self.coinbase is not None:
+            fills = await self.coinbase.execute(opportunity)
+        elif venues == {"binance"} and self.binance is not None:
+            fills = await self.binance.execute(opportunity)
+        else:
+            fills = await self.paper_fallback.execute(opportunity)
+            for fill in fills:
+                if fill.status == "filled":
+                    fill.note = (f"{fill.note} {self.PAPER_CROSS_NOTE}").strip()
         self.fills.extend(fills)
         return fills

@@ -36,4 +36,12 @@ Live market data (still paper trading):
    Windows:  start-live.bat
    Mac/Linux: ./start.sh --live
 
+Real Coinbase orders (your money):
+   Read LIVE.txt first.
+   Put the Coinbase API JSON in keys\coinbase.json
+   Windows:  double-click GO-LIVE.bat
+   Mac:      double-click Go-Live.command
+   Linux:    ./go-live.sh
+   Default cap is $25 per trade. Cross-venue stays paper.
+
 © CyberSym. All rights reserved.

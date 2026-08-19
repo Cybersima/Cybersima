@@ -68,24 +68,27 @@ On an iPad on the same Wi-Fi, open `http://<your-lan-ip>:8080` and use Share →
 | --- | --- |
 | `src/pulsearb/config/markets.yaml` | Symbols per venue (Coinbase, Kraken, Gemini, Bitstamp, Yahoo; Binance optional) |
 | `src/pulsearb/config/settings.yaml` | Scan rate, fees, edge thresholds, risk caps |
-| `.env.example` | Bind address, execution mode, optional Binance keys |
+| `.env.example` | Bind address, execution mode, Coinbase/Binance keys |
 
 Copy `.env.example` to `.env` if you need to change host/port or enable live orders.
 
 Yahoo is polled about every 2s on purpose. US exchange tickers refresh about once per second. Coinbase also has a WebSocket.
 
-## Live execution (opt-in)
+## Live execution (opt-in Coinbase)
 
-Paper trading is the default. Yahoo legs are never sent as orders.
+`start-live.bat` / `./start.sh --live` is **live market data with paper fills**.
 
-Optional Binance live orders (non-US) require **all** of:
+Real Coinbase orders are a separate add-on. Read `LIVE.txt`, save the Coinbase Advanced Trade API JSON as `keys/coinbase.json` (View + Trade, no Transfer), then run **GO-LIVE.bat** (Mac: `Go-Live.command`, Linux: `./go-live.sh`).
 
-1. `PULSEARB_ENABLE_BINANCE=1` or `--binance`
-2. `PULSEARB_EXECUTION_MODE=live`
-3. `BINANCE_API_KEY` / `BINANCE_API_SECRET`
-4. `PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK`
+Live mode:
 
-You can lose money. Coinbase/Kraken/Gemini/Bitstamp live order routing is not wired up yet — those venues are for market data and paper fills.
+- Sends **Coinbase-only** triangles as market IOC orders
+- Caps size at `live_max_notional_usdt` (default **$25**)
+- Leaves cross-venue (Coinbase vs Kraken/Gemini/Bitstamp) on **paper** — you cannot instantly move coins between exchanges
+- Requires `PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK` (GO-LIVE sets this)
+- Trips the kill switch if a live order fails
+
+You can lose money. Optional Binance live orders (non-US) still require `--binance`, keys, live mode, and the confirm phrase.
 
 ## Package for a laptop
 

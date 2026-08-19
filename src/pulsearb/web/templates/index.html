@@ -33,12 +33,13 @@
     <a id="export-report" class="export-btn" href="/api/report.csv" download="CyberSym-SecureTrade-profit-report.csv">Export report</a>
     <button id="kill" type="button">Kill switch</button>
   </header>
+  <p class="live-banner" id="live-banner" hidden></p>
 
   <section class="kpis">
     <article><label>Markets live</label><strong id="kpi-live">0</strong></article>
     <article><label>Scan</label><strong id="kpi-scan">0 ms</strong></article>
     <article><label>Opportunities</label><strong id="kpi-opps">0</strong></article>
-    <article><label>Paper P&amp;L</label><strong id="kpi-pnl">0.00</strong></article>
+    <article><label id="kpi-pnl-label">Paper P&amp;L</label><strong id="kpi-pnl">0.00</strong></article>
     <article><label>Triangles</label><strong id="kpi-tri">0</strong></article>
     <article><label>Uptime</label><strong id="kpi-up">0s</strong></article>
   </section>

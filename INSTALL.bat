@@ -45,5 +45,6 @@ if errorlevel 1 (
 echo.
 echo Installed. Double-click start.bat to run the demo dashboard.
 echo If 8080 is already in use, SecureTrade will pick the next free port.
+echo When you are ready for real Coinbase orders, read LIVE.txt then GO-LIVE.bat.
 echo.
 pause

@@ -1,0 +1,46 @@
+CyberSym SecureTrade — going live (real Coinbase orders)
+========================================================
+
+Paper trading and live market data are already on.
+This add-on sends REAL Coinbase market orders with YOUR money.
+
+What goes live
+--------------
+• Coinbase-only triangles (buy/sell all on Coinbase).
+• Default cap: $25 per trade (see settings.yaml live_max_notional_usdt).
+
+What stays paper
+----------------
+• Buy Coinbase / sell Kraken (or Gemini / Bitstamp).
+  You cannot instantly move coins between exchanges, so those
+  fills stay simulated even in live mode.
+
+You can lose money. Fees and slippage eat most retail gaps.
+This is not a profit guarantee.
+
+Setup (once)
+------------
+1. On Coinbase.com create an Advanced Trade API key:
+     Settings → API → Create API key
+   Permissions: View + Trade. Do NOT enable Transfer / Send / Withdraw.
+   Download the JSON file Coinbase gives you.
+
+2. Put that file here (same folder as start.bat):
+     keys\coinbase.json
+
+3. Leave some USD (and a little BTC/ETH if you want sell legs) in Coinbase.
+
+4. Stop the demo window first (close the black window).
+
+5. Windows:  double-click GO-LIVE.bat
+   Mac:      double-click Go-Live.command
+   Linux:    ./go-live.sh
+
+You will be asked to confirm. The dashboard shows a red LIVE banner,
+your balances, and the $25 cap. Use Kill switch or close the window
+to stop new orders. A failed live order also trips the kill switch.
+
+If Coinbase auth fails, the app will not start live. Fix the JSON
+and try again. Never paste keys into the dashboard or email.
+
+© CyberSym. All rights reserved.

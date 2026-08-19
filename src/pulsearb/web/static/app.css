@@ -70,6 +70,21 @@ h1 { font-size: 18px; letter-spacing: 0.16em; text-transform: uppercase; margin:
   text-decoration: none;
 }
 #kill.on { background: var(--down); color: #1a0505; }
+.live-banner {
+  display: none;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--down);
+  color: var(--down);
+  letter-spacing: 0.04em;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.live-banner.show { display: block; }
+.exec-live {
+  color: var(--down);
+  border-color: var(--down);
+}
 
 .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 12px; }
 .kpis article { background: var(--panel); border: 1px solid var(--line); padding: 10px 12px; }

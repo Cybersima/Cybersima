@@ -32,3 +32,4 @@ def test_dashboard_and_kill_switch() -> None:
     assert b"Paper Notional" in csv_file.content
     assert 'id="export-report"' in page.text
     assert "Export report" in page.text
+    assert 'id="live-banner"' in page.text
