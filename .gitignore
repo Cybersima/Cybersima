@@ -17,3 +17,6 @@ logs/
 .DS_Store
 .coverage
 htmlcov/
+*.egg-info/
+PulseArb.zip
+dist/

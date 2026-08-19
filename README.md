@@ -4,6 +4,22 @@ Retail-friendly **crypto + FX dislocation scanner**. It watches 50+ markets at o
 
 This is a scanner with hard risk limits. Public APIs are not an HFT pipe. Yahoo Finance is delayed. You will not outrun professional market makers, and nothing here is a profit guarantee or financial advice.
 
+## Download and run on your computer
+
+You need [Python 3.11+](https://www.python.org/downloads/) (Windows: tick **Add python.exe to PATH**).
+
+1. Download the zip: [PulseArb.zip](https://github.com/Cybersima/Cybersima/archive/refs/heads/cursor/pulsearb-multimarket-scanner-c11f.zip)
+2. Unzip it.
+3. Open `START_HERE.txt`, then:
+   - **Windows:** double-click `start.bat`
+   - **Mac:** double-click `start.command` (right-click → Open if macOS blocks it)
+   - **Linux:** `chmod +x start.sh && ./start.sh`
+4. Open [http://127.0.0.1:8080](http://127.0.0.1:8080) if the browser does not open on its own.
+
+That first run is **demo / paper trading**. No API keys, no real orders. Close the terminal window to stop.
+
+To rebuild a zip locally: `bash scripts/make-zip.sh`
+
 ## What it does
 
 - **Binance** public REST + WebSocket `bookTicker` for 50+ spot pairs (no API key for market data)

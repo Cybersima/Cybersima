@@ -1,0 +1,25 @@
+PulseArb — test this on your computer
+=====================================
+
+You need Python 3.11 or newer (https://www.python.org/downloads/).
+On Windows, tick "Add python.exe to PATH" during install.
+
+1. Unzip this folder anywhere.
+2. Start it:
+   • Windows:  double-click start.bat
+   • Mac:      double-click start.command
+               (if macOS blocks it: right-click → Open)
+   • Linux:    ./start.sh
+3. Your browser should open http://127.0.0.1:8080
+   If it does not, open that address yourself.
+
+First launch installs packages (a few minutes). After that it starts quickly.
+
+This first run is DEMO / PAPER TRADING. No Binance keys. No real orders.
+Leave the black window open while you use the dashboard. Close it to stop.
+
+Live market data (still paper trading):
+   Windows:  start-live.bat
+   Mac/Linux: ./start.sh --live
+
+This is a scanner, not a profit guarantee. Yahoo data is delayed.
