@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0b0d10" />
+  <title>{{ title }} — multi-market scanner</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="mark">▣</span>
+      <div>
+        <h1>PulseArb</h1>
+        <p class="tag">crypto + FX blotter</p>
+      </div>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+    <div class="badges">
+      <span class="badge" id="exec-badge">{{ execution }}</span>
+      <span class="badge dim" id="feed-badge">connecting</span>
+    </div>
+    <button id="kill" type="button">Kill switch</button>
+  </header>
+
+  <section class="kpis">
+    <article><label>Markets live</label><strong id="kpi-live">0</strong></article>
+    <article><label>Scan</label><strong id="kpi-scan">0 ms</strong></article>
+    <article><label>Opportunities</label><strong id="kpi-opps">0</strong></article>
+    <article><label>Paper P&amp;L</label><strong id="kpi-pnl">0.00</strong></article>
+    <article><label>Triangles</label><strong id="kpi-tri">0</strong></article>
+    <article><label>Uptime</label><strong id="kpi-up">0s</strong></article>
+  </section>
+
+  <main class="layout">
+    <section class="panel">
+      <header>
+        <h2>Markets</h2>
+        <input id="filter" type="search" placeholder="Filter BTC, EUR, yahoo…" />
+      </header>
+      <div id="grid" class="grid"></div>
+    </section>
+    <aside class="side">
+      <section class="panel">
+        <header><h2>Dislocations</h2></header>
+        <ol id="opps" class="tape"></ol>
+      </section>
+      <section class="panel">
+        <header><h2>Fills</h2></header>
+        <ol id="fills" class="tape"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="note">
+    Public feeds are not an HFT pipe. Yahoo is delayed. Live Binance orders stay off until you set keys and the confirm phrase. This is a scanner, not a profit guarantee.
+  </footer>
+  <script src="/static/app.js"></script>
+</body>
+</html>

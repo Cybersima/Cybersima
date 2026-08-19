@@ -1,0 +1,174 @@
+# 60+ markets scanned in parallel.
+# Binance symbols are executable (spot). Yahoo symbols are data-only.
+
+binance:
+  enabled: true
+  rest_url: https://api.binance.com
+  ws_url: wss://stream.binance.com:9443
+  testnet_rest_url: https://testnet.binance.vision
+  testnet_ws_url: wss://stream.testnet.binance.vision
+  symbols:
+    - BTCUSDT
+    - ETHUSDT
+    - BNBUSDT
+    - SOLUSDT
+    - XRPUSDT
+    - ADAUSDT
+    - DOGEUSDT
+    - AVAXUSDT
+    - DOTUSDT
+    - LINKUSDT
+    - ATOMUSDT
+    - LTCUSDT
+    - NEARUSDT
+    - APTUSDT
+    - ARBUSDT
+    - OPUSDT
+    - SUIUSDT
+    - TONUSDT
+    - TRXUSDT
+    - FILUSDT
+    - INJUSDT
+    - AAVEUSDT
+    - UNIUSDT
+    - LDOUSDT
+    - RENDERUSDT
+    - WIFUSDT
+    - PEPEUSDT
+    - SHIBUSDT
+    - BCHUSDT
+    - ETCUSDT
+    - XLMUSDT
+    - ALGOUSDT
+    - HBARUSDT
+    - SANDUSDT
+    - GRTUSDT
+    - STXUSDT
+    - IMXUSDT
+    - RUNEUSDT
+    - POLUSDT
+    - WLDUSDT
+    - SEIUSDT
+    - TIAUSDT
+    - JUPUSDT
+    - PENDLEUSDT
+    - ENAUSDT
+    - ONDOUSDT
+    - ETHBTC
+    - BNBBTC
+    - SOLBTC
+    - XRPBTC
+    - ADABTC
+    - LINKBTC
+    - LTCBTC
+    - ATOMETH
+    - ETHEUR
+    - BTCEUR
+    - EURUSDT
+    - USDCUSDT
+    - FDUSDUSDT
+
+yahoo:
+  enabled: true
+  poll_seconds: 2.0
+  symbols:
+    - ticker: EURUSD=X
+      canonical: EUR-USD
+      asset_class: fx
+    - ticker: GBPUSD=X
+      canonical: GBP-USD
+      asset_class: fx
+    - ticker: USDJPY=X
+      canonical: USD-JPY
+      asset_class: fx
+    - ticker: AUDUSD=X
+      canonical: AUD-USD
+      asset_class: fx
+    - ticker: USDCAD=X
+      canonical: USD-CAD
+      asset_class: fx
+    - ticker: USDCHF=X
+      canonical: USD-CHF
+      asset_class: fx
+    - ticker: NZDUSD=X
+      canonical: NZD-USD
+      asset_class: fx
+    - ticker: EURGBP=X
+      canonical: EUR-GBP
+      asset_class: fx
+    - ticker: EURJPY=X
+      canonical: EUR-JPY
+      asset_class: fx
+    - ticker: GBPJPY=X
+      canonical: GBP-JPY
+      asset_class: fx
+    - ticker: EURCHF=X
+      canonical: EUR-CHF
+      asset_class: fx
+    - ticker: AUDJPY=X
+      canonical: AUD-JPY
+      asset_class: fx
+    - ticker: USDCNH=X
+      canonical: USD-CNH
+      asset_class: fx
+    - ticker: USDSEK=X
+      canonical: USD-SEK
+      asset_class: fx
+    - ticker: USDNOK=X
+      canonical: USD-NOK
+      asset_class: fx
+    - ticker: USDMXN=X
+      canonical: USD-MXN
+      asset_class: fx
+    - ticker: BTC-USD
+      canonical: BTC-USD
+      asset_class: crypto
+    - ticker: ETH-USD
+      canonical: ETH-USD
+      asset_class: crypto
+    - ticker: SOL-USD
+      canonical: SOL-USD
+      asset_class: crypto
+    - ticker: XRP-USD
+      canonical: XRP-USD
+      asset_class: crypto
+    - ticker: BNB-USD
+      canonical: BNB-USD
+      asset_class: crypto
+    - ticker: GC=F
+      canonical: XAU-USD
+      asset_class: metal
+    - ticker: SI=F
+      canonical: XAG-USD
+      asset_class: metal
+    - ticker: CL=F
+      canonical: WTI-USD
+      asset_class: energy
+
+# Treat these quote assets as USD-comparable for cross-venue checks.
+usd_equivalents:
+  - USD
+  - USDT
+  - USDC
+  - FDUSD
+
+# Explicit Yahoo (data) vs Binance (executable) comparisons.
+cross_venue:
+  - id: btc-usd
+    left: {venue: binance, symbol: BTCUSDT}
+    right: {venue: yahoo, symbol: BTC-USD}
+  - id: eth-usd
+    left: {venue: binance, symbol: ETHUSDT}
+    right: {venue: yahoo, symbol: ETH-USD}
+  - id: sol-usd
+    left: {venue: binance, symbol: SOLUSDT}
+    right: {venue: yahoo, symbol: SOL-USD}
+  - id: xrp-usd
+    left: {venue: binance, symbol: XRPUSDT}
+    right: {venue: yahoo, symbol: XRP-USD}
+  - id: bnb-usd
+    left: {venue: binance, symbol: BNBUSDT}
+    right: {venue: yahoo, symbol: BNB-USD}
+  - id: eur-usd
+    left: {venue: binance, symbol: EURUSDT}
+    right: {venue: yahoo, symbol: EUR-USD}
