@@ -3,8 +3,14 @@
   "short_name": "SecureTrade",
   "description": "CyberSym multi-market scanner",
   "display": "standalone",
-  "background_color": "#0b0d10",
-  "theme_color": "#0b0d10",
+  "background_color": "#05070c",
+  "theme_color": "#05070c",
   "start_url": "/",
-  "icons": []
+  "icons": [
+    {
+      "src": "/static/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }

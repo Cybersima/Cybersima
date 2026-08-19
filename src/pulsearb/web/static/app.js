@@ -10,10 +10,42 @@ const execBadge = document.getElementById("exec-badge");
 const reportPath = document.getElementById("report-path");
 const liveBanner = document.getElementById("live-banner");
 const pnlLabel = document.getElementById("kpi-pnl-label");
+const amountInput = document.getElementById("invest-amount");
+const presetsEl = document.getElementById("presets");
+const assetChips = document.getElementById("asset-chips");
+const venueChips = document.getElementById("venue-chips");
+const kindChips = document.getElementById("kind-chips");
+const modePick = document.getElementById("mode-pick");
+const modeAuto = document.getElementById("mode-auto");
+const amountHint = document.getElementById("amount-hint");
+const toastEl = document.getElementById("toast");
 
-let snapshot = { quotes: [], opportunities: [], fills: [], stats: {} };
+let snapshot = { quotes: [], opportunities: [], fills: [], stats: {}, desk: {} };
 let lastMids = new Map();
 let renderTimer = null;
+let deskReady = false;
+let desk = {
+  notional: 25,
+  auto_invest: false,
+  all_assets: false,
+  assets: ["BTC", "ETH", "SOL", "XRP"],
+  venues: ["coinbase", "kraken", "gemini", "bitstamp"],
+  kinds: ["cross_venue", "triangular"],
+  cap: 250,
+  presets: [10, 25, 50, 100, 250],
+  asset_choices: ["BTC", "ETH", "SOL", "XRP", "ADA", "DOGE", "LTC", "LINK", "AVAX", "DOT", "UNI", "AAVE"],
+  venue_choices: [
+    { id: "coinbase", label: "Coinbase" },
+    { id: "kraken", label: "Kraken" },
+    { id: "gemini", label: "Gemini" },
+    { id: "bitstamp", label: "Bitstamp" },
+  ],
+  kind_choices: [
+    { id: "cross_venue", label: "Price gaps" },
+    { id: "triangular", label: "Same-exchange triangles" },
+  ],
+  live: false,
+};
 
 function fmt(n, d = 2) {
   if (n === undefined || n === null || Number.isNaN(n)) return "—";
@@ -28,6 +60,111 @@ function tickClock() {
 }
 setInterval(tickClock, 250);
 tickClock();
+
+function showToast(text) {
+  if (!toastEl) return;
+  toastEl.textContent = text;
+  toastEl.hidden = false;
+  toastEl.classList.add("show");
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => {
+    toastEl.classList.remove("show");
+    toastEl.hidden = true;
+  }, 3200);
+}
+
+function chip(label, on, onClick) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `chip${on ? " on" : ""}`;
+  btn.textContent = label;
+  btn.addEventListener("click", onClick);
+  return btn;
+}
+
+function paintDesk() {
+  if (!amountInput) return;
+  if (document.activeElement !== amountInput) {
+    amountInput.value = String(desk.notional);
+    amountInput.max = String(desk.cap);
+  }
+  presetsEl.replaceChildren(
+    ...desk.presets.map((amt) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `preset${Number(desk.notional) === Number(amt) ? " on" : ""}`;
+      btn.textContent = `$${amt}`;
+      btn.addEventListener("click", () => saveDesk({ notional: amt }));
+      return btn;
+    })
+  );
+  modePick.classList.toggle("on", !desk.auto_invest);
+  modeAuto.classList.toggle("on", desk.auto_invest);
+  amountHint.textContent = desk.live
+    ? `Live Coinbase orders · max $${desk.cap} per trade.`
+    : "Paper trading until you go live. Change this anytime.";
+
+  const allOn = Boolean(desk.all_assets);
+  assetChips.replaceChildren(
+    chip("All coins", allOn, () => saveDesk({ all_assets: !allOn })),
+    ...desk.asset_choices.map((asset) =>
+      chip(asset, !allOn && desk.assets.includes(asset), () => {
+        const next = desk.assets.includes(asset)
+          ? desk.assets.filter((item) => item !== asset)
+          : [...desk.assets, asset];
+        saveDesk({ all_assets: false, assets: next });
+      })
+    )
+  );
+  venueChips.replaceChildren(
+    ...desk.venue_choices.map((row) =>
+      chip(row.label, desk.venues.includes(row.id), () => {
+        const next = desk.venues.includes(row.id)
+          ? desk.venues.filter((item) => item !== row.id)
+          : [...desk.venues, row.id];
+        saveDesk({ venues: next });
+      })
+    )
+  );
+  kindChips.replaceChildren(
+    ...desk.kind_choices.map((row) =>
+      chip(row.label, desk.kinds.includes(row.id), () => {
+        const next = desk.kinds.includes(row.id)
+          ? desk.kinds.filter((item) => item !== row.id)
+          : [...desk.kinds, row.id];
+        saveDesk({ kinds: next });
+      })
+    )
+  );
+}
+
+async function saveDesk(patch) {
+  const payload = { ...desk, ...patch };
+  try {
+    const res = await fetch("/api/desk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    desk = await res.json();
+    paintDesk();
+  } catch (err) {
+    showToast("Could not save your choices. " + err);
+  }
+}
+
+function friendlyOpp(row) {
+  const buy = (row.legs || []).find((leg) => leg.action === "buy");
+  const sell = (row.legs || []).find((leg) => leg.action === "sell");
+  if (row.kind === "triangular") {
+    const venue = (buy && buy.venue) || (row.legs[0] && row.legs[0].venue) || "";
+    return `Same-exchange triangle on ${venue}`;
+  }
+  if (row.kind === "alert") return row.summary;
+  if (buy && sell) return `Buy ${buy.symbol} on ${buy.venue}, sell on ${sell.venue}`;
+  return row.summary;
+}
 
 function render() {
   const q = (filter.value || "").trim().toLowerCase();
@@ -51,22 +188,65 @@ function render() {
     })
   );
 
-  opps.replaceChildren(
-    ...snapshot.opportunities.map((row) => {
-      const li = document.createElement("li");
-      li.innerHTML = `<div class="edge">${row.kind} · ${fmt(row.net_edge_bps, 1)} bps net</div>${row.summary}`;
-      return li;
-    })
-  );
+  const mine = (snapshot.opportunities || []).filter((row) => row.chosen !== false);
+  if (!mine.length) {
+    const empty = document.createElement("li");
+    empty.className = "empty";
+    empty.textContent = "No matching trades right now. Pick more coins, or wait for the next scan.";
+    opps.replaceChildren(empty);
+  } else {
+    opps.replaceChildren(
+      ...mine.map((row) => {
+        const li = document.createElement("li");
+        li.className = "opp-card";
+        const kicker = document.createElement("div");
+        kicker.className = "edge";
+        kicker.textContent = `${row.kind_label || row.kind} · ${fmt(row.net_edge_bps, 1)} bps net`;
+        const body = document.createElement("div");
+        body.textContent = friendlyOpp(row);
+        const meta = document.createElement("div");
+        meta.className = "opp-meta";
+        meta.innerHTML = `<span>Est. P&amp;L $${fmt(row.expected_pnl, 2)}</span><span>$${fmt(row.notional, 0)} size</span>`;
+        li.append(kicker, body, meta);
+        if (row.investable) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "invest-btn";
+          btn.textContent = `Invest $${fmt(desk.notional, 0)}`;
+          btn.addEventListener("click", () => invest(row.id, btn));
+          li.append(btn);
+        } else if (row.pending && desk.auto_invest) {
+          const note = document.createElement("div");
+          note.className = "hint";
+          note.textContent = "Auto will take this if it is still open.";
+          li.append(note);
+        } else if (!row.executable) {
+          const note = document.createElement("div");
+          note.className = "hint";
+          note.textContent = "Watch only — delayed data, not an order.";
+          li.append(note);
+        }
+        return li;
+      })
+    );
+  }
 
-  fills.replaceChildren(
-    ...snapshot.fills.map((row) => {
-      const li = document.createElement("li");
-      li.className = row.status === "blocked" || row.status === "error" ? "blocked" : "";
-      li.textContent = `${row.status} ${row.side} ${row.symbol} ${row.note || ""}`.trim();
-      return li;
-    })
-  );
+  const fillRows = snapshot.fills || [];
+  if (!fillRows.length) {
+    const empty = document.createElement("li");
+    empty.className = "empty";
+    empty.textContent = "No fills yet. Pick a trade when one appears.";
+    fills.replaceChildren(empty);
+  } else {
+    fills.replaceChildren(
+      ...fillRows.map((row) => {
+        const li = document.createElement("li");
+        li.className = row.status === "blocked" || row.status === "error" ? "blocked" : "";
+        li.textContent = `${row.status} ${row.side} ${row.symbol} ${row.note || ""}`.trim();
+        return li;
+      })
+    );
+  }
 
   const s = snapshot.stats || {};
   document.getElementById("kpi-live").textContent = s.markets_live ?? 0;
@@ -91,9 +271,11 @@ function render() {
         .join(" · ");
       liveBanner.textContent = [
         s.live_note || "LIVE trading is on. Real money.",
-        s.live_notional ? `Cap $${fmt(s.live_notional, 0)} / trade.` : "",
+        desk.cap ? `Cap $${fmt(desk.cap, 0)} / trade.` : "",
         top ? `Balances: ${top}` : "",
-      ].filter(Boolean).join(" ");
+      ]
+        .filter(Boolean)
+        .join(" ");
     }
   }
   document.getElementById("kpi-tri").textContent = s.triangles ?? 0;
@@ -105,9 +287,26 @@ function render() {
   const reportRows = s.report_rows ?? 0;
   exportBtn.textContent = reportRows ? `Export report (${reportRows})` : "Export report";
   if (reportPath) {
-    reportPath.textContent = s.report_path
-      ? `Profit report file: ${s.report_path}`
-      : "";
+    reportPath.textContent = s.report_path ? `Profit report file: ${s.report_path}` : "";
+  }
+}
+
+async function invest(id, btn) {
+  btn.disabled = true;
+  btn.textContent = "Investing…";
+  try {
+    const res = await fetch("/api/invest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "Could not invest");
+    showToast(`Invested $${fmt(desk.notional, 0)}. Check Your fills.`);
+  } catch (err) {
+    showToast(String(err.message || err));
+    btn.disabled = false;
+    btn.textContent = `Invest $${fmt(desk.notional, 0)}`;
   }
 }
 
@@ -117,6 +316,10 @@ killBtn.addEventListener("click", async () => {
   const killed = Boolean(snapshot.stats && snapshot.stats.killed);
   await fetch(killed ? "/api/resume" : "/api/kill", { method: "POST" });
 });
+
+modePick.addEventListener("click", () => saveDesk({ auto_invest: false }));
+modeAuto.addEventListener("click", () => saveDesk({ auto_invest: true }));
+amountInput.addEventListener("change", () => saveDesk({ notional: Number(amountInput.value) }));
 
 exportBtn.addEventListener("click", async (ev) => {
   ev.preventDefault();
@@ -139,10 +342,7 @@ exportBtn.addEventListener("click", async (ev) => {
   } catch (err) {
     const path = (snapshot.stats && snapshot.stats.report_path) || "data\\CyberSym-SecureTrade-profit-report.csv";
     window.alert(
-      "Browser export failed. Open the CSV already on disk in Excel:\n\n" +
-        path +
-        "\n\n" +
-        err
+      "Browser export failed. Open the CSV already on disk in Excel:\n\n" + path + "\n\n" + err
     );
     exportBtn.textContent = previous;
     return;
@@ -163,8 +363,16 @@ function connect() {
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
   ws.onmessage = (ev) => {
     snapshot = JSON.parse(ev.data);
+    if (snapshot.desk) {
+      desk = { ...desk, ...snapshot.desk };
+      if (!deskReady) {
+        deskReady = true;
+        paintDesk();
+      }
+    }
     scheduleRender();
   };
   ws.onclose = () => setTimeout(connect, 1200);
 }
 connect();
+paintDesk();

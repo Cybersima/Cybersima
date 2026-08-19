@@ -23,6 +23,9 @@ start again; it will use 8081, 8082, and so on automatically.
 
 This first run is DEMO / PAPER TRADING. No exchange keys. No real orders.
 
+On the dashboard, set How much to invest, pick your coins, then tap
+Invest on a trade — or turn on Invest automatically.
+
 Profit / trades spreadsheet:
    While the scanner is running it writes:
       data\CyberSym-SecureTrade-profit-report.csv

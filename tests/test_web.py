@@ -19,7 +19,11 @@ def test_dashboard_and_kill_switch() -> None:
     assert client.post("/api/resume").json() == {"killed": False}
     css = client.get("/static/app.css")
     assert css.status_code == 200
+    assert "--cyan" in css.text
     assert "--gold" in css.text
+    logo = client.get("/static/logo.png")
+    assert logo.status_code == 200
+    assert logo.headers["content-type"].startswith("image/")
     report = client.get("/api/report")
     assert report.status_code == 200
     assert report.json()["headers"][0] == "ID"
@@ -33,3 +37,16 @@ def test_dashboard_and_kill_switch() -> None:
     assert 'id="export-report"' in page.text
     assert "Export report" in page.text
     assert 'id="live-banner"' in page.text
+    assert "logo.png" in page.text
+    assert "I’ll pick each trade" in page.text or "I'll pick each trade" in page.text
+    assert 'id="invest-amount"' in page.text
+    desk = client.get("/api/desk")
+    assert desk.status_code == 200
+    assert desk.json()["auto_invest"] is False
+    assert desk.json()["notional"] == 25
+    updated = client.post("/api/desk", json={"notional": 50, "assets": ["BTC", "ETH"]})
+    assert updated.status_code == 200
+    assert updated.json()["notional"] == 50
+    missed = client.post("/api/invest", json={"id": "missing"})
+    assert missed.status_code == 200
+    assert missed.json()["ok"] is False

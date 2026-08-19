@@ -26,9 +26,9 @@ That first run is **demo / paper trading**. No API keys, no real orders. Close t
 
 See `DOWNLOAD.txt` in the zip for the same steps.
 
-The profit/trades spreadsheet is written continuously to `data/CyberSym-SecureTrade-profit-report.csv` in the folder you started from. Open that file in Excel even if the dashboard **Export report** button fails — you do not need to stop the scanner. On Windows, **Open-Report.bat** copies it to the Desktop and opens it.
+On the dashboard, set **How much to invest**, choose coins and exchanges, then tap **Invest** on a trade (or turn on Auto). The CyberSym crest is in the header.
 
-Dashboard **Export report** downloads the full on-disk file (`CyberSym-SecureTrade-profit-report.csv`). Columns include ID, Detected Time, Strategy, Market, Route, Expected/Realized P&L, venues, raw/net edge, fees, slippage, fill ratio, and Paper Notional.
+The profit/trades spreadsheet is written to `data/CyberSym-SecureTrade-profit-report.csv`. Dashboard **Export report** downloads that file. Columns include ID, Detected Time, Strategy, Market, Route, Expected/Realized P&L, venues, raw/net edge, fees, slippage, fill ratio, and Paper Notional.
 
 To rebuild a zip locally: `bash scripts/make-zip.sh`
 

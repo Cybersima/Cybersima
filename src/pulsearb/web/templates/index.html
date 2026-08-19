@@ -6,76 +6,116 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="{{ product_short }}" />
-  <meta name="theme-color" content="#0b0d10" />
+  <meta name="theme-color" content="#05070c" />
   <meta name="application-name" content="{{ product }}" />
   <title>{{ product }} — {{ company }}</title>
+  <link rel="icon" href="/static/logo.png" />
+  <link rel="apple-touch-icon" href="/static/logo.png" />
   <link rel="manifest" href="/static/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-  <header class="top">
-    <div class="brand">
-      <svg class="mark" viewBox="0 0 40 44" aria-hidden="true">
-        <path class="shield" d="M20 2 L36 8 V22 C36 32 28 40 20 42 C12 40 4 32 4 22 V8 Z"/>
-        <text x="20" y="27" text-anchor="middle">CS</text>
-      </svg>
-      <div>
-        <p class="company">{{ company }}</p>
-        <h1>{{ product_short }}</h1>
-        <p class="tag">coinbase · kraken · gemini · bitstamp</p>
+  <div class="app">
+    <header class="masthead">
+      <div class="brand">
+        <img class="logo" src="/static/logo.png" width="96" height="96" alt="{{ company }} crest" />
+        <div class="brand-copy">
+          <p class="company">{{ company }}</p>
+          <h1>{{ product_short }}</h1>
+          <p class="lede">Choose what you invest. Approve each trade, or turn on Auto.</p>
+        </div>
       </div>
-    </div>
-    <div class="clock" id="clock">--:--:--</div>
-    <div class="badges">
-      <span class="badge" id="exec-badge">{{ execution }}</span>
-      <span class="badge dim" id="feed-badge">connecting</span>
-    </div>
-    <a id="export-report" class="export-btn" href="/api/report.csv" download="CyberSym-SecureTrade-profit-report.csv">Export report</a>
-    <button id="kill" type="button">Kill switch</button>
-  </header>
-  <p class="live-banner" id="live-banner" hidden></p>
+      <div class="mast-meta">
+        <div class="clock" id="clock">--:--:--</div>
+        <div class="badges">
+          <span class="badge" id="exec-badge">{{ execution }}</span>
+          <span class="badge dim" id="feed-badge">connecting</span>
+        </div>
+        <a id="export-report" class="export-btn" href="/api/report.csv" download="CyberSym-SecureTrade-profit-report.csv">Export report</a>
+        <button id="kill" type="button">Kill switch</button>
+      </div>
+    </header>
 
-  <section class="kpis">
-    <article><label>Markets live</label><strong id="kpi-live">0</strong></article>
-    <article><label>Scan</label><strong id="kpi-scan">0 ms</strong></article>
-    <article><label>Opportunities</label><strong id="kpi-opps">0</strong></article>
-    <article><label id="kpi-pnl-label">Paper P&amp;L</label><strong id="kpi-pnl">0.00</strong></article>
-    <article><label>Triangles</label><strong id="kpi-tri">0</strong></article>
-    <article><label>Uptime</label><strong id="kpi-up">0s</strong></article>
-  </section>
+    <p class="live-banner" id="live-banner" hidden></p>
+    <p class="toast" id="toast" hidden></p>
 
-  <main class="layout">
-    <section class="panel">
-      <header>
-        <h2>Markets</h2>
-        <input id="filter" type="search" placeholder="Filter BTC, EUR, yahoo…" />
-      </header>
-      <div id="grid" class="grid"></div>
+    <section class="desk" id="desk" aria-label="Choose what to invest">
+      <div class="desk-block amount-block">
+        <label for="invest-amount">How much to invest per trade</label>
+        <div class="amount-row">
+          <span class="dollar">$</span>
+          <input id="invest-amount" type="number" min="5" step="5" value="25" inputmode="decimal" />
+        </div>
+        <div class="presets" id="presets"></div>
+        <p class="hint" id="amount-hint">You can change this anytime. Paper trading until you go live.</p>
+      </div>
+      <div class="desk-block">
+        <label>How trades are taken</label>
+        <div class="segmented" role="group">
+          <button type="button" id="mode-pick" class="on">I’ll pick each trade</button>
+          <button type="button" id="mode-auto">Invest automatically</button>
+        </div>
+        <p class="hint">Picking is safer. Auto uses your amount on matching trades.</p>
+      </div>
+      <div class="desk-block">
+        <label>Coins I want</label>
+        <div class="chips" id="asset-chips"></div>
+      </div>
+      <div class="desk-block">
+        <label>Exchanges</label>
+        <div class="chips" id="venue-chips"></div>
+      </div>
+      <div class="desk-block">
+        <label>Trade style</label>
+        <div class="chips" id="kind-chips"></div>
+      </div>
     </section>
-    <aside class="side">
-      <section class="panel">
-        <header><h2>Dislocations</h2></header>
-        <ol id="opps" class="tape"></ol>
-      </section>
-      <section class="panel">
-        <header><h2>Fills</h2></header>
-        <ol id="fills" class="tape"></ol>
-      </section>
-    </aside>
-  </main>
 
-  <footer class="sig">
-    <div class="sig-mark">{{ company }}</div>
-    <div>
-      <strong>{{ product }}</strong>
-      <span>{{ signature }}</span>
-    </div>
-    <p class="note" id="report-path"></p>
-    <p class="note">
-      Public feeds are not an HFT pipe. Yahoo is delayed. US default venues are Coinbase, Kraken, Gemini, and Bitstamp.
-      This is a scanner, not a profit guarantee. {{ copyright }}
-    </p>
-  </footer>
+    <section class="kpis">
+      <article><label>Markets live</label><strong id="kpi-live">0</strong></article>
+      <article><label>Scan</label><strong id="kpi-scan">0 ms</strong></article>
+      <article><label>Opportunities</label><strong id="kpi-opps">0</strong></article>
+      <article><label id="kpi-pnl-label">Paper P&amp;L</label><strong id="kpi-pnl">0.00</strong></article>
+      <article><label>Triangles</label><strong id="kpi-tri">0</strong></article>
+      <article><label>Uptime</label><strong id="kpi-up">0s</strong></article>
+    </section>
+
+    <main class="layout">
+      <section class="panel">
+        <header>
+          <h2>Markets</h2>
+          <input id="filter" type="search" placeholder="Find BTC, ETH, Coinbase…" />
+        </header>
+        <div id="grid" class="grid"></div>
+      </section>
+      <aside class="side">
+        <section class="panel">
+          <header><h2>Trades for you</h2></header>
+          <ol id="opps" class="tape"></ol>
+        </section>
+        <section class="panel">
+          <header><h2>Your fills</h2></header>
+          <ol id="fills" class="tape"></ol>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="sig">
+      <img class="sig-logo" src="/static/logo.png" width="40" height="40" alt="" />
+      <div>
+        <strong>{{ product }}</strong>
+        <span>{{ signature }}</span>
+      </div>
+      <p class="note" id="report-path"></p>
+      <p class="note">
+        Public feeds are not an HFT pipe. Yahoo is delayed. US default venues are Coinbase, Kraken, Gemini, and Bitstamp.
+        This is a scanner, not a profit guarantee. {{ copyright }}
+      </p>
+    </footer>
+  </div>
   <script src="/static/app.js"></script>
 </body>
 </html>

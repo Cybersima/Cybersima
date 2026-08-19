@@ -11,6 +11,7 @@ from pulsearb.engine.arbitrage import detect_auto_cross, detect_cross_venue, det
 from pulsearb.engine.book import MarketBook
 from pulsearb.engine.broker import Broker, LiveBinanceBroker, LiveRouter, PaperBroker
 from pulsearb.engine.coinbase_live import LiveCoinbaseBroker
+from pulsearb.engine.desk import KIND_LABELS, TradeDesk
 from pulsearb.engine.report import ProfitLedger
 from pulsearb.engine.risk import RiskManager
 from pulsearb.feeds.binance import BinanceFeed
@@ -32,7 +33,17 @@ class Engine:
         self.opportunities: deque[Opportunity] = deque(maxlen=80)
         self.fills: deque[Fill] = deque(maxlen=80)
         self.seen: set[str] = set()
+        self.invested: set[str] = set()
+        self.by_id: dict[str, Opportunity] = {}
         self.listeners: set[asyncio.Queue] = set()
+        self.desk = TradeDesk(
+            notional=min(25.0, config.live_notional()),
+            max_notional=float(config.risk.get("max_notional_usdt", 250)),
+            live_max=float(config.risk.get("live_max_notional_usdt", 25)),
+            live=config.live_enabled(),
+        )
+        self._fee_map = config.fee_map()
+        self._slippage = float(config.fees.get("extra_slippage_bps", 2))
         self.risk = RiskManager(
             max_notional_usdt=config.live_notional(),
             max_open_orders=int(config.risk.get("max_open_orders", 4)),
@@ -107,10 +118,11 @@ class Engine:
                     if live
                     else ""
                 ),
-                "live_notional": self.config.live_notional(),
+                "live_notional": self.desk.cap if self.config.live_enabled() else self.desk.notional,
             },
+            "desk": self.desk.to_dict(),
             "quotes": [q.to_dict() for q in quotes],
-            "opportunities": [o.to_dict() for o in list(self.opportunities)[:40]],
+            "opportunities": [self._opp_view(o) for o in list(self.opportunities)[:40]],
             "fills": [f.to_dict() for f in list(self.fills)[:40]],
         }
 
@@ -129,6 +141,63 @@ class Engine:
                 dead.append(queue)
         for queue in dead:
             self.unsubscribe(queue)
+
+    def _opp_view(self, opp: Opportunity) -> dict:
+        data = opp.to_dict()
+        pending = (
+            opp.executable
+            and opp.id not in self.invested
+            and self.desk.matches(opp)
+            and not self.risk.killed
+        )
+        data.update(
+            {
+                "kind_label": KIND_LABELS.get(opp.kind.value, opp.kind.value),
+                "expected_pnl": round(self.desk.notional * opp.net_edge_bps / 10_000, 4),
+                "notional": self.desk.notional,
+                "pending": pending,
+                "investable": pending and not self.desk.auto_invest,
+                "chosen": self.desk.matches(opp),
+            }
+        )
+        return data
+
+    def apply_desk(self, payload: dict) -> dict:
+        self.desk.live = self.config.live_enabled()
+        self.desk.apply(payload)
+        return self.desk.to_dict()
+
+    async def invest(self, opportunity_id: str) -> dict:
+        opp = self.by_id.get(opportunity_id)
+        if opp is None:
+            return {"ok": False, "error": "That trade is no longer on the board."}
+        if not opp.executable:
+            return {"ok": False, "error": "That row is watch-only (delayed data)."}
+        if not self.desk.matches(opp):
+            return {"ok": False, "error": "Turn on that coin or exchange in Choose what to invest."}
+        if opportunity_id in self.invested:
+            return {"ok": False, "error": "You already took this trade."}
+        fills = await self._take(opp)
+        await self.broadcast()
+        return {"ok": True, "fills": [fill.to_dict() for fill in fills], "desk": self.desk.to_dict()}
+
+    async def _take(self, opp: Opportunity) -> list[Fill]:
+        opp.notional = self.desk.notional
+        fills = await self.broker.execute(opp)
+        self.invested.add(opp.id)
+        for fill in fills:
+            self.fills.appendleft(fill)
+            if fill.status == "blocked":
+                self.stats.live_blocked += 1
+        self.report.record_opportunity(
+            opp,
+            fills,
+            paper=all(fill.paper for fill in fills) if fills else self.broker.paper,
+            killed=self.risk.killed,
+            fee_map=self._fee_map,
+            slippage_bps=self._slippage,
+        )
+        return fills
 
     def _demo_instruments(self) -> list[tuple[str, str, bool]]:
         rows: list[tuple[str, str, bool]] = []
@@ -224,14 +293,14 @@ class Engine:
 
     async def run_scanner(self) -> None:
         interval = self.config.scan_interval_ms / 1000.0
-        fee_map = self.config.fee_map()
-        extra = float(self.config.fees.get("extra_slippage_bps", 2))
+        fee_map = self._fee_map
+        extra = self._slippage
         min_alert = float(self.config.settings.get("min_edge_bps", 8))
         min_exec = float(self.config.settings.get("min_executable_edge_bps", 25))
-        notional = self.config.live_notional()
         stale = float(self.config.risk.get("stale_quote_seconds", 8))
         while True:
             started = time.perf_counter()
+            notional = self.desk.notional
             cross = detect_cross_venue(
                 self.book,
                 self.config.markets.get("cross_venue") or [],
@@ -268,23 +337,22 @@ class Engine:
             fresh = [opp for opp in (*cross, *auto, *triangles) if opp.id not in self.seen]
             for opp in fresh:
                 self.seen.add(opp.id)
+                self.by_id[opp.id] = opp
+                if len(self.by_id) > 2000:
+                    self.by_id = {item.id: item for item in self.opportunities}
                 self.opportunities.appendleft(opp)
                 self.stats.opportunities += 1
-                fills: list[Fill] = []
-                if opp.executable:
-                    fills = await self.broker.execute(opp)
-                    for fill in fills:
-                        self.fills.appendleft(fill)
-                        if fill.status == "blocked":
-                            self.stats.live_blocked += 1
-                self.report.record_opportunity(
-                    opp,
-                    fills,
-                    paper=all(fill.paper for fill in fills) if fills else self.broker.paper,
-                    killed=self.risk.killed,
-                    fee_map=fee_map,
-                    slippage_bps=extra,
-                )
+                if opp.executable and self.desk.auto_invest and self.desk.matches(opp) and not self.risk.killed:
+                    await self._take(opp)
+                elif not opp.executable:
+                    self.report.record_opportunity(
+                        opp,
+                        [],
+                        paper=True,
+                        killed=self.risk.killed,
+                        fee_map=fee_map,
+                        slippage_bps=extra,
+                    )
             self.stats.scans += 1
             self.stats.quotes = self.book.size()
             self.stats.markets_live = self.book.live_count(stale)

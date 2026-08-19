@@ -73,6 +73,21 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
         await engine.broadcast()
         return {"killed": False}
 
+    @app.get("/api/desk")
+    async def get_desk() -> dict:
+        return engine.desk.to_dict()
+
+    @app.post("/api/desk")
+    async def update_desk(payload: dict) -> dict:
+        desk = engine.apply_desk(payload)
+        await engine.broadcast()
+        return desk
+
+    @app.post("/api/invest")
+    async def invest(payload: dict) -> dict:
+        result = await engine.invest(str(payload.get("id") or ""))
+        return result
+
     @app.get("/api/report")
     async def report_json() -> dict:
         return {
