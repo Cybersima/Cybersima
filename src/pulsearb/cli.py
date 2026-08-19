@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 from pathlib import Path
 
 import uvicorn
 
 from pulsearb.config import AppConfig
-from pulsearb.engine.runner import Engine, run_engine
+from pulsearb.engine.runner import Engine
 from pulsearb.web.app import create_app
 
 
@@ -35,12 +34,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.port:
         config.settings["port"] = args.port
     engine = Engine(config)
-    app = create_app(engine)
-
-    @app.on_event("startup")
-    async def _start() -> None:
-        asyncio.create_task(run_engine(engine))
-
+    app = create_app(engine, start_engine=True)
     uvicorn.run(app, host=config.host, port=config.port, log_level="info")
 
 
