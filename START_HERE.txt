@@ -1,35 +1,30 @@
-CyberSym SecureTrade — test this on your computer
-=================================================
+CyberSym SecureTrade — download and install
+==========================================
 
 A CyberSym product.
 
-You need Python 3.11 or newer (https://www.python.org/downloads/).
-On Windows, tick "Add python.exe to PATH" during install.
-
 1. Unzip this folder anywhere.
-2. Start it:
+2. Install Python 3.11+ if needed: https://www.python.org/downloads/
+   Windows: tick "Add python.exe to PATH".
+3. Install the app:
+   • Windows:  double-click INSTALL.bat
+   • Mac:      double-click Install.command
+   • Linux:    ./install.sh
+4. Start it:
    • Windows:  double-click start.bat
    • Mac:      double-click start.command
-               (if macOS blocks it: right-click → Open)
    • Linux:    ./start.sh
-3. Your browser should open http://127.0.0.1:8080
-   If it does not, open that address yourself.
+5. Open http://127.0.0.1:8080
 
-First launch installs packages (a few minutes). After that it starts quickly.
-
-This first run is DEMO / PAPER TRADING. No exchange keys. No real orders.
+First launch can take a few minutes while packages install.
 Leave the black window open while you use the dashboard. Close it to stop.
 
-On the dashboard, click "Export report" to download a spreadsheet of Paper P&L
-(trade ID, times, strategy, venues, expected vs realized P&L, fees, slippage).
+This first run is DEMO / PAPER TRADING. No exchange keys. No real orders.
 
-Live market data from Coinbase, Kraken, Gemini, Bitstamp, and Yahoo
-(still paper trading):
+On the dashboard, click "Export report" to download a spreadsheet of Paper P&L.
+
+Live market data (still paper trading):
    Windows:  start-live.bat
    Mac/Linux: ./start.sh --live
-
-Binance is off by default (not available in the US).
-
-This is a scanner, not a profit guarantee. Yahoo data is delayed.
 
 © CyberSym. All rights reserved.

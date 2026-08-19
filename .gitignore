@@ -19,5 +19,6 @@ logs/
 htmlcov/
 *.egg-info/
 PulseArb.zip
-CyberSym-SecureTrade.zip
+/CyberSym-SecureTrade.zip
+!releases/CyberSym-SecureTrade.zip
 dist/

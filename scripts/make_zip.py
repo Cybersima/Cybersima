@@ -8,9 +8,9 @@ import sys
 import zipfile
 from pathlib import Path
 
-SKIP_DIRS = {".git", ".venv", ".pytest_cache", "__pycache__", "dist", ".mypy_cache"}
+SKIP_DIRS = {".git", ".venv", ".pytest_cache", "__pycache__", "dist", ".mypy_cache", "releases", "data"}
 SKIP_NAMES = {"PulseArb.zip", "CyberSym-SecureTrade.zip"}
-EXECUTABLE = {"start.sh", "start.command", "install.sh", "make-zip.sh"}
+EXECUTABLE = {"start.sh", "start.command", "install.sh", "make-zip.sh", "Install.command"}
 FOLDER = "CyberSym-SecureTrade"
 
 
@@ -28,7 +28,7 @@ def should_skip(rel: Path) -> bool:
 
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
-    out = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / "CyberSym-SecureTrade.zip"
+    out = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / "releases" / "CyberSym-SecureTrade.zip"
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
         out.unlink()

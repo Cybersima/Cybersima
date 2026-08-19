@@ -1,0 +1,18 @@
+Download CyberSym SecureTrade
+=============================
+
+Direct installer zip (unzip, then install):
+
+https://github.com/Cybersima/Cybersima/raw/cursor/pulsearb-multimarket-scanner-c11f/releases/CyberSym-SecureTrade.zip
+
+You need Python 3.11+ from https://www.python.org/downloads/
+Windows: tick "Add python.exe to PATH".
+
+Then:
+  Windows:  double-click INSTALL.bat, then start.bat
+  Mac:      double-click Install.command, then start.command
+  Linux:    ./install.sh && ./start.sh
+
+Dashboard: http://127.0.0.1:8080
+
+© CyberSym. All rights reserved.

@@ -6,19 +6,23 @@ A CyberSym product. Binance is **disabled by default** because it is not availab
 
 This is a scanner with hard risk limits. Public APIs are not an HFT pipe. Yahoo Finance is delayed. You will not outrun professional market makers, and nothing here is a profit guarantee or financial advice.
 
-## Download and run on your computer
+## Download and install on your computer
 
-You need [Python 3.11+](https://www.python.org/downloads/) (Windows: tick **Add python.exe to PATH**).
+**Installer zip (click to download):**  
+https://github.com/Cybersima/Cybersima/raw/cursor/pulsearb-multimarket-scanner-c11f/releases/CyberSym-SecureTrade.zip
 
-1. Download the zip: [CyberSym SecureTrade](https://github.com/Cybersima/Cybersima/archive/refs/heads/cursor/pulsearb-multimarket-scanner-c11f.zip)
-2. Unzip it.
-3. Open `START_HERE.txt`, then:
-   - **Windows:** double-click `start.bat`
-   - **Mac:** double-click `start.command` (right-click → Open if macOS blocks it)
-   - **Linux:** `chmod +x start.sh && ./start.sh`
-4. Open [http://127.0.0.1:8080](http://127.0.0.1:8080) if the browser does not open on its own.
+You need [Python 3.11+](https://www.python.org/downloads/). On Windows, tick **Add python.exe to PATH**.
+
+1. Download and unzip `CyberSym-SecureTrade.zip`.
+2. Install, then start:
+   - **Windows:** double-click `INSTALL.bat`, then `start.bat`
+   - **Mac:** double-click `Install.command`, then `start.command` (right-click → Open if macOS blocks it)
+   - **Linux:** `./install.sh && ./start.sh`
+3. Open [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
 That first run is **demo / paper trading**. No API keys, no real orders. Close the terminal window to stop.
+
+See `DOWNLOAD.txt` in the zip for the same steps.
 
 On the dashboard, click **Export report** to download a spreadsheet (`CyberSym-SecureTrade-profit-report.csv`) that Excel and Google Sheets can open. Columns include ID, Detected Time, Strategy, Market, Route, Expected/Realized P&L, venues, raw/net edge, fees, slippage, fill ratio, and Paper Notional. The same file is also written to `data/` while the scanner runs.
 
