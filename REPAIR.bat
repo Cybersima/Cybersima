@@ -1,9 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title CyberSym SecureTrade 1.5 repair
+title CyberSym SecureTrade 1.6 repair
 echo.
-echo Optional. start.bat 1.5 already rebuilds a broken Version 4 .venv.
+echo Optional. start.bat 1.6 already avoids the encodings crash.
 echo Close any other SecureTrade windows first.
 echo.
 call "%~dp0repair-venv.bat"

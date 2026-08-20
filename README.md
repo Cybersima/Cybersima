@@ -13,9 +13,9 @@ https://github.com/Cybersima/Cybersima/raw/cursor/pulsearb-multimarket-scanner-c
 
 You need [Python 3.11+](https://www.python.org/downloads/). On Windows, tick **Add python.exe to PATH**. Python 3.14 is supported.
 
-This zip is **product version 1.5**. Cursor unzip folders named v01.4 / v01.5 are download names, not the product version. `start.bat` prints **CyberSym SecureTrade 1.5**.
+This zip is **product version 1.6**. Cursor unzip folders named v01.4 / v01.5 / v01.6 are download names, not the product version. `start.bat` prints **CyberSym SecureTrade 1.6**.
 
-Version 4 left a broken `.venv` in some copies. 1.5 rebuilds that automatically. You can also double-click `FIX-VENV.bat`. Do not copy `.venv` from an old folder. Your CSV in `data\` is kept.
+The encodings crash on Python 3.14 came from `python -E` inside `.venv`. 1.6 starts with your installed Python 3.14 (the same one that already runs v01.3) and does not use `-E`. Do not copy `.venv` from Version 4. Your CSV in `data\` is kept.
 
 1. Download and unzip `CyberSym-SecureTrade.zip`.
 2. Install, then start:

@@ -1,95 +1,17 @@
 #!/usr/bin/env python3
-"""Create or rebuild the local .venv. Never rewrite venv config files by hand."""
+"""Create or rebuild the local environment. Delegates to windows_launch (no -E, no pyvenv.cfg rewrite)."""
 
 from __future__ import annotations
 
-import shutil
-import subprocess
 import sys
-import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-VENV = ROOT / ".venv"
-
-
-def venv_python() -> Path:
-    if sys.platform == "win32":
-        return VENV / "Scripts" / "python.exe"
-    return VENV / "bin" / "python"
-
-
-def venv_ok(python: Path) -> bool:
-    if not python.is_file():
-        return False
-    try:
-        result = subprocess.run(
-            [str(python), "-E", "-c", "import encodings, sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-    except OSError:
-        return False
-    return result.returncode == 0
-
-
-def remove_venv() -> None:
-    if not VENV.exists():
-        return
-    last_error: OSError | None = None
-    for _ in range(5):
-        try:
-            shutil.rmtree(VENV)
-            return
-        except OSError as exc:
-            last_error = exc
-            time.sleep(0.6)
-    raise SystemExit(
-        "Could not remove the broken .venv folder.\n"
-        "Close every SecureTrade window, then run FIX-VENV.bat.\n"
-        f"({last_error})"
-    )
-
-
-def create_venv() -> None:
-    print("Creating a fresh Python environment...")
-    subprocess.check_call([sys.executable, "-m", "venv", str(VENV)], cwd=ROOT)
-
-
-def install_app(python: Path) -> None:
-    print("Installing CyberSym SecureTrade into .venv...")
-    subprocess.check_call([str(python), "-m", "pip", "install", "-U", "pip"], cwd=ROOT)
-    subprocess.check_call([str(python), "-m", "pip", "install", "-e", "."], cwd=ROOT)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from windows_launch import prepare_interpreter
 
 
 def main() -> None:
-    if sys.version_info < (3, 11):
-        raise SystemExit("Python 3.11 or newer is required. Install it from https://www.python.org/downloads/")
-    python = venv_python()
-    if venv_ok(python):
-        probe = subprocess.run(
-            [str(python), "-E", "-c", "import pulsearb"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-        )
-        if probe.returncode == 0:
-            return
-        print("Python is OK, but SecureTrade needs to be installed into .venv...")
-        install_app(python)
-        return
-    print("The local Python environment is broken or missing. Repairing...")
-    remove_venv()
-    create_venv()
-    python = venv_python()
-    if not venv_ok(python):
-        raise SystemExit(
-            "Python still cannot start after rebuilding .venv.\n"
-            "Keep using Python 3.14 (or 3.11+). Close other SecureTrade windows, then run FIX-VENV.bat."
-        )
-    install_app(python)
+    prepare_interpreter()
 
 
 if __name__ == "__main__":

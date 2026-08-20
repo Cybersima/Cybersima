@@ -5,7 +5,7 @@ def test_company_and_product_names() -> None:
     assert COMPANY == "CyberSym"
     assert PRODUCT == "CyberSym SecureTrade"
     assert SIGNATURE == "A CyberSym product"
-    assert VERSION == "1.5"
+    assert VERSION == "1.6"
 
 
 def test_custom_logo_in_branding_folder_wins(tmp_path) -> None:

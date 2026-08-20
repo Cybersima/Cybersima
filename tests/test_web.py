@@ -12,7 +12,7 @@ def test_dashboard_and_kill_switch() -> None:
     assert page.status_code == 200
     assert "CyberSym SecureTrade" in page.text
     assert "A CyberSym product" in page.text
-    assert "v1.5" in page.text
+    assert "v1.6" in page.text
     assert "SecureTrade" in page.text
     assert client.get("/api/health").json() == {"ok": True, "killed": False}
     assert client.post("/api/kill").json() == {"killed": True}

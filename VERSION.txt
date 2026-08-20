@@ -1,11 +1,11 @@
-CyberSym SecureTrade 1.5
+CyberSym SecureTrade 1.6
 
-This is product version 1.5.
+This is product version 1.6.
 Cursor unzip folders (v01.3, v01.4, v01.5, …) are download names, not the product version.
-If start.bat prints "CyberSym SecureTrade 1.5", you have this build.
+If start.bat prints "CyberSym SecureTrade 1.6", you have this build.
 
-Version 4 left a broken .venv in some unzip folders. 1.5 rebuilds that
-automatically. You can also double-click FIX-VENV.bat.
+The encodings crash came from launching .venv with python -E on Python 3.14.
+1.6 starts with your real Python 3.14 (the one that already runs v01.3)
+and does not use -E.
 
-Keep using Python 3.14. Do not copy .venv from an old folder.
-Your profit CSV in data\ is not deleted when .venv is rebuilt.
+Keep using Python 3.14. Do not copy .venv from Version 4.

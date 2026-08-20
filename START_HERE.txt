@@ -3,9 +3,10 @@ CyberSym SecureTrade — download and install
 
 A CyberSym product.
 
-This is product version 1.5. start.bat prints "CyberSym SecureTrade 1.5".
+This is product version 1.6. start.bat prints "CyberSym SecureTrade 1.6".
 Cursor unzip names (v01.4, v01.5, …) are not the product version.
-If Version 4 failed, this copy rebuilds the broken .venv. Or use FIX-VENV.bat.
+1.6 starts with your Python 3.14 and does not use python -E (that caused
+the encodings crash). Do not copy .venv from Version 4.
 
 1. Unzip this folder anywhere. Prefer a new folder; do not copy .venv from Version 4.
 2. Install Python 3.11+ if needed: https://www.python.org/downloads/
