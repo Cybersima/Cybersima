@@ -49,6 +49,9 @@ def test_dashboard_and_kill_switch() -> None:
     assert js.status_code == 200
     assert "cybersym-sound" in js.text
     assert "playChime" in js.text
+    assert "noticeNewFills" in js.text
+    assert "Trade complete" in js.text
+    assert 'id="fills-meta"' in page.text
     assert "cybersym-theme" in page.text
     assert "I’ll pick each trade" in page.text or "I'll pick each trade" in page.text
     assert 'id="invest-amount"' in page.text

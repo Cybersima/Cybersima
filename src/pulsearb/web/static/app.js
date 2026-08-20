@@ -19,6 +19,7 @@ const modePick = document.getElementById("mode-pick");
 const modeAuto = document.getElementById("mode-auto");
 const amountHint = document.getElementById("amount-hint");
 const toastEl = document.getElementById("toast");
+const fillsMeta = document.getElementById("fills-meta");
 const themeDarkBtn = document.getElementById("theme-dark");
 const themeLightBtn = document.getElementById("theme-light");
 const soundOnBtn = document.getElementById("sound-on");
@@ -34,6 +35,7 @@ let deskReady = false;
 let soundOn = true;
 let audioCtx = null;
 let seenTradeKeys = null;
+let seenFillKeys = null;
 let lastAlertAt = 0;
 let desk = {
   notional: 25,
@@ -158,8 +160,8 @@ function applySound(on, { preview = false } = {}) {
   }
   if (preview) {
     if (soundOn) {
-      playChime(true);
-      showToast("Trade sound is on.");
+      playChime(true, "done");
+      showToast("Trade sound is on for new setups and completed fills.");
     } else {
       showToast("Trade sound is off. You will still see on-screen alerts.");
     }
@@ -177,24 +179,32 @@ function unlockAudio() {
   }
 }
 
-function playChime(force) {
+function playChime(force, kind = "offer") {
   if (!soundOn && !force) return;
   unlockAudio();
   if (!audioCtx) return;
   try {
     const t = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(880, t);
-    osc.frequency.setValueAtTime(1175, t + 0.08);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.07, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start(t);
-    osc.stop(t + 0.3);
+    const notes =
+      kind === "done"
+        ? [523, 784, 1046]
+        : kind === "blocked"
+          ? [220]
+          : [880, 1175];
+    notes.forEach((freq, index) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const start = t + index * 0.09;
+      osc.type = kind === "blocked" ? "triangle" : "sine";
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(kind === "done" ? 0.08 : 0.07, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + (kind === "done" ? 0.22 : 0.2));
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(start);
+      osc.stop(start + 0.28);
+    });
   } catch (err) {
     /* ignore */
   }
@@ -229,7 +239,36 @@ function noticeNewTrades(data) {
   showToast(
     fresh.length === 1 ? `New trade: ${label}` : `${fresh.length} new trades for you. ${label}`
   );
-  playChime();
+  playChime(false, "offer");
+}
+
+function fillKey(row) {
+  return [row.ts, row.venue, row.symbol, row.side, row.status, row.opportunity_id, row.qty].join("|");
+}
+
+function noticeNewFills(data) {
+  const rows = data.fills || [];
+  const keys = new Set(rows.map(fillKey));
+  if (seenFillKeys === null) {
+    seenFillKeys = keys;
+    return;
+  }
+  const fresh = rows.filter((row) => !seenFillKeys.has(fillKey(row)));
+  seenFillKeys = keys;
+  if (!fresh.length) return;
+  const done = fresh.filter((row) => row.status === "filled");
+  const blocked = fresh.filter((row) => row.status === "blocked" || row.status === "error");
+  if (done.length) {
+    const row = done[done.length - 1];
+    showToast(`Trade complete: ${row.side} ${row.symbol} on ${row.venue}`);
+    playChime(false, "done");
+    return;
+  }
+  if (blocked.length) {
+    const row = blocked[blocked.length - 1];
+    showToast(`Trade not filled: ${row.side} ${row.symbol} ${row.note || row.status}`.trim());
+    playChime(false, "blocked");
+  }
 }
 
 applySound(soundEnabled());
@@ -410,6 +449,15 @@ function render() {
   }
 
   const fillRows = snapshot.fills || [];
+  const completed = fillRows.filter((row) => row.status === "filled");
+  if (fillsMeta) {
+    if (!completed.length) {
+      fillsMeta.textContent = "";
+    } else {
+      const last = completed[completed.length - 1];
+      fillsMeta.textContent = `${completed.length} complete · last ${last.side} ${last.symbol}`;
+    }
+  }
   if (!fillRows.length) {
     const empty = document.createElement("li");
     empty.className = "empty";
@@ -558,6 +606,7 @@ function connect() {
       }
     }
     noticeNewTrades(snapshot);
+    noticeNewFills(snapshot);
     scheduleRender();
   };
   ws.onclose = () => setTimeout(connect, 1200);

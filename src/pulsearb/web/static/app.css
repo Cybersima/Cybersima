@@ -273,6 +273,13 @@ h2 {
   text-transform: uppercase;
   margin: 0;
 }
+.panel-meta {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-align: right;
+  max-width: 28ch;
+}
 #filter {
   background: var(--input);
   border: 1px solid var(--line);
