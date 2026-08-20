@@ -25,6 +25,7 @@ if [[ "$status" -ne 0 ]]; then
   echo "Still not ready. Read the FAIL line above and LIVE.txt."
   echo "Do not use GO-LIVE until this check passes."
 else
-  echo "Ready. Next step for real orders: ./go-live.sh  (Mac: Go-Live.command)"
+  echo "Ready. On the dashboard, stay on Paper to practice, then switch to Live."
+  echo "Or run ./go-live.sh to start already live. (Mac: Go-Live.command)"
 fi
 exit "$status"

@@ -182,15 +182,18 @@ class LiveRouter(Broker):
         paper_fallback: PaperBroker,
         coinbase: Broker | None = None,
         binance: Broker | None = None,
+        *,
+        armed: bool = True,
     ) -> None:
         self.paper_fallback = paper_fallback
         self.coinbase = coinbase
         self.binance = binance
+        self.armed = armed
         self.fills: list[Fill] = []
 
     @property
     def paper(self) -> bool:
-        return False
+        return not self.armed
 
     @property
     def live_pnl(self) -> float:
@@ -217,6 +220,10 @@ class LiveRouter(Broker):
         return names
 
     async def execute(self, opportunity: Opportunity) -> list[Fill]:
+        if not self.armed:
+            fills = await self.paper_fallback.execute(opportunity)
+            self.fills.extend(fills)
+            return fills
         venues = {leg.venue for leg in opportunity.legs}
         if venues == {"coinbase"} and self.coinbase is not None:
             fills = await self.coinbase.execute(opportunity)

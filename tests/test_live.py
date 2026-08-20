@@ -321,3 +321,46 @@ async def test_paper_fill_type_still_works() -> None:
         status="filled",
     )
     assert fill.paper is False
+
+
+@pytest.mark.asyncio
+async def test_unarmed_router_stays_on_paper() -> None:
+    risk = RiskManager(cooldown_seconds=0)
+    paper = PaperBroker(risk)
+    coinbase = LiveCoinbaseBroker(risk, "k", _ecdsa_pem(), paper)
+    router = LiveRouter(paper, coinbase=coinbase, armed=False)
+    fills = await router.execute(_tri_opp(notional=10))
+    assert fills[0].paper is True
+    assert fills[0].status == "filled"
+    assert router.paper is True
+
+
+@pytest.mark.asyncio
+async def test_engine_toggles_paper_and_live(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "keys").mkdir()
+    (tmp_path / "keys" / "coinbase.json").write_text(
+        json.dumps({"name": "organizations/x/apiKeys/y", "privateKey": _ecdsa_pem()}),
+        encoding="utf-8",
+    )
+
+    async def fake_ready(*_args, **_kwargs):
+        return {"ok": True, "ready": True, "note": "Ready", "checks": []}
+
+    monkeypatch.setattr("pulsearb.engine.live_ready.assess_live_ready", fake_ready)
+    engine = Engine(AppConfig())
+    assert engine.live_active() is False
+    denied = await engine.set_execution("live")
+    assert denied["ok"] is False
+    armed = await engine.set_execution("live", confirm=engine.config.live_confirm_phrase)
+    assert armed["ok"] is True
+    assert engine.live_active() is True
+    assert engine.desk.live is True
+    assert engine.desk.auto_invest is False
+    assert isinstance(engine.broker, LiveRouter)
+    assert engine.broker.armed is True
+    paper = await engine.set_execution("paper")
+    assert paper["ok"] is True
+    assert engine.live_active() is False
+    assert engine.desk.live is False
+    assert engine.broker.armed is False

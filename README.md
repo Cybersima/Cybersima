@@ -86,9 +86,9 @@ Yahoo is polled about every 2s on purpose. US exchange tickers refresh about onc
 
 ## Live execution (opt-in Coinbase)
 
-`start-live.bat` / `./start.sh --live` is **live market data with paper fills**.
+`start-live.bat` / `./start.sh --live` is **live market data with paper fills**. Paper and live share that dashboard: switch **Paper / Live** when the ready check is green. You can switch back to Paper without restarting. `GO-LIVE.bat` still starts already live if you prefer.
 
-Real Coinbase orders are a separate add-on. Create a **Secret API key** at [portal.cdp.coinbase.com/projects/api-keys](https://portal.cdp.coinbase.com/projects/api-keys) (View + Trade, no Transfer, ECDSA). In the popup click **Download API key**, save as `keys/coinbase.json`. Read `LIVE.txt`, run **CHECK-LIVE.bat** (does not send orders), then **GO-LIVE.bat** (Mac: `Check-Live.command` then `Go-Live.command`, Linux: `./check-live.sh` then `./go-live.sh`). GO-LIVE refuses to start if the check fails.
+Real Coinbase orders need a **Secret API key** at [portal.cdp.coinbase.com/projects/api-keys](https://portal.cdp.coinbase.com/projects/api-keys) (View + Trade, no Transfer, ECDSA). In the popup click **Download API key**, save as `keys/coinbase.json`. Read `LIVE.txt` and run **CHECK-LIVE.bat** first.
 
 Live mode:
 

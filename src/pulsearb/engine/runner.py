@@ -43,49 +43,24 @@ class Engine:
             max_notional=float(config.risk.get("max_notional_usdt", 250)),
             live_max=float(config.risk.get("live_max_notional_usdt", 25)),
             min_notional=min_notional,
-            live=config.live_enabled(),
+            live=False,
         )
         self._fee_map = config.fee_map()
         self._slippage = float(config.fees.get("extra_slippage_bps", 2))
-        live = config.live_enabled()
+        self.live_armed = bool(config.live_enabled())
         self.risk = RiskManager(
-            max_notional_usdt=config.live_notional(),
+            max_notional_usdt=float(config.risk.get("max_notional_usdt", 250)),
             min_notional_usdt=min_notional,
-            max_open_orders=int(config.risk.get("max_open_orders", 8 if live else 4)),
+            max_open_orders=int(config.risk.get("max_open_orders", 8)),
             daily_loss_limit_usdt=float(config.risk.get("daily_loss_limit_usdt", 100)),
-            cooldown_seconds=float(
-                config.risk.get("live_cooldown_seconds", 2) if live else config.risk.get("cooldown_seconds", 8)
-            ),
-            live_budget_usdt=float(config.risk.get("live_budget_usdt", config.live_notional())) if live else 0.0,
+            cooldown_seconds=float(config.risk.get("cooldown_seconds", 8)),
+            live_budget_usdt=0.0,
         )
         self.paper = PaperBroker(self.risk)
         self.broker: Broker = self.paper
         self.report = ProfitLedger(Path.cwd() / "data" / "CyberSym-SecureTrade-profit-report.csv")
-        if config.live_enabled():
-            coinbase_broker = None
-            binance_broker = None
-            creds = config.coinbase_credentials()
-            if creds:
-                key_name, secret = creds
-                coinbase_cfg = config.markets.get("coinbase") or {}
-                coinbase_broker = LiveCoinbaseBroker(
-                    risk=self.risk,
-                    api_key=key_name,
-                    api_secret=secret,
-                    paper_fallback=self.paper,
-                    rest_url=str(coinbase_cfg.get("brokerage_url") or "https://api.coinbase.com"),
-                )
-            if config.binance_live_ready():
-                binance = config.markets.get("binance") or {}
-                rest = binance.get("testnet_rest_url" if config.env.binance_testnet else "rest_url")
-                binance_broker = LiveBinanceBroker(
-                    risk=self.risk,
-                    api_key=config.env.binance_api_key,
-                    api_secret=config.env.binance_api_secret,
-                    rest_url=str(rest),
-                    paper_fallback=self.paper,
-                )
-            self.broker = LiveRouter(self.paper, coinbase=coinbase_broker, binance=binance_broker)
+        self._ensure_live_router()
+        self._apply_mode_settings()
         self.triangles_by_venue = {
             venue: discover_triangles(config.symbols(venue))
             for venue in SPOT_VENUES
@@ -101,9 +76,112 @@ class Engine:
     def unsubscribe(self, queue: asyncio.Queue) -> None:
         self.listeners.discard(queue)
 
+    def live_active(self) -> bool:
+        return bool(self.live_armed)
+
+    def _ensure_live_router(self) -> bool:
+        if isinstance(self.broker, LiveRouter) and (self.broker.coinbase is not None or self.broker.binance is not None):
+            self.broker.armed = self.live_armed
+            return True
+        coinbase_broker = None
+        binance_broker = None
+        creds = self.config.coinbase_credentials()
+        if creds:
+            key_name, secret = creds
+            coinbase_cfg = self.config.markets.get("coinbase") or {}
+            coinbase_broker = LiveCoinbaseBroker(
+                risk=self.risk,
+                api_key=key_name,
+                api_secret=secret,
+                paper_fallback=self.paper,
+                rest_url=str(coinbase_cfg.get("brokerage_url") or "https://api.coinbase.com"),
+            )
+        if self.config.binance_live_ready():
+            binance = self.config.markets.get("binance") or {}
+            rest = binance.get("testnet_rest_url" if self.config.env.binance_testnet else "rest_url")
+            binance_broker = LiveBinanceBroker(
+                risk=self.risk,
+                api_key=self.config.env.binance_api_key,
+                api_secret=self.config.env.binance_api_secret,
+                rest_url=str(rest),
+                paper_fallback=self.paper,
+            )
+        if coinbase_broker is None and binance_broker is None:
+            self.broker = self.paper
+            return False
+        self.broker = LiveRouter(
+            self.paper,
+            coinbase=coinbase_broker,
+            binance=binance_broker,
+            armed=self.live_armed,
+        )
+        return True
+
+    def _apply_mode_settings(self) -> None:
+        live = self.live_armed
+        self.desk.live = live
+        if live:
+            self.desk.auto_invest = False
+            self.risk.max_notional_usdt = float(self.config.risk.get("live_max_notional_usdt", 25))
+            self.risk.cooldown_seconds = float(self.config.risk.get("live_cooldown_seconds", 2))
+            if self.risk.live_budget_usdt <= 0:
+                self.risk.live_budget_usdt = float(
+                    self.config.risk.get("live_budget_usdt", self.config.risk.get("live_max_notional_usdt", 25))
+                )
+            self.desk.notional = self.desk.clamp_notional(self.desk.notional)
+        else:
+            self.risk.max_notional_usdt = float(self.config.risk.get("max_notional_usdt", 250))
+            self.risk.cooldown_seconds = float(self.config.risk.get("cooldown_seconds", 8))
+
+    async def set_execution(self, mode: str, confirm: str = "") -> dict:
+        wanted = str(mode or "").strip().lower()
+        if wanted not in {"paper", "live"}:
+            return {"ok": False, "error": "Choose paper or live."}
+        if wanted == "paper":
+            self.live_armed = False
+            if isinstance(self.broker, LiveRouter):
+                self.broker.armed = False
+            self._apply_mode_settings()
+            await self.broadcast()
+            return {
+                "ok": True,
+                "execution": "paper",
+                "desk": self.desk_view(),
+                "note": "Paper trading. No real Coinbase orders.",
+            }
+        if self.config.env.demo_only:
+            return {
+                "ok": False,
+                "error": "The demo scanner has no live Coinbase prices. Close it and use start-live.bat, then switch to Live.",
+            }
+        if str(confirm or "") != self.config.live_confirm_phrase:
+            return {"ok": False, "error": "Confirm that you want real Coinbase orders."}
+        from pulsearb.engine.live_ready import assess_live_ready
+
+        report = await assess_live_ready(self.config, killed=self.risk.killed, armed=False)
+        if not report.get("ready"):
+            return {
+                "ok": False,
+                "error": report.get("note") or "Live ready check did not pass.",
+                "ready": False,
+            }
+        if not self._ensure_live_router():
+            return {"ok": False, "error": "Coinbase key file is missing. Save keys\\coinbase.json, then Check again."}
+        self.live_armed = True
+        if isinstance(self.broker, LiveRouter):
+            self.broker.armed = True
+        self._apply_mode_settings()
+        await self.broadcast()
+        return {
+            "ok": True,
+            "execution": "live",
+            "desk": self.desk_view(),
+            "note": "LIVE. Each tap buys and sells on Coinbase, then aims to finish back in USD.",
+        }
+
     def snapshot(self) -> dict:
         quotes = sorted(self.book.snapshot(), key=lambda q: (q.venue, q.native_symbol))
-        live = self.config.live_enabled()
+        live = self.live_active()
         live_pnl = float(getattr(self.broker, "live_pnl", 0.0)) if live else 0.0
         venues = "+".join(getattr(self.broker, "live_venues", None) or self.config.live_venue_names())
         execution = f"live {venues}".strip() if live else "paper"
@@ -176,7 +254,7 @@ class Engine:
         left = self.risk.remaining_budget()
         data.update(
             {
-                "budget": self.risk.live_budget_usdt if self.config.live_enabled() else None,
+                "budget": self.risk.live_budget_usdt if self.live_active() else None,
                 "budget_left": left,
                 "taps_left": self.risk.taps_left(self.desk.notional),
             }
@@ -184,7 +262,7 @@ class Engine:
         return data
 
     def apply_desk(self, payload: dict) -> dict:
-        self.desk.live = self.config.live_enabled()
+        self.desk.live = self.live_active()
         self.desk.apply(payload)
         return self.desk_view()
 
@@ -376,7 +454,7 @@ class Engine:
                     opp.executable
                     and self.desk.auto_invest
                     and not self.desk.live
-                    and not self.config.live_enabled()
+                    and not self.live_active()
                     and self.desk.matches(opp, self.book)
                     and not self.risk.killed
                 ):

@@ -51,6 +51,9 @@ def test_dashboard_and_kill_switch() -> None:
     assert 'id="guard-banner"' in page.text
     assert 'id="live-ready"' in page.text
     assert 'id="live-ready-refresh"' in page.text
+    assert 'id="exec-paper"' in page.text
+    assert 'id="exec-live"' in page.text
+    assert "Paper or live" in page.text
     assert "Ready for live Coinbase" in page.text
     assert "logo.png" in page.text
     assert 'id="theme-dark"' in page.text
@@ -92,8 +95,10 @@ def test_dashboard_and_kill_switch() -> None:
     body = ready.json()
     assert body["ok"] is True
     assert body["ready"] is False
-    assert body["armed"] is False
-    assert any(row["id"] == "keys_file" for row in body["checks"])
+    assert client.post("/api/execution", json={"mode": "paper"}).json()["ok"] is True
+    live_try = client.post("/api/execution", json={"mode": "live"})
+    assert live_try.status_code == 200
+    assert live_try.json()["ok"] is False
 
 
 def test_dashboard_requires_lock_without_session() -> None:

@@ -25,7 +25,8 @@ if not "%CHECKERR%"=="0" (
   echo Still not ready. Read the FAIL line above and LIVE.txt.
   echo Do not use GO-LIVE.bat until this check passes.
 ) else (
-  echo Ready. Next step for real orders: double-click GO-LIVE.bat
+  echo Ready. On the dashboard, stay on Paper to practice, then switch to Live.
+  echo Or double-click GO-LIVE.bat to start already live.
 )
 echo.
 pause

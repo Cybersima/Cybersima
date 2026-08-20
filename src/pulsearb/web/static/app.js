@@ -31,6 +31,12 @@ const liveReadyEl = document.getElementById("live-ready");
 const liveReadyList = document.getElementById("live-ready-list");
 const liveReadyStatus = document.getElementById("live-ready-status");
 const liveReadyRefresh = document.getElementById("live-ready-refresh");
+const execPaper = document.getElementById("exec-paper");
+const execLive = document.getElementById("exec-live");
+const liveConfirm = document.getElementById("live-confirm");
+const liveConfirmGo = document.getElementById("live-confirm-go");
+const liveConfirmCancel = document.getElementById("live-confirm-cancel");
+const ledeEl = document.getElementById("lede");
 const fillsMeta = document.getElementById("fills-meta");
 const themeDarkBtn = document.getElementById("theme-dark");
 const themeLightBtn = document.getElementById("theme-light");
@@ -49,6 +55,7 @@ let audioCtx = null;
 let seenTradeKeys = null;
 let seenFillKeys = null;
 let lastAlertAt = 0;
+let liveReadyState = { ready: false, armed: false };
 let desk = {
   notional: 5,
   auto_invest: false,
@@ -314,6 +321,46 @@ function showToast(text) {
   }, 3200);
 }
 
+function paintExecToggle() {
+  const live = Boolean(desk.live);
+  if (execPaper) execPaper.classList.toggle("on", !live);
+  if (execLive) execLive.classList.toggle("on", live);
+  if (ledeEl) {
+    ledeEl.textContent = live
+      ? "Each live tap buys and sells the same Coinbase gap, then aims to finish back in USD. It is not buy-and-hold."
+      : "Paper first. Switch to Live on this dashboard when you are ready. Each live tap buys and sells back to USD.";
+  }
+}
+
+function hideLiveConfirm() {
+  if (liveConfirm) liveConfirm.hidden = true;
+}
+
+async function setExecution(mode) {
+  hideLiveConfirm();
+  try {
+    const payload = { mode };
+    if (mode === "live") payload.confirm = "I_UNDERSTAND_THE_RISK";
+    const res = await fetch("/api/execution", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "Could not switch mode");
+    if (data.desk) desk = { ...desk, ...data.desk };
+    paintDesk();
+    paintExecToggle();
+    paintLiveReady();
+    paintSecurity();
+    render();
+    showToast(data.note || (mode === "live" ? "Live Coinbase is on." : "Back on paper."));
+  } catch (err) {
+    showToast(String(err.message || err));
+    paintExecToggle();
+  }
+}
+
 function chip(label, on, onClick) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -423,6 +470,7 @@ function paintDesk() {
       })
     )
   );
+  paintExecToggle();
 }
 
 async function saveDesk(patch) {
@@ -773,6 +821,7 @@ function connect() {
       return;
     }
     if (snapshot.desk) {
+      const wasLive = Boolean(desk.live);
       desk = { ...desk, ...snapshot.desk };
       if (!deskReady) {
         deskReady = true;
@@ -782,6 +831,9 @@ function connect() {
         } else {
           paintDesk();
         }
+      } else if (Boolean(desk.live) !== wasLive) {
+        paintDesk();
+        paintLiveReady();
       }
     }
     noticeNewTrades(snapshot);
@@ -795,6 +847,28 @@ paintDesk();
 paintSecurity();
 paintLiveReady();
 if (liveReadyRefresh) liveReadyRefresh.addEventListener("click", () => paintLiveReady());
+if (execPaper) {
+  execPaper.addEventListener("click", () => {
+    hideLiveConfirm();
+    if (desk.live) setExecution("paper");
+  });
+}
+if (execLive) {
+  execLive.addEventListener("click", () => {
+    if (desk.live) {
+      hideLiveConfirm();
+      return;
+    }
+    if (!liveReadyState.ready) {
+      showToast("Live ready check must pass first. Fix the FAIL rows, then Check again.");
+      paintLiveReady();
+      return;
+    }
+    if (liveConfirm) liveConfirm.hidden = false;
+  });
+}
+if (liveConfirmGo) liveConfirmGo.addEventListener("click", () => setExecution("live"));
+if (liveConfirmCancel) liveConfirmCancel.addEventListener("click", hideLiveConfirm);
 
 async function paintSecurity() {
   if (!guardBanner) return;
@@ -823,8 +897,11 @@ async function paintLiveReady() {
     const res = await fetch("/api/live-ready");
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
-    liveReadyEl.classList.toggle("ready", Boolean(data.ready));
-    liveReadyEl.classList.toggle("not-ready", !data.ready);
+    liveReadyState = { ready: Boolean(data.ready), armed: Boolean(data.armed) };
+    liveReadyEl.classList.toggle("ready", Boolean(data.ready) || Boolean(data.armed));
+    liveReadyEl.classList.toggle("not-ready", !data.ready && !data.armed);
+    if (liveReadyStatus) liveReadyStatus.textContent = data.note || "";
+    paintExecToggle();
     if (liveReadyStatus) liveReadyStatus.textContent = data.note || "";
     liveReadyList.replaceChildren(
       ...(data.checks || []).map((row) => {

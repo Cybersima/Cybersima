@@ -37,7 +37,7 @@
         <div class="brand-copy">
           <p class="company">{{ company }}</p>
           <h1>{{ product_short }}</h1>
-          <p class="lede">{% if execution.startswith('live') %}Each live tap buys and sells the same Coinbase gap, then aims to finish back in USD. It is not buy-and-hold.{% else %}Choose what you invest. Approve each trade, or turn on Auto.{% endif %}</p>
+          <p class="lede" id="lede">{% if execution.startswith('live') %}Each live tap buys and sells the same Coinbase gap, then aims to finish back in USD. It is not buy-and-hold.{% else %}Paper first. Switch to Live on this dashboard when you are ready. Each live tap buys and sells back to USD.{% endif %}</p>
         </div>
       </div>
       <div class="mast-meta">
@@ -71,10 +71,23 @@
 
     <section class="live-ready" id="live-ready" aria-label="Ready for live Coinbase">
       <div class="live-ready-head">
-        <label>Ready for live Coinbase</label>
-        <button type="button" id="live-ready-refresh">Check again</button>
+        <label>Paper or live</label>
+        <div class="live-ready-actions">
+          <div class="segmented" role="group" aria-label="Paper or live">
+            <button type="button" id="exec-paper" class="on">Paper</button>
+            <button type="button" id="exec-live">Live</button>
+          </div>
+          <button type="button" id="live-ready-refresh">Check again</button>
+        </div>
       </div>
       <p class="hint" id="live-ready-status">Checking Coinbase keys and cash…</p>
+      <div class="live-confirm" id="live-confirm" hidden>
+        <p>This spends real USD on Coinbase. Each tap buys and sells and aims to finish back in dollars. Not buy-and-hold.</p>
+        <div class="live-confirm-actions">
+          <button type="button" id="live-confirm-go">I understand — go live</button>
+          <button type="button" id="live-confirm-cancel">Stay on paper</button>
+        </div>
+      </div>
       <ul id="live-ready-list" class="ready-list"></ul>
     </section>
 

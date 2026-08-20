@@ -64,9 +64,9 @@ Real Coinbase orders (your money):
    Read LIVE.txt first.
    Create the key at https://portal.cdp.coinbase.com/projects/api-keys
    Download API key, save as keys\coinbase.json
-   Windows:  double-click CHECK-LIVE.bat, then GO-LIVE.bat
-   Mac:      double-click Check-Live.command, then Go-Live.command
-   Linux:    ./check-live.sh && ./go-live.sh
+   Windows:  CHECK-LIVE.bat, then start-live.bat. Practice on Paper.
+             Switch to Live on the dashboard when you are ready.
+             GO-LIVE.bat still starts already live if you prefer.
    Default: $5 per tap, $25 session budget. Each live tap buys and sells
    back toward USD (not hold). Cross-venue two-exchange gaps are not live.
    Auto stays off while live.

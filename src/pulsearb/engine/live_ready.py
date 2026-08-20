@@ -104,6 +104,7 @@ async def assess_live_ready(
     client: httpx.AsyncClient | None = None,
     ping: bool = True,
     killed: bool = False,
+    armed: bool | None = None,
 ) -> dict[str, Any]:
     config = config or AppConfig()
     root = cwd or Path.cwd()
@@ -260,11 +261,11 @@ async def assess_live_ready(
         )
 
     ready = all(row["ok"] for row in checks if row["required"])
-    armed = config.live_enabled()
-    if armed and ready:
-        note = "Live Coinbase is armed. Every real order is a tap."
+    live_on = config.live_enabled() if armed is None else bool(armed)
+    if live_on and ready:
+        note = "Live Coinbase is on. Switch back to Paper on this dashboard any time. Every real order is a tap."
     elif ready:
-        note = "Ready. Double-click GO-LIVE.bat when you want real Coinbase orders."
+        note = "Ready. Stay on Paper to practice, then switch to Live on this dashboard when you want real Coinbase orders."
     elif not file_ok:
         note = (
             "Not ready. The key file is missing — that is the only problem so far. "
@@ -276,7 +277,7 @@ async def assess_live_ready(
     return {
         "ok": True,
         "ready": ready,
-        "armed": armed,
+        "armed": live_on,
         "cap": cap,
         "cash": round(cash, 4),
         "balances": {str(key): round(float(value), 8) for key, value in balances.items() if float(value) > 0},

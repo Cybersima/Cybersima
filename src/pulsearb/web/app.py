@@ -113,7 +113,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
                 "copyright": COPYRIGHT,
                 "execution": (
                     f"live {'+'.join(engine.config.live_venue_names())}".strip()
-                    if engine.config.live_enabled()
+                    if engine.live_active()
                     else "paper"
                 ),
             },
@@ -127,7 +127,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     async def live_ready() -> dict:
         from pulsearb.engine.live_ready import assess_live_ready
 
-        return await assess_live_ready(engine.config, killed=engine.risk.killed)
+        return await assess_live_ready(engine.config, killed=engine.risk.killed, armed=engine.live_active())
 
     @app.get("/api/security")
     async def security() -> dict:
@@ -143,8 +143,8 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
                 if local
                 else "Dashboard is on your Wi-Fi. Anyone needs the PIN."
             ),
-            "execution": "live" if engine.config.live_enabled() else "paper",
-            "live_cap": engine.config.live_notional() if engine.config.live_enabled() else engine.desk.notional,
+            "execution": "live" if engine.live_active() else "paper",
+            "live_cap": engine.config.live_notional() if engine.live_active() else engine.desk.notional,
             "keys_file": keys,
             "killed": engine.risk.killed,
             "note": "API keys stay in keys\\coinbase.json on this PC. Never paste them into the dashboard.",
@@ -175,6 +175,11 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
         desk = engine.apply_desk(payload)
         await engine.broadcast()
         return desk
+
+    @app.post("/api/execution")
+    async def set_execution(payload: dict) -> dict:
+        result = await engine.set_execution(str(payload.get("mode") or ""), str(payload.get("confirm") or ""))
+        return result
 
     @app.post("/api/invest")
     async def invest(payload: dict) -> dict:

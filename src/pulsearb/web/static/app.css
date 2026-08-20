@@ -198,6 +198,34 @@ h1 {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+.live-ready-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.live-confirm {
+  margin: 10px 0 0;
+  padding: 12px;
+  border: 1px solid var(--down);
+  background: var(--live-wash);
+  border-radius: 12px;
+}
+.live-confirm p { margin: 0 0 10px; font-size: 13px; }
+.live-confirm-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#live-confirm-go {
+  background: var(--down);
+  color: #fff;
+  border: 0;
+  padding: 8px 12px;
+}
+#live-confirm-cancel {
+  background: var(--input);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 8px 12px;
 }
 #live-ready-refresh {
   background: var(--input);

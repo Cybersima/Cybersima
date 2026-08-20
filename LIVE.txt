@@ -4,6 +4,11 @@ CyberSym SecureTrade — going live (real Coinbase orders)
 Paper trading and live market data are already on.
 This add-on sends REAL Coinbase market orders with YOUR money.
 
+Paper and live are on the SAME dashboard. Start with paper
+(start-live.bat). When the Ready check is green, switch Paper → Live.
+You can switch back to Paper any time without closing the app.
+GO-LIVE.bat still starts already live if you want that.
+
 What goes live
 --------------
 • Coinbase-only triangles: BUY, then SELL, aiming to finish back in USD.
@@ -51,14 +56,15 @@ Setup (once)
    Linux:    ./check-live.sh
 
 6. When the check says Ready:
-   Windows:  double-click GO-LIVE.bat
-   Mac:      double-click Go-Live.command
-   Linux:    ./go-live.sh
+   Windows:  start-live.bat, then switch to Live on the dashboard
+             (or double-click GO-LIVE.bat to start already live)
+   Mac:      start.command for paper, or Go-Live.command
+   Linux:    ./start.sh for paper, or ./go-live.sh
 
 GO-LIVE runs the same check again and will refuse to start if it fails.
 
-You will be asked to confirm. The dashboard shows a red LIVE banner,
-your balances, and the $25 cap. The black window prints a lock PIN.
+You confirm Live on the dashboard (or GO-LIVE.bat). The dashboard shows a red
+LIVE banner, your balances, and the $25 cap. Switch back to Paper any time.
 This computer's browser unlocks by itself. iPad: enter that PIN.
 Use Kill switch or close the window to stop new orders. A failed live
 order also trips the kill switch.

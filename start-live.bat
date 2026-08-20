@@ -8,7 +8,8 @@ set PYTHONPATH=
 
 echo.
 echo CyberSym SecureTrade — live prices, paper trades.
-echo For real Coinbase orders, use CHECK-LIVE.bat then GO-LIVE.bat after keys\coinbase.json is in place.
+echo Practice on Paper. Switch to Live on the dashboard when you are ready.
+echo GO-LIVE.bat still starts already live if you prefer.
 echo.
 
 call "%~dp0scripts\setup-venv.bat"
