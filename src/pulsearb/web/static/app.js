@@ -21,13 +21,20 @@ const amountHint = document.getElementById("amount-hint");
 const toastEl = document.getElementById("toast");
 const themeDarkBtn = document.getElementById("theme-dark");
 const themeLightBtn = document.getElementById("theme-light");
+const soundOnBtn = document.getElementById("sound-on");
+const soundOffBtn = document.getElementById("sound-off");
 const THEME_KEY = "cybersym-theme";
 const DESK_KEY = "cybersym-desk";
+const SOUND_KEY = "cybersym-sound";
 
 let snapshot = { quotes: [], opportunities: [], fills: [], stats: {}, desk: {} };
 let lastMids = new Map();
 let renderTimer = null;
 let deskReady = false;
+let soundOn = true;
+let audioCtx = null;
+let seenTradeKeys = null;
+let lastAlertAt = 0;
 let desk = {
   notional: 25,
   auto_invest: false,
@@ -127,6 +134,108 @@ applyTheme(
 );
 if (themeDarkBtn) themeDarkBtn.addEventListener("click", () => applyTheme("dark"));
 if (themeLightBtn) themeLightBtn.addEventListener("click", () => applyTheme("light"));
+
+function soundEnabled() {
+  try {
+    return localStorage.getItem(SOUND_KEY) !== "off";
+  } catch (err) {
+    return true;
+  }
+}
+
+function applySound(on, { preview = false } = {}) {
+  soundOn = Boolean(on);
+  try {
+    localStorage.setItem(SOUND_KEY, soundOn ? "on" : "off");
+  } catch (err) {
+    /* private mode */
+  }
+  if (soundOnBtn && soundOffBtn) {
+    soundOnBtn.classList.toggle("on", soundOn);
+    soundOffBtn.classList.toggle("on", !soundOn);
+    soundOnBtn.setAttribute("aria-pressed", String(soundOn));
+    soundOffBtn.setAttribute("aria-pressed", String(!soundOn));
+  }
+  if (preview) {
+    if (soundOn) {
+      playChime(true);
+      showToast("Trade sound is on.");
+    } else {
+      showToast("Trade sound is off. You will still see on-screen alerts.");
+    }
+  }
+}
+
+function unlockAudio() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!audioCtx) audioCtx = new Ctx();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (err) {
+    /* autoplay blocked until a click */
+  }
+}
+
+function playChime(force) {
+  if (!soundOn && !force) return;
+  unlockAudio();
+  if (!audioCtx) return;
+  try {
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, t);
+    osc.frequency.setValueAtTime(1175, t + 0.08);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.07, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.3);
+  } catch (err) {
+    /* ignore */
+  }
+}
+
+function tradeKey(row) {
+  const legs = (row.legs || []).map((leg) => `${leg.action}:${leg.venue}:${leg.symbol}`).join(">");
+  return `${row.kind || ""}|${legs || row.summary || row.id || ""}`;
+}
+
+function matchingTrades(data) {
+  return (data.opportunities || []).filter(
+    (row) => row.chosen !== false && (row.investable || row.pending)
+  );
+}
+
+function noticeNewTrades(data) {
+  const rows = matchingTrades(data);
+  const keys = new Set(rows.map(tradeKey));
+  if (seenTradeKeys === null) {
+    seenTradeKeys = keys;
+    return;
+  }
+  const fresh = rows.filter((row) => !seenTradeKeys.has(tradeKey(row)));
+  seenTradeKeys = keys;
+  if (!fresh.length) return;
+  const now = Date.now();
+  if (now - lastAlertAt < 3500) return;
+  lastAlertAt = now;
+  const first = fresh[0];
+  const label = friendlyOpp(first);
+  showToast(
+    fresh.length === 1 ? `New trade: ${label}` : `${fresh.length} new trades for you. ${label}`
+  );
+  playChime();
+}
+
+applySound(soundEnabled());
+if (soundOnBtn) soundOnBtn.addEventListener("click", () => applySound(true, { preview: true }));
+if (soundOffBtn) soundOffBtn.addEventListener("click", () => applySound(false, { preview: true }));
+document.addEventListener("pointerdown", unlockAudio, { once: true });
 
 function showToast(text) {
   if (!toastEl) return;
@@ -431,7 +540,11 @@ function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
   ws.onmessage = (ev) => {
-    snapshot = JSON.parse(ev.data);
+    try {
+      snapshot = JSON.parse(ev.data);
+    } catch (err) {
+      return;
+    }
     if (snapshot.desk) {
       desk = { ...desk, ...snapshot.desk };
       if (!deskReady) {
@@ -444,6 +557,7 @@ function connect() {
         }
       }
     }
+    noticeNewTrades(snapshot);
     scheduleRender();
   };
   ws.onclose = () => setTimeout(connect, 1200);

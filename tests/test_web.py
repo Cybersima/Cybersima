@@ -42,6 +42,13 @@ def test_dashboard_and_kill_switch() -> None:
     assert "logo.png" in page.text
     assert 'id="theme-dark"' in page.text
     assert 'id="theme-light"' in page.text
+    assert 'id="sound-on"' in page.text
+    assert 'id="sound-off"' in page.text
+    assert "Trade alert sound" in page.text
+    js = client.get("/static/app.js")
+    assert js.status_code == 200
+    assert "cybersym-sound" in js.text
+    assert "playChime" in js.text
     assert "cybersym-theme" in page.text
     assert "I’ll pick each trade" in page.text or "I'll pick each trade" in page.text
     assert 'id="invest-amount"' in page.text

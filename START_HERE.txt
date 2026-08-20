@@ -33,8 +33,9 @@ start again; it will use 8081, 8082, and so on automatically.
 
 This first run is DEMO / PAPER TRADING. No exchange keys. No real orders.
 
-On the dashboard, use Look → Dark or Light. Your coins, amount, and
-exchanges are remembered in this browser after refresh.
+On the dashboard, use Look → Dark or Light. Use Sound → Off if you do
+not want the trade chime; toasts still appear. Your coins, amount,
+exchanges, look, and sound setting are remembered in this browser.
 
 On the dashboard, set How much to invest, pick your coins, then tap
 Invest on a trade — or turn on Invest automatically.
