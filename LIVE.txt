@@ -62,4 +62,9 @@ order also trips the kill switch.
 If Coinbase auth fails, the app will not start live. Fix the JSON
 and try again. Never paste keys into the dashboard or email.
 
+If CHECK-LIVE says the key cannot sign (cryptography / openssl):
+close other SecureTrade windows, double-click INSTALL.bat, then
+CHECK-LIVE.bat again. That repairs the Coinbase signing library
+for this Python. Do not copy .venv from another folder.
+
 © CyberSym. All rights reserved.

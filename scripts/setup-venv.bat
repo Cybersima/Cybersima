@@ -69,5 +69,22 @@ if not defined RUNPY (
   echo Could not pick a Python to launch.
   exit /b 1
 )
+
+"%RUNPY%" "%~dp0crypto_ok.py"
+if errorlevel 1 (
+  echo.
+  echo Repairing cryptography for this Python. That is required to talk to Coinbase.
+  echo.
+  "%RUNPY%" -m pip install -U pip
+  "%RUNPY%" -m pip install --force-reinstall "cryptography>=46" "PyJWT[crypto]>=2.10"
+  if errorlevel 1 exit /b 1
+  "%RUNPY%" -m pip install -e .
+  "%RUNPY%" "%~dp0crypto_ok.py"
+  if errorlevel 1 (
+    echo Could not repair cryptography. Close other SecureTrade windows and run INSTALL.bat again.
+    exit /b 1
+  )
+)
+
 echo Launch interpreter: %RUNPY%
 exit /b 0

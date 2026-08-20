@@ -1,9 +1,13 @@
+import base64
 import json
 
 import httpx
 import pytest
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.ec import ECDSA
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
 from pulsearb.config import AppConfig
 from pulsearb.engine.broker import LiveRouter, PaperBroker
@@ -13,6 +17,45 @@ from pulsearb.engine.keys import load_coinbase_credentials
 from pulsearb.engine.risk import RiskManager
 from pulsearb.engine.runner import Engine
 from pulsearb.models import Fill, Leg, Opportunity, OpportunityKind
+
+
+def _b64url_decode(part: str) -> bytes:
+    pad = "=" * ((4 - len(part) % 4) % 4)
+    return base64.urlsafe_b64decode(part + pad)
+
+
+def test_jwt_es256_verifies_with_public_key() -> None:
+    key = ec.generate_private_key(ec.SECP256R1())
+    pem = key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode()
+    token = build_rest_jwt("organizations/test/apiKeys/abc", pem, "GET", "/api/v3/brokerage/accounts")
+    header_b64, payload_b64, sig_b64 = token.split(".")
+    header = json.loads(_b64url_decode(header_b64))
+    payload = json.loads(_b64url_decode(payload_b64))
+    assert header["alg"] == "ES256"
+    assert header["kid"] == "organizations/test/apiKeys/abc"
+    assert payload["iss"] == "cdp"
+    assert payload["uri"].endswith("/api/v3/brokerage/accounts")
+    sig = _b64url_decode(sig_b64)
+    size = 32
+    der = encode_dss_signature(int.from_bytes(sig[:size], "big"), int.from_bytes(sig[size:], "big"))
+    key.public_key().verify(der, f"{header_b64}.{payload_b64}".encode(), ECDSA(hashes.SHA256()))
+
+
+def test_jwt_ed25519_has_three_parts() -> None:
+    key = Ed25519PrivateKey.generate()
+    pem = key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode()
+    token = build_rest_jwt("organizations/test/apiKeys/ed", pem, "GET", "/api/v3/brokerage/accounts")
+    assert token.count(".") == 2
+    header = json.loads(_b64url_decode(token.split(".")[0]))
+    assert header["alg"] == "EdDSA"
 
 
 def _ecdsa_pem() -> str:

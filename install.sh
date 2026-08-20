@@ -23,6 +23,11 @@ if [[ ! -d .venv ]]; then
 fi
 .venv/bin/python -m pip install -U pip
 .venv/bin/pip install -e .
+if ! .venv/bin/python scripts/crypto_ok.py; then
+  echo "Repairing cryptography..."
+  .venv/bin/pip install --force-reinstall "cryptography>=46" "PyJWT[crypto]>=2.10"
+  .venv/bin/python scripts/crypto_ok.py
+fi
 echo
 echo "Installed CyberSym SecureTrade."
 echo "Start with: ./start.sh   or double-click start.command"

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import base64
+import json
 import secrets
 import time
 from typing import Any
 
-import jwt
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 HOST = "api.coinbase.com"
@@ -42,9 +45,35 @@ def format_jwt_uri(method: str, path: str, host: str = HOST) -> str:
     return f"{method.upper()} {host}{path}"
 
 
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def _json_b64(value: dict[str, Any]) -> str:
+    return _b64url(json.dumps(value, separators=(",", ":"), ensure_ascii=True).encode("utf-8"))
+
+
+def _es256_signature(private_key: EllipticCurvePrivateKey, signing_input: bytes) -> bytes:
+    der = private_key.sign(signing_input, ec.ECDSA(hashes.SHA256()))
+    r, s = decode_dss_signature(der)
+    size = (private_key.curve.key_size + 7) // 8
+    return r.to_bytes(size, "big") + s.to_bytes(size, "big")
+
+
 def build_rest_jwt(key_name: str, secret: str, method: str, path: str, host: str = HOST) -> str:
+    """Build a Coinbase CDP JWT without PyJWT's OpenSSL backend import.
+
+    Python 3.14 venvs can have a cryptography install that loads keys but
+    is missing cryptography.hazmat.backends.openssl, which PyJWT still imports.
+    """
     private_key = load_private_key(secret)
     now = int(time.time())
+    header = {
+        "alg": jwt_algorithm(private_key),
+        "kid": key_name,
+        "nonce": secrets.token_hex(16),
+        "typ": "JWT",
+    }
     payload = {
         "sub": key_name,
         "iss": "cdp",
@@ -52,6 +81,11 @@ def build_rest_jwt(key_name: str, secret: str, method: str, path: str, host: str
         "exp": now + 120,
         "uri": format_jwt_uri(method, path, host),
     }
-    headers = {"kid": key_name, "nonce": secrets.token_hex(16)}
-    token = jwt.encode(payload, private_key, algorithm=jwt_algorithm(private_key), headers=headers)
-    return token if isinstance(token, str) else token.decode("utf-8")
+    signing_input = f"{_json_b64(header)}.{_json_b64(payload)}".encode("ascii")
+    if isinstance(private_key, Ed25519PrivateKey):
+        signature = private_key.sign(signing_input)
+    elif isinstance(private_key, EllipticCurvePrivateKey):
+        signature = _es256_signature(private_key, signing_input)
+    else:
+        raise ValueError("Unsupported Coinbase API key type")
+    return f"{signing_input.decode('ascii')}.{_b64url(signature)}"

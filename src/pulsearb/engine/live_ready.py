@@ -145,7 +145,15 @@ async def assess_live_ready(
                 sign_ok = token.count(".") == 2
                 sign_detail = "Key can sign Coinbase requests."
             except Exception as exc:
-                sign_detail = f"Key cannot sign: {exc}"[:200]
+                text = str(exc)
+                if "cryptography" in text.lower() or "backends.openssl" in text:
+                    sign_detail = (
+                        "This folder's cryptography install cannot sign yet. "
+                        "Close other SecureTrade windows, double-click INSTALL.bat, "
+                        f"then CHECK-LIVE.bat again. ({text[:160]})"
+                    )
+                else:
+                    sign_detail = f"Key cannot sign: {text}"[:200]
         if not parse_ok:
             checks.append(_wait("key_sign", "Key can sign", "Waiting until the JSON has name and privateKey."))
             checks.append(_wait("coinbase_ping", "Coinbase accepts the key", "Waiting until the key can sign."))
