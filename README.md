@@ -92,13 +92,13 @@ Real Coinbase orders are a separate add-on. Create a **Secret API key** at [port
 
 Live mode:
 
-- Sends **Coinbase-only** triangles as market IOC orders
+- Sends **Coinbase-only** triangles as market IOC orders: buy, then sell, aiming to finish back in **USD** (not buy-and-hold)
 - Default tap size **$5** (buttons $1, $2, $3, $4, $5 …). Max **$25** per tap
 - Session live budget **$25** (split across many taps)
-- Leaves cross-venue (Coinbase vs Kraken/Gemini/Bitstamp) on **paper** — you cannot instantly move coins between exchanges
+- Does **not** take cross-venue live (Coinbase vs Kraken/Gemini/Bitstamp) — that would mean holding a coin to move it
 - Keeps **Auto off** so every live order is a tap
 - Requires `PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK` (GO-LIVE sets this)
-- Trips the kill switch if a live order fails
+- Trips the kill switch if a live order fails; leftover coins from that tap are sold back toward USD
 
 You can lose money. Optional Binance live orders (non-US) still require `--binance`, keys, live mode, and the confirm phrase.
 

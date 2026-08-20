@@ -121,9 +121,9 @@ class Engine:
                 "report_path": str(self.report.csv_path) if self.report.csv_path else "",
                 "balances": {str(k): round(float(v), 8) for k, v in (balances or {}).items() if float(v) > 0},
                 "live_note": (
-                    "LIVE Coinbase: real market orders for Coinbase-only triangles. "
-                    "Each tap is your desk size. Session budget is the $25 cap. "
-                    "Cross-venue stays paper. Kill switch stops new orders."
+                    "LIVE Coinbase: each tap buys and sells a Coinbase triangle and aims to finish back in USD. "
+                    "Not buy-and-hold. Cross-venue (Coinbase vs Kraken) stays off — that would mean holding coins to move them. "
+                    "Each tap is your desk size. Session budget is the $25 cap. Kill switch stops new orders."
                     if live
                     else ""
                 ),
@@ -200,12 +200,21 @@ class Engine:
             return {"ok": False, "error": "You already took this trade."}
         fills = await self._take(opp)
         await self.broadcast()
+        if not any(item.status == "filled" for item in fills):
+            note = next((item.note for item in fills if item.note), "Could not complete the buy and sell.")
+            return {
+                "ok": False,
+                "error": note,
+                "fills": [fill.to_dict() for fill in fills],
+                "desk": self.desk_view(),
+            }
         return {"ok": True, "fills": [fill.to_dict() for fill in fills], "desk": self.desk_view()}
 
     async def _take(self, opp: Opportunity) -> list[Fill]:
         opp.notional = self.desk.notional
         fills = await self.broker.execute(opp)
-        self.invested.add(opp.id)
+        if any(item.status == "filled" for item in fills):
+            self.invested.add(opp.id)
         for fill in fills:
             self.fills.appendleft(fill)
             if fill.status == "blocked":

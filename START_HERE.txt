@@ -67,7 +67,8 @@ Real Coinbase orders (your money):
    Windows:  double-click CHECK-LIVE.bat, then GO-LIVE.bat
    Mac:      double-click Check-Live.command, then Go-Live.command
    Linux:    ./check-live.sh && ./go-live.sh
-   Default: $5 per tap, $25 session budget. Cross-venue stays paper.
+   Default: $5 per tap, $25 session budget. Each live tap buys and sells
+   back toward USD (not hold). Cross-venue two-exchange gaps are not live.
    Auto stays off while live.
 
 © CyberSym. All rights reserved.

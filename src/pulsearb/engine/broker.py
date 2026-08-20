@@ -173,8 +173,8 @@ class LiveRouter(Broker):
     """Send live orders only when every executable leg is on one armed venue."""
 
     PAPER_CROSS_NOTE = (
-        "paper: live orders only when every leg is on Coinbase. "
-        "Cross-venue needs funds parked on both exchanges — that is not instant."
+        "That gap is two exchanges. Live cannot move coins between them, "
+        "so it would mean holding. Live taps only Coinbase triangles that buy and sell back to USD."
     )
 
     def __init__(
@@ -223,9 +223,20 @@ class LiveRouter(Broker):
         elif venues == {"binance"} and self.binance is not None:
             fills = await self.binance.execute(opportunity)
         else:
-            fills = await self.paper_fallback.execute(opportunity)
-            for fill in fills:
-                if fill.status == "filled":
-                    fill.note = (f"{fill.note} {self.PAPER_CROSS_NOTE}").strip()
+            fills = [
+                Fill(
+                    venue="live",
+                    symbol="-",
+                    side="blocked",
+                    qty=0,
+                    price=0,
+                    notional=0,
+                    ts=time.time(),
+                    paper=False,
+                    opportunity_id=opportunity.id,
+                    status="blocked",
+                    note=self.PAPER_CROSS_NOTE,
+                )
+            ]
         self.fills.extend(fills)
         return fills

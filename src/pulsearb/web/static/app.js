@@ -232,6 +232,10 @@ function playChime(force, kind = "offer") {
   }
 }
 
+function investLabel() {
+  return desk.live ? `Buy & sell $${fmt(desk.notional, 0)}` : `Invest $${fmt(desk.notional, 0)}`;
+}
+
 function tradeKey(row) {
   const legs = (row.legs || []).map((leg) => `${leg.action}:${leg.venue}:${leg.symbol}`).join(">");
   return `${row.kind || ""}|${legs || row.summary || row.id || ""}`;
@@ -348,7 +352,7 @@ function paintDesk() {
   if (modeHint) {
     modeHint.textContent = autoAllowed
       ? "Picking is safer. Auto uses your amount on matching trades."
-      : "Live mode: Auto stays off. Tap Invest on each Coinbase-only triangle.";
+      : "Live mode: Auto stays off. Each tap buys and sells a Coinbase triangle back toward USD. Cross-venue gaps are not live — that would mean holding coins.";
   }
 
   const priceMode = desk.price_mode || "any";
@@ -506,10 +510,16 @@ function friendlyOpp(row) {
   const sell = legs.find((leg) => leg.action === "sell");
   if (row.kind === "triangular") {
     const venue = (buy && buy.venue) || (legs[0] && legs[0].venue) || "";
-    return `Same-exchange triangle on ${venue}`;
+    if (row.summary) return row.summary;
+    return `Same-exchange buy & sell on ${venue} — finishes back in USD`;
   }
   if (row.kind === "alert") return row.summary;
-  if (buy && sell) return `Buy ${buy.symbol} on ${buy.venue}, sell on ${sell.venue}`;
+  if (buy && sell) {
+    if (buy.venue !== sell.venue) {
+      return `Buy ${buy.symbol} on ${buy.venue}, sell on ${sell.venue} (paper only — live cannot hold a coin to move it)`;
+    }
+    return `Buy ${buy.symbol} on ${buy.venue}, sell on ${sell.venue}`;
+  }
   return row.summary;
 }
 
@@ -575,9 +585,15 @@ function render() {
           const btn = document.createElement("button");
           btn.type = "button";
           btn.className = "invest-btn";
-          btn.textContent = `Invest $${fmt(desk.notional, 0)}`;
+          btn.textContent = investLabel();
           btn.addEventListener("click", () => invest(row.id, btn));
           li.append(btn);
+          if (desk.live) {
+            const note = document.createElement("div");
+            note.className = "hint";
+            note.textContent = "Buys, then sells. Aims to finish in USD — not hold coins.";
+            li.append(note);
+          }
         } else if (row.pending && desk.auto_invest) {
           const note = document.createElement("div");
           note.className = "hint";
@@ -666,7 +682,7 @@ function render() {
 
 async function invest(id, btn) {
   btn.disabled = true;
-  btn.textContent = "Investing…";
+  btn.textContent = desk.live ? "Buying & selling…" : "Investing…";
   try {
     const res = await fetch("/api/invest", {
       method: "POST",
@@ -675,11 +691,15 @@ async function invest(id, btn) {
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || "Could not invest");
-    showToast(`Invested $${fmt(desk.notional, 0)}. Check Your fills.`);
+    showToast(
+      desk.live
+        ? `Round-trip sent ($${fmt(desk.notional, 0)}). Check Your fills — it should buy, then sell back to USD.`
+        : `Invested $${fmt(desk.notional, 0)}. Check Your fills.`
+    );
   } catch (err) {
     showToast(String(err.message || err));
     btn.disabled = false;
-    btn.textContent = `Invest $${fmt(desk.notional, 0)}`;
+    btn.textContent = investLabel();
   }
 }
 

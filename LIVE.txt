@@ -6,17 +6,18 @@ This add-on sends REAL Coinbase market orders with YOUR money.
 
 What goes live
 --------------
-• Coinbase-only triangles (buy/sell all on Coinbase).
+• Coinbase-only triangles: BUY, then SELL, aiming to finish back in USD.
+  Same idea as paper — capture the gap, not hold coins.
 • Each tap is $1–$25 (default $5). Buttons: $1 $2 $3 $4 $5 …
 • Session budget: $25 total live size this run (five $5 taps, or
   twenty-five $1 taps, etc.). Coins priced under $1 still buy a fraction.
 • Every live order is a tap. Auto-invest stays off while live.
 
-What stays paper
-----------------
+What stays off live (would mean holding)
+----------------------------------------
 • Buy Coinbase / sell Kraken (or Gemini / Bitstamp).
-  You cannot instantly move coins between exchanges, so those
-  fills stay simulated even in live mode.
+  You cannot instantly move coins between exchanges. Paper can fake
+  that round-trip; live cannot without parking coins on both books.
 
 You can lose money. Fees and slippage eat most retail gaps.
 This is not a profit guarantee.
@@ -38,8 +39,9 @@ Setup (once)
    (same folder as start.bat):
      keys\coinbase.json
 
-3. Leave some USD (and a little BTC/ETH if you want sell legs) in Coinbase.
-   You need at least the live cap in USD/USDC/USDT (default $25).
+3. Leave USD in Coinbase (at least the $25 session cap). You do not need
+   to hold BTC/ETH for sell legs. Each tap spends USD, then sells back
+   toward USD. It will not sell coins you already had.
 
 4. Stop the demo window first (close the black window).
 

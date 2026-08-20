@@ -67,6 +67,24 @@ def _ecdsa_pem() -> str:
     ).decode()
 
 
+def _tri_opp(*, notional: float = 10) -> Opportunity:
+    return Opportunity(
+        kind=OpportunityKind.TRIANGULAR,
+        edge_bps=40,
+        net_edge_bps=28,
+        notional=notional,
+        legs=[
+            Leg("buy", "coinbase", "BTC-USD", 97000, True),
+            Leg("buy", "coinbase", "ETH-BTC", 0.019, True),
+            Leg("sell", "coinbase", "ETH-USD", 2000, True),
+        ],
+        summary="USD → BTC → ETH → USD on coinbase",
+        executable=True,
+        ts=0,
+        id="live-tri-1",
+    )
+
+
 def _opp(*, venues: tuple[str, str] = ("coinbase", "coinbase"), notional: float = 10) -> Opportunity:
     return Opportunity(
         kind=OpportunityKind.TRIANGULAR if venues[0] == venues[1] else OpportunityKind.CROSS_VENUE,
@@ -121,20 +139,77 @@ def test_live_notional_caps_when_armed(tmp_path, monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_router_keeps_cross_venue_on_paper() -> None:
+async def test_router_blocks_cross_venue_while_live() -> None:
     risk = RiskManager(cooldown_seconds=0)
     paper = PaperBroker(risk)
     coinbase = LiveCoinbaseBroker(risk, "k", _ecdsa_pem(), paper)
     router = LiveRouter(paper, coinbase=coinbase)
     fills = await router.execute(_opp(venues=("coinbase", "kraken")))
-    assert fills[0].paper is True
-    assert fills[0].status == "filled"
-    assert "Cross-venue" in fills[0].note or "paper:" in fills[0].note
+    assert fills[0].paper is False
+    assert fills[0].status == "blocked"
+    assert "holding" in fills[0].note.lower() or "two exchanges" in fills[0].note.lower()
+
+
+def _fill_from_order(body: dict) -> tuple[str, str]:
+    prices = {"BTC-USD": 97000.0, "ETH-BTC": 0.019, "ETH-USD": 2000.0}
+    product = body["product_id"]
+    side = body["side"]
+    ioc = body["order_configuration"]["market_market_ioc"]
+    px = prices[product]
+    if side == "BUY":
+        qty = float(ioc["quote_size"]) / px
+    else:
+        qty = float(ioc["base_size"])
+    return f"{qty:.8f}", f"{px:.8f}"
 
 
 @pytest.mark.asyncio
-async def test_coinbase_market_order_uses_balances() -> None:
+async def test_coinbase_round_trip_uses_usd_and_sells_back() -> None:
     pem = _ecdsa_pem()
+    posted: list[dict] = []
+    orders: dict[str, dict] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("/accounts"):
+            return httpx.Response(
+                200,
+                json={"accounts": [{"currency": "USD", "available_balance": {"value": "100.00"}}]},
+            )
+        if path.endswith("/orders") and request.method == "POST":
+            body = json.loads(request.content)
+            oid = f"oid-{len(orders) + 1}"
+            orders[oid] = body
+            posted.append(body)
+            return httpx.Response(200, json={"success": True, "success_response": {"order_id": oid}})
+        if "historical" in path:
+            oid = path.rstrip("/").split("/")[-1]
+            qty, px = _fill_from_order(orders[oid])
+            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px}})
+        return httpx.Response(404, json={"message": path})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
+    risk = RiskManager(cooldown_seconds=0, max_notional_usdt=25)
+    paper = PaperBroker(risk)
+    broker = LiveCoinbaseBroker(risk, "organizations/x/apiKeys/y", pem, paper, client=client)
+    fills = await broker.execute(_tri_opp(notional=10))
+    await client.aclose()
+    assert [row.status for row in fills] == ["filled", "filled", "filled"]
+    assert [row.side for row in fills] == ["buy", "buy", "sell"]
+    assert [row.symbol for row in fills] == ["BTC-USD", "ETH-BTC", "ETH-USD"]
+    assert posted[0]["order_configuration"]["market_market_ioc"]["quote_size"] == "10.00"
+    assert "base_size" in posted[1]["order_configuration"]["market_market_ioc"] or posted[1]["side"] == "BUY"
+    assert posted[2]["side"] == "SELL"
+    assert all(row.paper is False for row in fills)
+    assert broker.pnl > 0
+    assert risk.killed is False
+
+
+@pytest.mark.asyncio
+async def test_coinbase_does_not_sell_coins_already_held() -> None:
+    pem = _ecdsa_pem()
+    posted: list[dict] = []
+    orders: dict[str, dict] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -149,15 +224,15 @@ async def test_coinbase_market_order_uses_balances() -> None:
                 },
             )
         if path.endswith("/orders") and request.method == "POST":
-            return httpx.Response(
-                200,
-                json={"success": True, "success_response": {"order_id": "oid-1"}},
-            )
+            body = json.loads(request.content)
+            oid = f"oid-{len(orders) + 1}"
+            orders[oid] = body
+            posted.append(body)
+            return httpx.Response(200, json={"success": True, "success_response": {"order_id": oid}})
         if "historical" in path:
-            return httpx.Response(
-                200,
-                json={"order": {"filled_size": "0.0001", "average_filled_price": "97000"}},
-            )
+            oid = path.rstrip("/").split("/")[-1]
+            qty, px = _fill_from_order(orders[oid])
+            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px}})
         return httpx.Response(404, json={"message": path})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
@@ -166,9 +241,13 @@ async def test_coinbase_market_order_uses_balances() -> None:
     broker = LiveCoinbaseBroker(risk, "organizations/x/apiKeys/y", pem, paper, client=client)
     fills = await broker.execute(_opp(notional=10))
     await client.aclose()
-    assert [row.status for row in fills] == ["filled", "filled"]
-    assert all(row.paper is False for row in fills)
-    assert broker.pnl > 0
+    assert fills[0].status == "filled"
+    assert fills[0].side == "buy"
+    assert any("already hold" in (row.note or "") for row in fills) or any(row.status == "blocked" for row in fills)
+    eth_sells = [row for row in posted if row.get("product_id") == "ETH-USD" and row.get("side") == "SELL"]
+    assert eth_sells == []
+    btc_flatten = [row for row in posted if row.get("product_id") == "BTC-USD" and row.get("side") == "SELL"]
+    assert btc_flatten
 
 
 @pytest.mark.asyncio

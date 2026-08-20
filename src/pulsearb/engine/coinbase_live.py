@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import time
 import uuid
 from typing import Any
@@ -14,8 +15,22 @@ from pulsearb.models import Fill, Opportunity
 from pulsearb.symbols import split_pair
 
 
+STABLE = {"USD", "USDT", "USDC"}
+
+
+def _floor_qty(qty: float, digits: int = 8) -> float:
+    if qty <= 0:
+        return 0.0
+    scale = 10 ** digits
+    return math.floor((qty + 1e-15) * scale) / scale
+
+
 class LiveCoinbaseBroker(Broker):
-    """Places Coinbase Advanced Trade market IOC orders. Same-venue legs only."""
+    """Places Coinbase Advanced Trade market IOC orders. Same-venue legs only.
+
+    Each tap is a round-trip: buy, convert, sell back toward USD. It does not
+    buy-to-hold, and it will not sell coins the customer already had.
+    """
 
     def __init__(
         self,
@@ -128,18 +143,38 @@ class LiveCoinbaseBroker(Broker):
             )
         ]
 
-    def _order_body(self, opportunity: Opportunity, action: str, symbol: str, price: float) -> dict[str, Any]:
+    def _pair(self, symbol: str) -> tuple[str, str]:
         try:
-            base, quote = split_pair(symbol)
+            return split_pair(symbol)
         except ValueError:
-            base, quote = symbol, "USD"
+            return symbol.upper(), "USD"
+
+    def _fmt_size(self, amount: float, asset: str) -> str:
+        digits = 2 if asset in STABLE else 8
+        text = f"{_floor_qty(amount, digits):.{digits}f}"
+        if asset in STABLE:
+            return text
+        return text.rstrip("0").rstrip(".") or "0"
+
+    def _order_body(
+        self,
+        opportunity: Opportunity,
+        action: str,
+        symbol: str,
+        price: float,
+        *,
+        quote_size: float | None = None,
+        base_size: float | None = None,
+    ) -> dict[str, Any]:
+        base, quote = self._pair(symbol)
         side = "BUY" if action == "buy" else "SELL"
         config: dict[str, str] = {}
         if side == "BUY":
-            config["quote_size"] = f"{opportunity.notional:.2f}"
+            spend = opportunity.notional if quote_size is None else quote_size
+            config["quote_size"] = self._fmt_size(spend, quote)
         else:
-            qty = opportunity.notional / price if price else 0.0
-            config["base_size"] = f"{qty:.8f}".rstrip("0").rstrip(".")
+            qty = (opportunity.notional / price if price else 0.0) if base_size is None else base_size
+            config["base_size"] = self._fmt_size(qty, base)
         return {
             "client_order_id": str(uuid.uuid4()),
             "product_id": symbol,
@@ -149,19 +184,74 @@ class LiveCoinbaseBroker(Broker):
             "_quote": quote,
         }
 
-    def _enough_balance(self, body: dict[str, Any]) -> str | None:
+    def _enough_balance(self, body: dict[str, Any], pocket: dict[str, float] | None = None) -> str | None:
         ioc = body["order_configuration"]["market_market_ioc"]
+        pocket = pocket or {}
         if body["side"] == "BUY":
             need = float(ioc["quote_size"])
-            have = self.balances.get(str(body["_quote"]), 0.0)
+            asset = str(body["_quote"])
+            have_acct = self.balances.get(asset, 0.0)
+            have_pocket = pocket.get(asset, 0.0)
+            # First USD buy uses cash on the account. Later legs spend only
+            # what this tap just acquired (pocket), so we never spend the bag.
+            have = have_pocket if asset not in STABLE or have_pocket > 0 else have_acct
             if have + 1e-9 < need:
-                return f"insufficient {body['_quote']} ({have:.4f} < {need:.2f})"
+                return f"insufficient {asset} ({have:.8f} < {need})"
         else:
             need = float(ioc["base_size"])
-            have = self.balances.get(str(body["_base"]), 0.0)
+            asset = str(body["_base"])
+            have = pocket.get(asset, 0.0)
             if have + 1e-9 < need:
-                return f"insufficient {body['_base']} ({have:.8f} < {need})"
+                return f"insufficient {asset} ({have:.8f} < {need})"
         return None
+
+    def _credit_pocket(
+        self,
+        pocket: dict[str, float],
+        last_px: dict[str, float],
+        body: dict[str, Any],
+        qty: float,
+        price: float,
+    ) -> None:
+        base = str(body["_base"])
+        quote = str(body["_quote"])
+        if qty <= 0:
+            return
+        if body["side"] == "BUY":
+            spent = qty * price if price else float(body["order_configuration"]["market_market_ioc"]["quote_size"])
+            pocket[quote] = max(0.0, pocket.get(quote, 0.0) - spent)
+            pocket[base] = pocket.get(base, 0.0) + qty
+        else:
+            pocket[base] = max(0.0, pocket.get(base, 0.0) - qty)
+            pocket[quote] = pocket.get(quote, 0.0) + (qty * price if price else 0.0)
+        if price:
+            last_px[base] = price
+
+    def _size_leg(
+        self,
+        opportunity: Opportunity,
+        action: str,
+        symbol: str,
+        price: float,
+        pocket: dict[str, float],
+        *,
+        first_cash: bool,
+    ) -> dict[str, Any] | str:
+        base, quote = self._pair(symbol)
+        if action == "buy":
+            if first_cash and quote in STABLE and pocket.get(quote, 0.0) <= 0:
+                spend = min(opportunity.notional, self.balances.get(quote, 0.0))
+            else:
+                spend = pocket.get(quote, 0.0)
+            if quote in STABLE and spend + 1e-9 < max(1.0, float(self.risk.min_notional_usdt)):
+                return f"insufficient {quote} ({spend:.4f} < {self.risk.min_notional_usdt:.2f})"
+            if spend <= 0:
+                return f"no {quote} from this tap to buy {symbol}"
+            return self._order_body(opportunity, action, symbol, price, quote_size=spend)
+        qty = _floor_qty(pocket.get(base, 0.0))
+        if qty <= 0:
+            return f"no {base} from this tap to sell — this tap does not sell coins you already hold"
+        return self._order_body(opportunity, action, symbol, price, base_size=qty)
 
     async def execute(self, opportunity: Opportunity) -> list[Fill]:
         decision = self.risk.allow(opportunity.notional)
@@ -172,12 +262,21 @@ class LiveCoinbaseBroker(Broker):
         coinbase_legs = [leg for leg in opportunity.legs if leg.venue == "coinbase" and leg.executable]
         if not coinbase_legs or len(coinbase_legs) != len(opportunity.legs):
             return await self.paper_fallback.execute(opportunity)
+        _, first_quote = self._pair(coinbase_legs[0].symbol)
+        if coinbase_legs[0].action != "buy" or first_quote not in STABLE:
+            return self._blocked(
+                opportunity,
+                "Live taps start with USD, then sell back to USD. This one would use coins you already hold.",
+            )
 
         own_client = self._client is None
         client = self._client or httpx.AsyncClient(timeout=8.0)
         self.risk.on_submit()
         reserved = False
         fills: list[Fill] = []
+        pocket: dict[str, float] = {}
+        last_px: dict[str, float] = {}
+        failed = False
         try:
             try:
                 await self.refresh_balances(client)
@@ -185,9 +284,35 @@ class LiveCoinbaseBroker(Broker):
                 return self._blocked(opportunity, f"coinbase balance check failed: {exc}"[:200])
             self.risk.reserve_live(opportunity.notional)
             reserved = True
+            first_cash = True
             for leg in coinbase_legs:
-                body = self._order_body(opportunity, leg.action, leg.symbol, leg.price)
-                short = self._enough_balance(body)
+                sized = self._size_leg(
+                    opportunity,
+                    leg.action,
+                    leg.symbol,
+                    leg.price,
+                    pocket,
+                    first_cash=first_cash,
+                )
+                if isinstance(sized, str):
+                    fills.append(
+                        Fill(
+                            venue="coinbase",
+                            symbol=leg.symbol,
+                            side=leg.action,
+                            qty=0,
+                            price=leg.price,
+                            notional=opportunity.notional,
+                            ts=time.time(),
+                            paper=False,
+                            opportunity_id=opportunity.id,
+                            status="blocked",
+                            note=sized,
+                        )
+                    )
+                    failed = True
+                    break
+                short = self._enough_balance(sized, pocket)
                 if short:
                     fills.append(
                         Fill(
@@ -204,69 +329,25 @@ class LiveCoinbaseBroker(Broker):
                             note=short,
                         )
                     )
-                    if any(item.status == "filled" for item in fills[:-1]):
-                        self.risk.kill()
+                    failed = True
                     break
-                order = {k: v for k, v in body.items() if not k.startswith("_")}
-                try:
-                    response = await self._request(client, "POST", "/api/v3/brokerage/orders", json_body=order)
-                    try:
-                        payload = response.json() if response.content else {}
-                    except Exception:
-                        payload = {"error_response": {"message": response.text[:200]}}
-                except Exception as exc:
-                    fills.append(
-                        Fill(
-                            venue="coinbase",
-                            symbol=leg.symbol,
-                            side=leg.action,
-                            qty=0,
-                            price=leg.price,
-                            notional=opportunity.notional,
-                            ts=time.time(),
-                            paper=False,
-                            opportunity_id=opportunity.id,
-                            status="error",
-                            note=str(exc)[:240],
-                        )
-                    )
-                    self.risk.kill()
+                fill = await self._place_order(client, opportunity, sized, fallback_price=leg.price)
+                fills.append(fill)
+                if fill.status != "filled" or fill.qty <= 0:
+                    failed = True
                     break
-                ok = response.status_code == 200 and bool(payload.get("success"))
-                order_id = str((payload.get("success_response") or {}).get("order_id") or "")
-                qty = 0.0
-                price = leg.price
-                note = order_id or str(payload)[:240]
-                if ok and order_id:
-                    filled = await self._lookup_fill(client, order_id)
-                    qty = filled[0]
-                    price = filled[1] or price
-                    note = f"order {order_id}"
-                elif not ok:
-                    err = payload.get("error_response") or payload
-                    note = str(err)[:240]
-                    self.risk.kill()
-                fills.append(
-                    Fill(
-                        venue="coinbase",
-                        symbol=leg.symbol,
-                        side=leg.action,
-                        qty=qty,
-                        price=price,
-                        notional=opportunity.notional,
-                        ts=time.time(),
-                        paper=False,
-                        opportunity_id=opportunity.id,
-                        status="filled" if ok else "error",
-                        note=note,
-                    )
-                )
-                if not ok:
-                    break
-            if fills and all(item.status == "filled" for item in fills):
+                self._credit_pocket(pocket, last_px, sized, fill.qty, fill.price)
+                if sized["side"] == "BUY" and str(sized["_quote"]) in STABLE:
+                    first_cash = False
+            strategy_ok = bool(fills) and all(item.status == "filled" for item in fills) and not failed
+            leftover = await self._flatten_pocket(client, opportunity, pocket, last_px)
+            fills.extend(leftover)
+            if strategy_ok and all(item.status == "filled" for item in leftover):
                 expected = opportunity.notional * (opportunity.net_edge_bps / 10_000)
                 self.pnl += expected
                 self.risk.record_pnl(expected)
+            if failed or any(item.status != "filled" for item in leftover):
+                self.risk.kill()
         finally:
             if reserved and not any(item.status == "filled" for item in fills):
                 self.risk.release_live(opportunity.notional)
@@ -275,6 +356,93 @@ class LiveCoinbaseBroker(Broker):
                 await client.aclose()
         self.fills.extend(fills)
         return fills
+
+    async def _place_order(
+        self,
+        client: httpx.AsyncClient,
+        opportunity: Opportunity,
+        body: dict[str, Any],
+        *,
+        fallback_price: float,
+    ) -> Fill:
+        order = {k: v for k, v in body.items() if not k.startswith("_")}
+        try:
+            response = await self._request(client, "POST", "/api/v3/brokerage/orders", json_body=order)
+            try:
+                payload = response.json() if response.content else {}
+            except Exception:
+                payload = {"error_response": {"message": response.text[:200]}}
+        except Exception as exc:
+            return Fill(
+                venue="coinbase",
+                symbol=body["product_id"],
+                side="buy" if body["side"] == "BUY" else "sell",
+                qty=0,
+                price=fallback_price,
+                notional=opportunity.notional,
+                ts=time.time(),
+                paper=False,
+                opportunity_id=opportunity.id,
+                status="error",
+                note=str(exc)[:240],
+            )
+        ok = response.status_code == 200 and bool(payload.get("success"))
+        order_id = str((payload.get("success_response") or {}).get("order_id") or "")
+        qty = 0.0
+        price = fallback_price
+        note = order_id or str(payload)[:240]
+        if ok and order_id:
+            filled = await self._lookup_fill(client, order_id)
+            qty = filled[0]
+            price = filled[1] or price
+            note = f"order {order_id}"
+            if qty <= 0:
+                ok = False
+                note = f"order {order_id} returned no fill"
+        elif not ok:
+            err = payload.get("error_response") or payload
+            note = str(err)[:240]
+        notional = qty * price if qty and price else opportunity.notional
+        return Fill(
+            venue="coinbase",
+            symbol=body["product_id"],
+            side="buy" if body["side"] == "BUY" else "sell",
+            qty=qty,
+            price=price,
+            notional=notional,
+            ts=time.time(),
+            paper=False,
+            opportunity_id=opportunity.id,
+            status="filled" if ok else "error",
+            note=note,
+        )
+
+    async def _flatten_pocket(
+        self,
+        client: httpx.AsyncClient,
+        opportunity: Opportunity,
+        pocket: dict[str, float],
+        last_px: dict[str, float],
+    ) -> list[Fill]:
+        """Sell leftover coins from this tap back to USD. Never sells the customer's bag."""
+        out: list[Fill] = []
+        for asset, qty in list(pocket.items()):
+            qty = _floor_qty(qty)
+            if asset in STABLE or qty <= 0:
+                continue
+            px = last_px.get(asset, 0.0)
+            if px and qty * px < 1.0:
+                continue
+            symbol = f"{asset}-USD"
+            body = self._order_body(opportunity, "sell", symbol, px or 0.0, base_size=qty)
+            fill = await self._place_order(client, opportunity, body, fallback_price=px)
+            fill.note = f"flatten to USD · {fill.note}".strip(" ·")
+            out.append(fill)
+            if fill.status == "filled" and fill.qty > 0:
+                self._credit_pocket(pocket, last_px, body, fill.qty, fill.price)
+            else:
+                fill.note = f"could not sell leftover {asset} back to USD · {fill.note}"
+        return out
 
     async def _lookup_fill(self, client: httpx.AsyncClient, order_id: str) -> tuple[float, float]:
         try:
