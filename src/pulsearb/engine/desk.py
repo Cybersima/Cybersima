@@ -52,7 +52,7 @@ def opportunity_assets(opportunity: Opportunity) -> set[str]:
 class TradeDesk:
     """Customer choices: size, auto vs pick, coins, exchanges, trade style."""
 
-    notional: float = 25.0
+    notional: float = 5.0
     auto_invest: bool = False
     all_assets: bool = False
     assets: list[str] = field(default_factory=lambda: ["BTC", "ETH", "SOL", "XRP"])
@@ -60,6 +60,7 @@ class TradeDesk:
     kinds: list[str] = field(default_factory=lambda: list(KINDS))
     max_notional: float = 250.0
     live_max: float = 25.0
+    min_notional: float = 1.0
     live: bool = False
 
     @property
@@ -71,7 +72,19 @@ class TradeDesk:
             amount = float(value)
         except (TypeError, ValueError):
             amount = self.notional
-        return round(max(5.0, min(amount, self.cap)), 2)
+        floor = max(0.01, float(self.min_notional))
+        return round(max(floor, min(amount, self.cap)), 2)
+
+    def presets(self) -> list[float]:
+        raw = [1, 2, 3, 4, 5, 10, 25] if self.live else [1, 2, 3, 4, 5, 10, 25, 50, 100]
+        out: list[float] = []
+        for item in raw:
+            if self.min_notional - 1e-9 <= item <= self.cap + 1e-9:
+                out.append(int(item) if float(item) == int(item) else float(item))
+        cap_value = int(self.cap) if float(self.cap) == int(self.cap) else round(self.cap, 2)
+        if cap_value not in out:
+            out.append(cap_value)
+        return out
 
     def apply(self, payload: dict) -> None:
         if "notional" in payload:
@@ -128,7 +141,8 @@ class TradeDesk:
             "kinds": list(self.kinds),
             "cap": self.cap,
             "live": self.live,
-            "presets": [10, 25, 50, 100, int(self.cap)],
+            "min_notional": self.min_notional,
+            "presets": self.presets(),
             "asset_choices": list(POPULAR_ASSETS),
             "venue_choices": [{"id": item, "label": VENUE_LABELS[item]} for item in VENUES],
             "kind_choices": [{"id": item, "label": KIND_LABELS[item]} for item in KINDS],

@@ -207,7 +207,7 @@ async def assess_live_ready(
                 if ping and ping_ok:
                     cash_ok = cash + 1e-9 >= cap
                     cash_detail = (
-                        f"${cash:.2f} USD/USDC/USDT available. Live cap is ${cap:.0f} per trade."
+                        f"${cash:.2f} USD/USDC/USDT available. Session budget is ${cap:.0f}; each tap can be $1–${cap:.0f}."
                         if cash_ok
                         else f"Only ${cash:.2f} cash. Leave at least ${cap:.0f} USD in Coinbase."
                     )
@@ -236,7 +236,7 @@ async def assess_live_ready(
             "live_cap",
             "Live size cap",
             True,
-            f"Each live Coinbase order is capped at ${cap:.0f}. Cross-venue stays paper.",
+            f"Each tap is $1–${cap:.0f}. Session budget ${cap:.0f}. Cross-venue stays paper.",
             required=False,
         )
     )

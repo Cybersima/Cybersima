@@ -176,12 +176,15 @@ class LiveCoinbaseBroker(Broker):
         own_client = self._client is None
         client = self._client or httpx.AsyncClient(timeout=8.0)
         self.risk.on_submit()
+        reserved = False
         fills: list[Fill] = []
         try:
             try:
                 await self.refresh_balances(client)
             except Exception as exc:
                 return self._blocked(opportunity, f"coinbase balance check failed: {exc}"[:200])
+            self.risk.reserve_live(opportunity.notional)
+            reserved = True
             for leg in coinbase_legs:
                 body = self._order_body(opportunity, leg.action, leg.symbol, leg.price)
                 short = self._enough_balance(body)
@@ -265,6 +268,8 @@ class LiveCoinbaseBroker(Broker):
                 self.pnl += expected
                 self.risk.record_pnl(expected)
         finally:
+            if reserved and not any(item.status == "filled" for item in fills):
+                self.risk.release_live(opportunity.notional)
             self.risk.on_complete()
             if own_client:
                 await client.aclose()

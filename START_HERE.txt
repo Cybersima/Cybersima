@@ -39,10 +39,9 @@ On the dashboard, use Look → Dark or Light. Use Sound → Off if you do
 not want the chime. Sound dings for a new matching setup and again
 when a trade completes. Toasts still appear if sound is off.
 
-On the dashboard, set How much to invest, pick your coins, then tap
-Invest on a trade — or turn on Invest automatically (paper only).
-While live Coinbase orders are armed, Auto stays off so every real
-order is a tap.
+On the dashboard, set How much per tap ($1, $2, $3, $4, $5, …).
+Coins priced under $1 still buy a fraction of a coin. While live,
+the $25 is a session budget you can split across many taps.
 
 Profit / trades spreadsheet:
 
@@ -66,7 +65,7 @@ Real Coinbase orders (your money):
    Windows:  double-click CHECK-LIVE.bat, then GO-LIVE.bat
    Mac:      double-click Check-Live.command, then Go-Live.command
    Linux:    ./check-live.sh && ./go-live.sh
-   Default cap is $25 per trade. Cross-venue stays paper.
+   Default: $5 per tap, $25 session budget. Cross-venue stays paper.
    Auto stays off while live.
 
 © CyberSym. All rights reserved.

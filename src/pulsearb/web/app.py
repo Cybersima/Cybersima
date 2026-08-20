@@ -168,7 +168,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
 
     @app.get("/api/desk")
     async def get_desk() -> dict:
-        return engine.desk.to_dict()
+        return engine.desk_view()
 
     @app.post("/api/desk")
     async def update_desk(payload: dict) -> dict:

@@ -34,7 +34,7 @@ That first run is **demo / paper trading**. No API keys, no real orders. Close t
 
 See `DOWNLOAD.txt` in the zip for the same steps.
 
-On the dashboard, set **How much to invest**, choose coins and exchanges, then tap **Invest** on a trade (or turn on Auto).
+On the dashboard, set **How much per tap** ($1–$5 typical), choose coins and exchanges, then tap **Invest** on a trade (or turn on Auto in paper). Coins priced under $1 still buy a fraction of a coin.
 
 Your official crest: save it as `branding/cybersym-logo.png` next to `start.bat`, then refresh (Ctrl+F5). Windows: **Use-This-Logo.bat** opens that folder.
 
@@ -93,7 +93,8 @@ Real Coinbase orders are a separate add-on. Create a **Secret API key** at [port
 Live mode:
 
 - Sends **Coinbase-only** triangles as market IOC orders
-- Caps size at `live_max_notional_usdt` (default **$25**)
+- Default tap size **$5** (buttons $1, $2, $3, $4, $5 …). Max **$25** per tap
+- Session live budget **$25** (split across many taps)
 - Leaves cross-venue (Coinbase vs Kraken/Gemini/Bitstamp) on **paper** — you cannot instantly move coins between exchanges
 - Keeps **Auto off** so every live order is a tap
 - Requires `PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK` (GO-LIVE sets this)

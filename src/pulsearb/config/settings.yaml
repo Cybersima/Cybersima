@@ -25,10 +25,13 @@ min_executable_edge_bps: 25.0
 
 risk:
   max_notional_usdt: 250
+  min_notional_usdt: 1
   live_max_notional_usdt: 25
-  max_open_orders: 4
+  live_budget_usdt: 25
+  max_open_orders: 8
   daily_loss_limit_usdt: 100
   cooldown_seconds: 8
+  live_cooldown_seconds: 2
   stale_quote_seconds: 8
 
 execution:

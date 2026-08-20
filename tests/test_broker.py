@@ -51,3 +51,16 @@ def test_notional_cap() -> None:
     risk = RiskManager(max_notional_usdt=10, cooldown_seconds=0)
     decision = risk.allow(50)
     assert not decision.allowed
+
+
+def test_live_budget_splits_across_taps() -> None:
+    risk = RiskManager(max_notional_usdt=25, live_budget_usdt=25, cooldown_seconds=0, min_notional_usdt=1)
+    assert risk.allow(1).allowed
+    assert risk.allow(5).allowed
+    risk.reserve_live(5)
+    assert risk.remaining_budget() == 20
+    assert risk.taps_left(5) == 4
+    risk.reserve_live(20)
+    blocked = risk.allow(5)
+    assert blocked.allowed is False
+    assert "budget" in blocked.reason

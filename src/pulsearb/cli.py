@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> None:
     if config.live_enabled():
         venues = ", ".join(config.live_venue_names()) or "none"
         print(f"{PRODUCT} LIVE TRADING ON ({venues}). Real market orders.")
-        print(f"{PRODUCT} live cap: ${config.live_notional():.0f} per trade. Cross-venue stays paper.")
+        print(f"{PRODUCT} live budget: ${config.live_notional():.0f} this session. Each tap is your desk size ($1–$25). Cross-venue stays paper.")
         print("A failed live leg trips the kill switch. Close this window to stop.")
     print("Leave this window open. Close it or press Ctrl+C to stop.")
     if args.open_browser:

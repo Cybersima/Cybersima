@@ -44,14 +44,15 @@ let seenTradeKeys = null;
 let seenFillKeys = null;
 let lastAlertAt = 0;
 let desk = {
-  notional: 25,
+  notional: 5,
   auto_invest: false,
   all_assets: false,
   assets: ["BTC", "ETH", "SOL", "XRP"],
   venues: ["coinbase", "kraken", "gemini", "bitstamp"],
   kinds: ["cross_venue", "triangular"],
   cap: 250,
-  presets: [10, 25, 50, 100, 250],
+  min_notional: 1,
+  presets: [1, 2, 3, 4, 5, 10, 25, 50, 100, 250],
   asset_choices: ["BTC", "ETH", "SOL", "XRP", "ADA", "DOGE", "LTC", "LINK", "AVAX", "DOT", "UNI", "AAVE"],
   venue_choices: [
     { id: "coinbase", label: "Coinbase" },
@@ -65,6 +66,9 @@ let desk = {
   ],
   live: false,
   auto_allowed: true,
+  budget: null,
+  budget_left: null,
+  taps_left: null,
 };
 
 function fmt(n, d = 2) {
@@ -309,6 +313,8 @@ function paintDesk() {
   if (document.activeElement !== amountInput) {
     amountInput.value = String(desk.notional);
     amountInput.max = String(desk.cap);
+    amountInput.min = String(desk.min_notional || 1);
+    amountInput.step = Number(desk.notional) < 5 ? "1" : "1";
   }
   presetsEl.replaceChildren(
     ...desk.presets.map((amt) => {
@@ -326,8 +332,8 @@ function paintDesk() {
   modeAuto.disabled = !autoAllowed;
   modeAuto.title = autoAllowed ? "" : "Auto stays off while live Coinbase orders are armed.";
   amountHint.textContent = desk.live
-    ? `Live Coinbase orders · max $${desk.cap} per trade. Every order is a tap.`
-    : "Paper trading until you go live. Change this anytime.";
+    ? `This tap: $${fmt(desk.notional, 0)}. Session budget $${fmt(desk.budget || desk.cap, 0)} · $${fmt(desk.budget_left ?? desk.cap, 2)} left (${desk.taps_left ?? "?"} more taps). Coins under $1 still buy a fraction.`
+    : "Each tap is this size. $1–$5 is typical. Paper until you go live. Coins under $1 still buy a fraction.";
   if (modeHint) {
     modeHint.textContent = autoAllowed
       ? "Picking is safer. Auto uses your amount on matching trades."
@@ -512,7 +518,8 @@ function render() {
         .join(" · ");
       liveBanner.textContent = [
         s.live_note || "LIVE trading is on. Real money.",
-        desk.cap ? `Cap $${fmt(desk.cap, 0)} / trade.` : "",
+        desk.notional ? `This tap $${fmt(desk.notional, 0)}.` : "",
+        desk.budget != null ? `Budget $${fmt(desk.budget_left ?? 0, 2)} of $${fmt(desk.budget, 0)} left.` : "",
         top ? `Balances: ${top}` : "",
       ]
         .filter(Boolean)

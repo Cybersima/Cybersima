@@ -7,7 +7,9 @@ This add-on sends REAL Coinbase market orders with YOUR money.
 What goes live
 --------------
 • Coinbase-only triangles (buy/sell all on Coinbase).
-• Default cap: $25 per trade (see settings.yaml live_max_notional_usdt).
+• Each tap is $1–$25 (default $5). Buttons: $1 $2 $3 $4 $5 …
+• Session budget: $25 total live size this run (five $5 taps, or
+  twenty-five $1 taps, etc.). Coins priced under $1 still buy a fraction.
 • Every live order is a tap. Auto-invest stays off while live.
 
 What stays paper

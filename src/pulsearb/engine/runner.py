@@ -36,19 +36,27 @@ class Engine:
         self.invested: set[str] = set()
         self.by_id: dict[str, Opportunity] = {}
         self.listeners: set[asyncio.Queue] = set()
+        min_notional = float(config.risk.get("min_notional_usdt", 1))
+        default_size = max(min_notional, min(5.0, config.live_notional()))
         self.desk = TradeDesk(
-            notional=min(25.0, config.live_notional()),
+            notional=default_size,
             max_notional=float(config.risk.get("max_notional_usdt", 250)),
             live_max=float(config.risk.get("live_max_notional_usdt", 25)),
+            min_notional=min_notional,
             live=config.live_enabled(),
         )
         self._fee_map = config.fee_map()
         self._slippage = float(config.fees.get("extra_slippage_bps", 2))
+        live = config.live_enabled()
         self.risk = RiskManager(
             max_notional_usdt=config.live_notional(),
-            max_open_orders=int(config.risk.get("max_open_orders", 4)),
+            min_notional_usdt=min_notional,
+            max_open_orders=int(config.risk.get("max_open_orders", 8 if live else 4)),
             daily_loss_limit_usdt=float(config.risk.get("daily_loss_limit_usdt", 100)),
-            cooldown_seconds=float(config.risk.get("cooldown_seconds", 8)),
+            cooldown_seconds=float(
+                config.risk.get("live_cooldown_seconds", 2) if live else config.risk.get("cooldown_seconds", 8)
+            ),
+            live_budget_usdt=float(config.risk.get("live_budget_usdt", config.live_notional())) if live else 0.0,
         )
         self.paper = PaperBroker(self.risk)
         self.broker: Broker = self.paper
@@ -114,13 +122,14 @@ class Engine:
                 "balances": {str(k): round(float(v), 8) for k, v in (balances or {}).items() if float(v) > 0},
                 "live_note": (
                     "LIVE Coinbase: real market orders for Coinbase-only triangles. "
+                    "Each tap is your desk size. Session budget is the $25 cap. "
                     "Cross-venue stays paper. Kill switch stops new orders."
                     if live
                     else ""
                 ),
-                "live_notional": self.desk.cap if self.config.live_enabled() else self.desk.notional,
+                "live_notional": self.desk.notional if live else self.desk.notional,
             },
-            "desk": self.desk.to_dict(),
+            "desk": self.desk_view(),
             "quotes": [q.to_dict() for q in quotes],
             "opportunities": [self._opp_view(o) for o in list(self.opportunities)[:40]],
             "fills": [f.to_dict() for f in list(self.fills)[:40]],
@@ -162,10 +171,22 @@ class Engine:
         )
         return data
 
+    def desk_view(self) -> dict:
+        data = self.desk.to_dict()
+        left = self.risk.remaining_budget()
+        data.update(
+            {
+                "budget": self.risk.live_budget_usdt if self.config.live_enabled() else None,
+                "budget_left": left,
+                "taps_left": self.risk.taps_left(self.desk.notional),
+            }
+        )
+        return data
+
     def apply_desk(self, payload: dict) -> dict:
         self.desk.live = self.config.live_enabled()
         self.desk.apply(payload)
-        return self.desk.to_dict()
+        return self.desk_view()
 
     async def invest(self, opportunity_id: str) -> dict:
         opp = self.by_id.get(opportunity_id)
@@ -179,7 +200,7 @@ class Engine:
             return {"ok": False, "error": "You already took this trade."}
         fills = await self._take(opp)
         await self.broadcast()
-        return {"ok": True, "fills": [fill.to_dict() for fill in fills], "desk": self.desk.to_dict()}
+        return {"ok": True, "fills": [fill.to_dict() for fill in fills], "desk": self.desk_view()}
 
     async def _take(self, opp: Opportunity) -> list[Fill]:
         opp.notional = self.desk.notional

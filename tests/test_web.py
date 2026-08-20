@@ -74,7 +74,9 @@ def test_dashboard_and_kill_switch() -> None:
     assert desk.status_code == 200
     assert desk.json()["auto_invest"] is False
     assert desk.json()["auto_allowed"] is True
-    assert desk.json()["notional"] == 25
+    assert desk.json()["notional"] == 5
+    assert desk.json()["min_notional"] == 1
+    assert 1 in desk.json()["presets"]
     updated = client.post("/api/desk", json={"notional": 50, "assets": ["BTC", "ETH"]})
     assert updated.status_code == 200
     assert updated.json()["notional"] == 50

@@ -26,9 +26,25 @@ def _opp(kind: OpportunityKind = OpportunityKind.CROSS_VENUE, venues=("coinbase"
 def test_desk_defaults_are_pick_mode_and_popular_coins() -> None:
     desk = TradeDesk()
     assert desk.auto_invest is False
-    assert desk.notional == 25
+    assert desk.notional == 5
     assert "BTC" in desk.assets
     assert desk.matches(_opp())
+
+
+def test_notional_allows_one_dollar_taps() -> None:
+    desk = TradeDesk(live=True, live_max=25, min_notional=1)
+    desk.apply({"notional": 1})
+    assert desk.notional == 1
+    desk.apply({"notional": 0.25})
+    assert desk.notional == 1
+    assert 1 in desk.presets()
+    assert 5 in desk.presets()
+
+
+def test_notional_clamps_to_cap() -> None:
+    desk = TradeDesk(live=True, live_max=25, max_notional=250)
+    desk.apply({"notional": 500})
+    assert desk.notional == 25
 
 
 def test_desk_hides_unselected_coin() -> None:
@@ -42,12 +58,6 @@ def test_desk_can_exclude_an_exchange() -> None:
     assert not desk.matches(_opp(venues=("coinbase", "kraken")))
     triangle = _opp(kind=OpportunityKind.TRIANGULAR, venues=("coinbase", "coinbase"), symbol="ETH-BTC")
     assert desk.matches(triangle)
-
-
-def test_notional_clamps_to_cap() -> None:
-    desk = TradeDesk(live=True, live_max=25, max_notional=250)
-    desk.apply({"notional": 500})
-    assert desk.notional == 25
 
 
 def test_auto_forced_off_when_live() -> None:

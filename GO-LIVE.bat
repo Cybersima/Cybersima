@@ -9,7 +9,7 @@ set PYTHONPATH=
 echo.
 echo  CyberSym SecureTrade — LIVE TRADING
 echo  This sends REAL Coinbase market orders with your money.
-echo  Default cap is $25 per trade.
+echo  Each tap is $1-$25 (default $5). Session budget $25.
 echo  Auto stays OFF. Every live order is a tap.
 echo  Cross-venue (Coinbase vs Kraken/Gemini/Bitstamp) stays PAPER.
 echo  Close this window or use Kill switch to stop.
