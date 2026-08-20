@@ -552,6 +552,26 @@ function priceFilterLabel() {
   return "";
 }
 
+function emptyOppsMessage() {
+  const kinds = desk.kinds || [];
+  const onlyTri = kinds.length === 1 && kinds[0] === "triangular";
+  const range = priceFilterLabel();
+  const feeds = (snapshot.stats && snapshot.stats.feed_status) || {};
+  const demo = Boolean(feeds.simulator);
+  if (range && onlyTri) {
+    return `No triangles ${range}. These routes use BTC/ETH, which that filter hides. Set Show pairs to Any price.`;
+  }
+  if (range) {
+    return `No matching trades ${range} right now. Try Any price, or pick more coins.`;
+  }
+  if (onlyTri) {
+    return demo
+      ? "Waiting for a same-exchange triangle. Demo injects one about every 18 seconds. If Show pairs is Under $5, set it to Any. Auto cannot fire until a row appears."
+      : "Same-exchange triangles are rare on live prices — three Coinbase fees eat most edges. Nothing is blocked; nothing has printed yet. For paper practice, also turn on Price gaps, or run start.bat (demo injects triangle gaps). Auto cannot fire until a row appears.";
+  }
+  return "No matching trades right now. Pick more coins, or wait for the next scan.";
+}
+
 function friendlyOpp(row) {
   const legs = row.legs || [];
   const buy = legs.find((leg) => leg.action === "buy");
@@ -606,14 +626,11 @@ function render() {
     );
   }
 
-  const mine = (snapshot.opportunities || []).filter((row) => row.chosen !== false);
+    const mine = (snapshot.opportunities || []).filter((row) => row.chosen !== false);
   if (!mine.length) {
     const empty = document.createElement("li");
     empty.className = "empty";
-    const range = priceFilterLabel();
-    empty.textContent = range
-      ? `No matching trades ${range} right now. Try Any price, or pick more coins.`
-      : "No matching trades right now. Pick more coins, or wait for the next scan.";
+    empty.textContent = emptyOppsMessage();
     opps.replaceChildren(empty);
   } else {
     opps.replaceChildren(
@@ -650,7 +667,10 @@ function render() {
         } else if (!row.executable) {
           const note = document.createElement("div");
           note.className = "hint";
-          note.textContent = "Watch only — delayed data, not an order.";
+          note.textContent =
+            row.kind === "triangular"
+              ? "Watch only — after three exchange fees this edge is too small to take."
+              : "Watch only — delayed data, not an order.";
           li.append(note);
         }
         return li;

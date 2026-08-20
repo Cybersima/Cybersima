@@ -194,7 +194,7 @@ class Engine:
                 "killed": self.risk.killed,
                 "execution": execution,
                 "uptime_s": round(time.time() - self.stats.started_at, 1),
-                "triangles": sum(len(items) for items in self.triangles_by_venue.values()),
+                "triangles": sum(1 for item in self.opportunities if item.kind.value == "triangular"),
                 "report_rows": self.report.total_rows,
                 "report_path": str(self.report.csv_path) if self.report.csv_path else "",
                 "balances": {str(k): round(float(v), 8) for k, v in (balances or {}).items() if float(v) > 0},
@@ -434,11 +434,12 @@ class Engine:
                     detect_triangles(
                         self.book,
                         tri,
-                        min_exec,
+                        min_alert,
                         taker,
                         extra,
                         notional,
                         venue=scan_venue,
+                        min_executable_edge_bps=min_exec,
                     )
                 )
             # Demo quotes use real venue names, so the venue-scoped scan above is enough.

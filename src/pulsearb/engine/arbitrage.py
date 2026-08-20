@@ -164,10 +164,12 @@ def detect_triangles(
     extra_slippage_bps: float,
     notional: float,
     venue: str | None = None,
+    min_executable_edge_bps: float | None = None,
 ) -> list[Opportunity]:
     found: list[Opportunity] = []
     now = time.time()
     fee = 3 * taker_bps + extra_slippage_bps
+    min_exec = min_edge_bps if min_executable_edge_bps is None else min_executable_edge_bps
     for a, b, c in triangles:
         for path in ((a, b, c), (a, c, b)):
             start, x, y = path
@@ -219,7 +221,7 @@ def detect_triangles(
                     notional=notional,
                     legs=legs,
                     summary=summary,
-                    executable=all(leg.executable for leg in legs),
+                    executable=all(leg.executable for leg in legs) and net >= min_exec - 1e-9,
                     ts=now,
                     id=_oid("tri", venue or "any", start, x, y, f"{net:.2f}"),
                 )

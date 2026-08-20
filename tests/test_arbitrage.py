@@ -110,3 +110,45 @@ def test_coinbase_triangle_on_usd_book() -> None:
     )
     assert opps
     assert max(opps, key=lambda o: o.net_edge_bps).net_edge_bps > 20
+
+
+def test_triangle_watch_only_when_edge_is_below_take_threshold() -> None:
+    book = MarketBook()
+    book.update(make_quote("coinbase", "BTC-USD", 100000, 100010))
+    book.update(make_quote("coinbase", "ETH-USD", 2000, 2001))
+    book.update(make_quote("coinbase", "ETH-BTC", 0.01985, 0.01986))
+    triangles = discover_triangles(["BTC-USD", "ETH-USD", "ETH-BTC"])
+    opps = detect_triangles(
+        book,
+        triangles,
+        min_edge_bps=8,
+        taker_bps=10,
+        extra_slippage_bps=0,
+        notional=5,
+        venue="coinbase",
+        min_executable_edge_bps=80,
+    )
+    assert opps
+    assert all(not row.executable for row in opps)
+
+
+def test_coinbase_triangle_clears_retail_fees_on_two_and_a_half_percent() -> None:
+    book = MarketBook()
+    book.update(make_quote("coinbase", "BTC-USD", 100000, 100010))
+    book.update(make_quote("coinbase", "ETH-USD", 2000, 2001))
+    book.update(make_quote("coinbase", "ETH-BTC", 0.01950, 0.01951))
+    triangles = discover_triangles(["BTC-USD", "ETH-USD", "ETH-BTC"])
+    opps = detect_triangles(
+        book,
+        triangles,
+        min_edge_bps=8,
+        taker_bps=50,
+        extra_slippage_bps=2,
+        notional=5,
+        venue="coinbase",
+        min_executable_edge_bps=25,
+    )
+    assert opps
+    best = max(opps, key=lambda o: o.net_edge_bps)
+    assert best.net_edge_bps >= 25
+    assert best.executable

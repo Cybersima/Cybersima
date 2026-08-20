@@ -69,6 +69,8 @@ def test_dashboard_and_kill_switch() -> None:
     assert "Trade complete" in js.text
     assert "paintLiveReady" in js.text
     assert "auto_allowed" in js.text
+    assert "emptyOppsMessage" in js.text
+    assert "three Coinbase fees" in js.text
     assert 'id="fills-meta"' in page.text
     assert "cybersym-theme" in page.text
     assert "I’ll pick each trade" in page.text or "I'll pick each trade" in page.text

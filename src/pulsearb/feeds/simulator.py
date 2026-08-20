@@ -109,14 +109,33 @@ class SimulatorFeed(Feed):
             status[self.name] = "gap injected" if inject else "live"
             await asyncio.sleep(0.25)
 
-    def _tick(self, book: MarketBook, inject: bool) -> None:
+    def _tick(
+        self,
+        book: MarketBook,
+        inject: bool,
+        *,
+        triangle_shock: tuple[str, str, float] | None = None,
+        cross_shock: tuple[str, str, float] | None = None,
+    ) -> None:
         now = time.time()
-        shock_canon = random.choice([c for _v, c, _e in self.instruments]) if inject else None
-        shock_venue = random.choice(["coinbase", "kraken", "gemini", "bitstamp"]) if inject else None
+        if inject and cross_shock is None:
+            shock_canon = random.choice([c for _v, c, _e in self.instruments])
+            shock_venue = random.choice(["coinbase", "kraken", "gemini", "bitstamp"])
+            cross_shock = (shock_canon, shock_venue, 0.988 if random.random() < 0.5 else 1.012)
+        if inject and triangle_shock is None:
+            tri_pairs = [canon for _v, canon, _e in self.instruments if canon in {"ETH-BTC", "LTC-BTC"}]
+            if tri_pairs:
+                triangle_shock = (
+                    random.choice(tri_pairs),
+                    random.choice(["coinbase", "kraken", "gemini", "bitstamp"]),
+                    0.975 if random.random() < 0.5 else 1.025,
+                )
         for venue, canon, executable in self.instruments:
             mid = self._walk(canon) * VENUE_BIAS.get(venue, 1.0)
-            if inject and canon == shock_canon and venue == shock_venue:
-                mid *= 0.988 if random.random() < 0.5 else 1.012
+            if cross_shock and canon == cross_shock[0] and venue == cross_shock[1]:
+                mid *= cross_shock[2]
+            if triangle_shock and canon == triangle_shock[0] and venue == triangle_shock[1]:
+                mid *= triangle_shock[2]
             spread = mid * (0.0002 if venue == "yahoo" else 0.00012)
             native = canon if venue == "yahoo" else to_native_symbol(venue, canon)
             try:
