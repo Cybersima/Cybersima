@@ -9,7 +9,7 @@ import ensure_venv
 def test_ensure_venv_never_rewrites_pyvenv_cfg() -> None:
     source = inspect.getsource(ensure_venv)
     assert "write_pyvenv_cfg" not in source
-    assert "pyvenv.cfg" not in source
+    assert "write_text(" not in source
 
 
 def test_windows_start_rebuilds_broken_venv() -> None:

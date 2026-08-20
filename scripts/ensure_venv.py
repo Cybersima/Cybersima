@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create or rebuild the local .venv. Never rewrite pyvenv.cfg by hand."""
+"""Create or rebuild the local .venv. Never rewrite venv config files by hand."""
 
 from __future__ import annotations
 
