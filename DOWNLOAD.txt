@@ -6,7 +6,9 @@ Direct installer zip (unzip, then install):
 https://github.com/Cybersima/Cybersima/raw/cursor/pulsearb-multimarket-scanner-c11f/releases/CyberSym-SecureTrade.zip
 
 Versions 1.4 and 1.5 are withdrawn. This zip is the restored v01.3
-working build. Unzip into a NEW folder. Do not copy .venv from 1.4/1.5.
+If several Pythons are installed, the app uses C:\Python314\python.exe
+first, not "py -3". Optional: python-path.txt next to start.bat with one
+line = full path to python.exe. Unzip into a NEW folder.
 
 You need Python 3.11+ from https://www.python.org/downloads/
 Windows: tick "Add python.exe to PATH".

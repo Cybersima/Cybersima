@@ -4,8 +4,10 @@ CyberSym SecureTrade — download and install
 A CyberSym product.
 
 Versions 1.4 and 1.5 are withdrawn (Windows encodings crash).
-This zip is the restored v01.3 working build. Unzip into a NEW folder.
-Do not copy .venv from 1.4 or 1.5.
+If several Pythons are installed, the app uses C:\Python314\python.exe first
+(not "py -3"). To force another, put one line in python-path.txt next to
+start.bat, for example: C:\Python314\python.exe
+Unzip into a NEW folder. Do not copy .venv from 1.4 or 1.5.
 
 1. Unzip this folder anywhere.
 2. Install Python 3.11+ if needed: https://www.python.org/downloads/

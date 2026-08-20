@@ -6,7 +6,9 @@ Versions 1.4 and 1.5 are withdrawn. They broke Python on Windows
 This zip is the last working copy: v01.3.
 Same start.bat, same dashboard, same Python 3.14 support.
 
-Unzip into a NEW folder. Do not copy .venv from 1.4 or 1.5.
-You can keep using your existing working v01.3 folder as-is.
+If several Python versions are installed, start.bat now pins
+C:\Python314\python.exe (not "py -3"). Optional python-path.txt
+next to start.bat with the full path to python.exe.
 
+Unzip into a NEW folder. Do not copy .venv from 1.4 or 1.5.
 Then: INSTALL.bat, then start.bat.

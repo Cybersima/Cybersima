@@ -15,6 +15,12 @@ https://github.com/Cybersima/Cybersima/raw/cursor/pulsearb-multimarket-scanner-c
 
 You need [Python 3.11+](https://www.python.org/downloads/). On Windows, tick **Add python.exe to PATH**.
 
+If several Python versions are installed, SecureTrade uses **`C:\Python314\python.exe` first** (not `py -3`, which picks a random version). To force a different copy, put one line in `python-path.txt` next to `start.bat`:
+
+`C:\Python314\python.exe`
+
+Unzip into a **new** folder. Do not copy `.venv` from 1.4 or 1.5.
+
 1. Download and unzip `CyberSym-SecureTrade.zip`.
 2. Install, then start:
    - **Windows:** double-click `INSTALL.bat`, then `start.bat`
