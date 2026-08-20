@@ -39,6 +39,11 @@ async def test_live_ready_missing_keys(tmp_path, monkeypatch) -> None:
     by_id = _ids(report)
     assert report["ready"] is False
     assert by_id["keys_file"]["ok"] is False
+    assert by_id["keys_file"]["status"] == "fail"
+    assert by_id["keys_parse"]["status"] == "wait"
+    assert by_id["coinbase_ping"]["status"] == "wait"
+    assert by_id["usd_cash"]["status"] == "wait"
+    assert "key file is missing" in report["note"]
     assert by_id["auto_off"]["ok"] is True
 
 
@@ -50,6 +55,7 @@ async def test_live_ready_bad_json(tmp_path, monkeypatch) -> None:
     report = await assess_live_ready(AppConfig(), cwd=tmp_path, ping=False)
     assert report["ready"] is False
     assert _ids(report)["keys_parse"]["ok"] is False
+    assert _ids(report)["key_sign"]["status"] == "wait"
 
 
 @pytest.mark.asyncio

@@ -672,8 +672,9 @@ async function paintLiveReady() {
       ...(data.checks || []).map((row) => {
         const li = document.createElement("li");
         const mark = document.createElement("span");
-        mark.className = `mark ${row.ok ? "ok" : "fail"}`;
-        mark.textContent = row.ok ? "OK" : "FAIL";
+        const status = row.status || (row.ok ? "ok" : "fail");
+        mark.className = `mark ${status}`;
+        mark.textContent = status === "ok" ? "OK" : status === "wait" ? "WAIT" : "FAIL";
         const body = document.createElement("div");
         const title = document.createElement("strong");
         title.textContent = row.label;

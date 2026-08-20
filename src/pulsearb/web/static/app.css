@@ -225,6 +225,7 @@ h1 {
 .ready-list .mark { font-weight: 700; letter-spacing: 0.04em; }
 .ready-list .ok { color: var(--up); }
 .ready-list .fail { color: var(--down); }
+.ready-list .wait { color: var(--muted); }
 .ready-list .hint { margin: 4px 0 0; }
 .segmented button:disabled {
   opacity: 0.45;

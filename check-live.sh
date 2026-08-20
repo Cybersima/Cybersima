@@ -22,7 +22,7 @@ status=$?
 set -e
 echo
 if [[ "$status" -ne 0 ]]; then
-  echo "Not ready. Read LIVE.txt, fix the FAILs, then run this again."
+  echo "Still not ready. Read the FAIL line above and LIVE.txt."
   echo "Do not use GO-LIVE until this check passes."
 else
   echo "Ready. Next step for real orders: ./go-live.sh  (Mac: Go-Live.command)"

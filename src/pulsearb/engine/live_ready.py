@@ -18,10 +18,32 @@ from pulsearb.engine.keys import load_coinbase_credentials, load_coinbase_json
 from pulsearb.engine.risk import RiskManager
 
 QUOTE_CASH = ("USD", "USDC", "USDT")
+KEY_HELP = "https://portal.cdp.coinbase.com/projects/api-keys"
 
 
-def _check(check_id: str, label: str, ok: bool, detail: str, *, required: bool = True) -> dict[str, Any]:
-    return {"id": check_id, "label": label, "ok": bool(ok), "detail": detail, "required": required}
+def _check(
+    check_id: str,
+    label: str,
+    ok: bool,
+    detail: str,
+    *,
+    required: bool = True,
+    status: str | None = None,
+) -> dict[str, Any]:
+    if status is None:
+        status = "ok" if ok else "fail"
+    return {
+        "id": check_id,
+        "label": label,
+        "ok": bool(ok),
+        "status": status,
+        "detail": detail,
+        "required": required,
+    }
+
+
+def _wait(check_id: str, label: str, detail: str) -> dict[str, Any]:
+    return _check(check_id, label, True, detail, required=False, status="wait")
 
 
 def keys_file_path(config: AppConfig, cwd: Path | None = None) -> Path:
@@ -78,7 +100,10 @@ async def assess_live_ready(
     elif env_creds:
         file_detail = "Using COINBASE_API_KEY from the environment."
     else:
-        file_detail = f"Put the Coinbase API JSON at {path} (see LIVE.txt)."
+        file_detail = (
+            f"No file yet. Create a Secret API key at {KEY_HELP} "
+            f"(View + Trade, ECDSA), click Download API key, and save it as {path}"
+        )
     checks.append(_check("keys_file", "Coinbase key file", file_ok, file_detail))
 
     creds = None
@@ -93,7 +118,7 @@ async def assess_live_ready(
             else:
                 parse_detail = "File is JSON but missing name / privateKey (the Coinbase export fields)."
         except json.JSONDecodeError:
-            parse_detail = "File is not valid JSON. Use the file Coinbase downloads."
+            parse_detail = "File is not valid JSON. Use the Download API key file from Coinbase."
         except OSError as exc:
             parse_detail = f"Could not read the key file: {exc}"[:200]
     elif env_creds:
@@ -104,52 +129,73 @@ async def assess_live_ready(
         )
         parse_ok = creds is not None
         parse_detail = "Loaded name and secret from the environment." if parse_ok else parse_detail
-    checks.append(_check("keys_parse", "API name and private key", parse_ok, parse_detail))
 
-    sign_ok = False
-    sign_detail = "Cannot sign until the key file is valid."
-    if creds:
-        try:
-            token = build_rest_jwt(creds[0], creds[1], "GET", "/api/v3/brokerage/accounts")
-            sign_ok = token.count(".") == 2
-            sign_detail = "Key can sign Coinbase requests."
-        except Exception as exc:
-            sign_detail = f"Key cannot sign: {exc}"[:200]
-    checks.append(_check("key_sign", "Key can sign", sign_ok, sign_detail))
-
-    ping_ok = False
-    ping_detail = "Cannot ping Coinbase until the key signs."
-    if ping and creds and sign_ok:
-        coinbase_cfg = config.markets.get("coinbase") or {}
-        rest_url = str(coinbase_cfg.get("brokerage_url") or "https://api.coinbase.com")
-        balances, err = await ping_coinbase_accounts(creds[0], creds[1], rest_url=rest_url, client=client)
-        if err:
-            ping_detail = f"Coinbase did not accept the key: {err}"
+    if not file_ok:
+        checks.append(_wait("keys_parse", "API name and private key", "Waiting until the key file is in place."))
+        checks.append(_wait("key_sign", "Key can sign", "Waiting until the key file is in place."))
+        checks.append(_wait("coinbase_ping", "Coinbase accepts the key", "Waiting until the key file is in place."))
+        checks.append(_wait("usd_cash", f"At least ${cap:.0f} USD cash", "Waiting until the key file is in place."))
+    else:
+        checks.append(_check("keys_parse", "API name and private key", parse_ok, parse_detail))
+        sign_ok = False
+        sign_detail = "Cannot sign until the key file is valid."
+        if creds:
+            try:
+                token = build_rest_jwt(creds[0], creds[1], "GET", "/api/v3/brokerage/accounts")
+                sign_ok = token.count(".") == 2
+                sign_detail = "Key can sign Coinbase requests."
+            except Exception as exc:
+                sign_detail = f"Key cannot sign: {exc}"[:200]
+        if not parse_ok:
+            checks.append(_wait("key_sign", "Key can sign", "Waiting until the JSON has name and privateKey."))
+            checks.append(_wait("coinbase_ping", "Coinbase accepts the key", "Waiting until the key can sign."))
+            checks.append(_wait("usd_cash", f"At least ${cap:.0f} USD cash", "Waiting until Coinbase answers."))
         else:
-            ping_ok = True
-            shown = ", ".join(f"{asset} {amount:.4g}" for asset, amount in list(balances.items())[:8] if amount > 0)
-            ping_detail = f"Coinbase accounts reachable. {shown or 'no positive balances'}"
-    elif not ping:
-        ping_ok = True
-        ping_detail = "Ping skipped."
-    checks.append(_check("coinbase_ping", "Coinbase accepts the key", ping_ok, ping_detail, required=ping))
+            checks.append(_check("key_sign", "Key can sign", sign_ok, sign_detail))
+            ping_ok = False
+            ping_detail = "Cannot ping Coinbase until the key signs."
+            if ping and creds and sign_ok:
+                coinbase_cfg = config.markets.get("coinbase") or {}
+                rest_url = str(coinbase_cfg.get("brokerage_url") or "https://api.coinbase.com")
+                balances, err = await ping_coinbase_accounts(creds[0], creds[1], rest_url=rest_url, client=client)
+                if err:
+                    ping_detail = f"Coinbase did not accept the key: {err}"
+                else:
+                    ping_ok = True
+                    shown = ", ".join(
+                        f"{asset} {amount:.4g}" for asset, amount in list(balances.items())[:8] if amount > 0
+                    )
+                    ping_detail = f"Coinbase accounts reachable. {shown or 'no positive balances'}"
+            elif not ping:
+                ping_ok = True
+                ping_detail = "Ping skipped."
+            if not sign_ok:
+                checks.append(_wait("coinbase_ping", "Coinbase accepts the key", "Waiting until the key can sign."))
+                checks.append(_wait("usd_cash", f"At least ${cap:.0f} USD cash", "Waiting until Coinbase answers."))
+            else:
+                checks.append(
+                    _check("coinbase_ping", "Coinbase accepts the key", ping_ok, ping_detail, required=ping)
+                )
+                cash = quote_cash(balances)
+                if ping and ping_ok:
+                    cash_ok = cash + 1e-9 >= cap
+                    cash_detail = (
+                        f"${cash:.2f} USD/USDC/USDT available. Live cap is ${cap:.0f} per trade."
+                        if cash_ok
+                        else f"Only ${cash:.2f} cash. Leave at least ${cap:.0f} USD in Coinbase."
+                    )
+                elif ping:
+                    cash_ok = False
+                    cash_detail = "Cannot check cash until Coinbase answers."
+                else:
+                    cash_ok = True
+                    cash = 0.0
+                    cash_detail = "Cash check skipped."
+                checks.append(
+                    _check("usd_cash", f"At least ${cap:.0f} USD cash", cash_ok, cash_detail, required=ping)
+                )
 
     cash = quote_cash(balances)
-    if ping and ping_ok:
-        cash_ok = cash + 1e-9 >= cap
-        cash_detail = (
-            f"${cash:.2f} USD/USDC/USDT available. Live cap is ${cap:.0f} per trade."
-            if cash_ok
-            else f"Only ${cash:.2f} cash. Leave at least ${cap:.0f} USD in Coinbase."
-        )
-    elif ping:
-        cash_ok = False
-        cash_detail = "Cannot check cash until Coinbase answers."
-    else:
-        cash_ok = True
-        cash_detail = "Cash check skipped."
-    checks.append(_check("usd_cash", f"At least ${cap:.0f} USD cash", cash_ok, cash_detail, required=ping))
-
     checks.append(
         _check(
             "live_cap",
@@ -184,6 +230,12 @@ async def assess_live_ready(
         note = "Live Coinbase is armed. Every real order is a tap."
     elif ready:
         note = "Ready. Double-click GO-LIVE.bat when you want real Coinbase orders."
+    elif not file_ok:
+        note = (
+            "Not ready. The key file is missing — that is the only problem so far. "
+            f"Create it at {KEY_HELP}, save as keys\\coinbase.json in this folder, "
+            "then run CHECK-LIVE.bat again."
+        )
     else:
         note = "Not ready. Fix the failed checks, then run CHECK-LIVE.bat again."
     return {
@@ -199,14 +251,18 @@ async def assess_live_ready(
     }
 
 
+def _mark(row: dict[str, Any]) -> str:
+    status = str(row.get("status") or ("ok" if row.get("ok") else "fail"))
+    return {"ok": "OK  ", "fail": "FAIL", "wait": "WAIT"}.get(status, "FAIL")
+
+
 def print_live_ready(config: AppConfig | None = None) -> int:
     report = asyncio.run(assess_live_ready(config))
     print(f"{PRODUCT} — live ready check")
     print("This does not send orders.")
     print()
     for row in report["checks"]:
-        mark = "OK  " if row["ok"] else "FAIL"
-        print(f"  {mark}  {row['label']}")
+        print(f"  {_mark(row)}  {row['label']}")
         print(f"        {row['detail']}")
     print()
     print(report["note"])
