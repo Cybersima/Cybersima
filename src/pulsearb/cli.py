@@ -18,7 +18,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="securetrade",
         description=f"{PRODUCT}: scan 50+ crypto and FX markets on Coinbase, Kraken, Gemini, Bitstamp, and Yahoo. Paper trading by default.",
     )
-    parser.add_argument("--host", help="Dashboard bind host (default 0.0.0.0 for LAN / iPad)")
+    parser.add_argument("--host", help="Dashboard bind host (default 127.0.0.1). Use 0.0.0.0 for iPad on Wi-Fi; the lock PIN is required.")
     parser.add_argument("--port", type=int, help="Dashboard port")
     parser.add_argument("--demo", action="store_true", help="Offline simulator only — no live APIs")
     parser.add_argument(
@@ -73,7 +73,11 @@ def main(argv: list[str] | None = None) -> None:
     app = create_app(engine, start_engine=True)
     display_host = "127.0.0.1" if config.host in {"0.0.0.0", "::"} else config.host
     url = f"http://{display_host}:{port}"
+    guard = app.state.guard
     print(f"{PRODUCT} dashboard: {url}")
+    print(f"{PRODUCT} lock PIN: {guard.pin}")
+    print(f"{PRODUCT}: this computer's browser unlocks automatically.")
+    print(f"{PRODUCT}: phone or iPad — type that PIN on the lock screen.")
     if engine.report.csv_path:
         print(f"{PRODUCT} profit report: {engine.report.csv_path}")
     if config.live_enabled():
@@ -83,7 +87,7 @@ def main(argv: list[str] | None = None) -> None:
         print("A failed live leg trips the kill switch. Close this window to stop.")
     print("Leave this window open. Close it or press Ctrl+C to stop.")
     if args.open_browser:
-        webbrowser.open(url)
+        webbrowser.open(f"{url}?unlock={guard.unlock_token}")
     uvicorn.run(app, host=config.host, port=port, log_level="info")
 
 

@@ -11,6 +11,9 @@ build/
 .mypy_cache/
 .ruff_cache/
 python-path.txt
+.env
+.env.*
+!.env.example
 keys/*.json
 keys/*.pem
 keys/*.key

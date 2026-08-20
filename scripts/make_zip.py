@@ -23,6 +23,8 @@ def should_skip(rel: Path) -> bool:
         return True
     if rel.suffix == ".pyc":
         return True
+    if rel.name == ".env" or (rel.name.startswith(".env.") and rel.name != ".env.example"):
+        return True
     if rel.parts and rel.parts[0] == "keys" and rel.suffix.lower() in {".json", ".pem", ".key"}:
         return True
     if rel.parts and rel.parts[0] == "branding" and rel.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}:

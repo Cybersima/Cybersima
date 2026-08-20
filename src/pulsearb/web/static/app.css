@@ -173,6 +173,33 @@ h1 {
   color: var(--ink);
   background: var(--cyan-dim);
 }
+.guard-banner {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--cyan-dim);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.lock-app { max-width: 560px; }
+.lock-card { margin-top: 12px; }
+.lock-card form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+#pin {
+  flex: 1;
+  min-width: 160px;
+  background: var(--input);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: Rajdhani, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+#lock-error { color: var(--down); }
 .exec-live { color: var(--down); border-color: var(--down); background: var(--live-wash); }
 
 .desk {

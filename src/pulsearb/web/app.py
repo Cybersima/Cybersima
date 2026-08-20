@@ -4,17 +4,42 @@ import asyncio
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+from starlette.responses import RedirectResponse
 
 from pulsearb.branding import COMPANY, COPYRIGHT, PRODUCT, PRODUCT_SHORT, SIGNATURE, resolve_logo_path
 from pulsearb.engine.report import REPORT_HEADERS
 from pulsearb.engine.runner import Engine, run_engine
+from pulsearb.web.guard import COOKIE, DashboardGuard
 
 WEB_DIR = Path(__file__).resolve().parent
+OPEN_PATHS = {"/login", "/api/unlock"}
+
+
+class GuardMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        guard: DashboardGuard = request.app.state.guard
+        path = request.url.path
+        if path.startswith("/static/") or path in OPEN_PATHS:
+            return await call_next(request)
+        token = request.query_params.get("unlock")
+        if token and guard.token_ok(token):
+            response = RedirectResponse(url="/", status_code=303)
+            response.set_cookie(COOKIE, guard.cookie, httponly=True, samesite="lax", path="/")
+            return response
+        if guard.cookie_ok(request.cookies.get(COOKIE)):
+            return await call_next(request)
+        if path.startswith("/api/"):
+            return JSONResponse(
+                {"ok": False, "error": "Dashboard is locked. Enter the PIN from the black window."},
+                status_code=401,
+            )
+        return RedirectResponse(url="/login", status_code=303)
 
 
 def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
@@ -30,7 +55,13 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
                 await task
 
     app = FastAPI(title=PRODUCT, docs_url=None, redoc_url=None, lifespan=lifespan)
+    app.state.guard = DashboardGuard()
+    engine.guard = app.state.guard
     templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
+    app.add_middleware(GuardMiddleware)
+
+    def _set_session(response: Response) -> None:
+        response.set_cookie(COOKIE, app.state.guard.cookie, httponly=True, samesite="lax", path="/")
 
     @app.get("/static/logo.png")
     async def branded_logo() -> FileResponse:
@@ -45,6 +76,28 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
         return FileResponse(path, media_type=media, headers={"Cache-Control": "no-store"})
 
     app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
+
+    @app.get("/login", response_class=HTMLResponse)
+    async def login(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {
+                "company": COMPANY,
+                "product": PRODUCT,
+                "product_short": PRODUCT_SHORT,
+            },
+        )
+
+    @app.post("/api/unlock")
+    async def unlock(payload: dict, response: Response) -> dict:
+        guard: DashboardGuard = app.state.guard
+        if guard.locked_out():
+            return {"ok": False, "error": "Too many tries. Wait 20 seconds, then use the PIN from the black window."}
+        if not guard.pin_ok(str(payload.get("pin") or "")):
+            return {"ok": False, "error": "That PIN does not match the black window."}
+        _set_session(response)
+        return {"ok": True}
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:
@@ -69,6 +122,27 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     @app.get("/api/health")
     async def health() -> dict:
         return {"ok": True, "killed": engine.risk.killed}
+
+    @app.get("/api/security")
+    async def security() -> dict:
+        host = engine.config.host
+        local = host in {"127.0.0.1", "localhost", "::1"}
+        keys = (Path.cwd() / "keys" / "coinbase.json").is_file()
+        return {
+            "ok": True,
+            "lock": "on",
+            "network": "this-computer" if local else "lan",
+            "network_note": (
+                "Dashboard is only on this computer."
+                if local
+                else "Dashboard is on your Wi-Fi. Anyone needs the PIN."
+            ),
+            "execution": "live" if engine.config.live_enabled() else "paper",
+            "live_cap": engine.config.live_notional() if engine.config.live_enabled() else engine.desk.notional,
+            "keys_file": keys,
+            "killed": engine.risk.killed,
+            "note": "API keys stay in keys\\coinbase.json on this PC. Never paste them into the dashboard.",
+        }
 
     @app.get("/api/snapshot")
     async def snapshot() -> dict:
@@ -123,6 +197,10 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
 
     @app.websocket("/ws")
     async def ws_feed(ws: WebSocket) -> None:
+        guard: DashboardGuard = app.state.guard
+        if not guard.cookie_ok(ws.cookies.get(COOKIE)):
+            await ws.close(code=4401)
+            return
         await ws.accept()
         queue = engine.subscribe()
         try:

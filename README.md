@@ -70,7 +70,7 @@ Live market data (still paper trading):
 python -m pulsearb
 ```
 
-On an iPad on the same Wi-Fi, open `http://<your-lan-ip>:8080` and use Share → Add to Home Screen.
+On an iPad on the same Wi-Fi, start with `--host 0.0.0.0`, open `http://<your-lan-ip>:8080`, and enter the lock PIN from the black window. Then use Share → Add to Home Screen.
 
 ## Configuration
 

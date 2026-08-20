@@ -37,8 +37,10 @@ Setup (once)
    Linux:    ./go-live.sh
 
 You will be asked to confirm. The dashboard shows a red LIVE banner,
-your balances, and the $25 cap. Use Kill switch or close the window
-to stop new orders. A failed live order also trips the kill switch.
+your balances, and the $25 cap. The black window prints a lock PIN.
+This computer's browser unlocks by itself. iPad: enter that PIN.
+Use Kill switch or close the window to stop new orders. A failed live
+order also trips the kill switch.
 
 If Coinbase auth fails, the app will not start live. Fix the JSON
 and try again. Never paste keys into the dashboard or email.

@@ -69,7 +69,7 @@ class AppConfig:
 
     @property
     def host(self) -> str:
-        return str(self.settings.get("host", "0.0.0.0"))
+        return str(self.settings.get("host", "127.0.0.1"))
 
     @property
     def port(self) -> int:

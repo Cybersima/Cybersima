@@ -3,12 +3,20 @@ from fastapi.testclient import TestClient
 from pulsearb.config import AppConfig
 from pulsearb.engine.runner import Engine
 from pulsearb.web.app import create_app
+from pulsearb.web.guard import DashboardGuard
+
+
+def open_dashboard(engine: Engine | None = None):
+    engine = engine or Engine(AppConfig())
+    app = create_app(engine)
+    client = TestClient(app)
+    token = app.state.guard.unlock_token
+    page = client.get(f"/?unlock={token}", follow_redirects=True)
+    return client, engine, app, page
 
 
 def test_dashboard_and_kill_switch() -> None:
-    engine = Engine(AppConfig())
-    client = TestClient(create_app(engine))
-    page = client.get("/")
+    client, engine, app, page = open_dashboard()
     assert page.status_code == 200
     assert "CyberSym SecureTrade" in page.text
     assert "A CyberSym product" in page.text
@@ -39,6 +47,7 @@ def test_dashboard_and_kill_switch() -> None:
     assert 'id="export-report"' in page.text
     assert "Export report" in page.text
     assert 'id="live-banner"' in page.text
+    assert 'id="guard-banner"' in page.text
     assert "logo.png" in page.text
     assert 'id="theme-dark"' in page.text
     assert 'id="theme-light"' in page.text
@@ -65,6 +74,28 @@ def test_dashboard_and_kill_switch() -> None:
     missed = client.post("/api/invest", json={"id": "missing"})
     assert missed.status_code == 200
     assert missed.json()["ok"] is False
+    status = client.get("/api/security").json()
+    assert status["ok"] is True
+    assert status["lock"] == "on"
+    assert status["execution"] == "paper"
+
+
+def test_dashboard_requires_lock_without_session() -> None:
+    app = create_app(Engine(AppConfig()))
+    client = TestClient(app, follow_redirects=False)
+    locked = client.get("/")
+    assert locked.status_code in {303, 307}
+    assert "/login" in locked.headers.get("location", "")
+    deny = client.post("/api/kill")
+    assert deny.status_code == 401
+    login = client.get("/login")
+    assert login.status_code == 200
+    assert "lock PIN" in login.text
+    bad = client.post("/api/unlock", json={"pin": "000000"})
+    assert bad.json()["ok"] is False
+    good = client.post("/api/unlock", json={"pin": app.state.guard.pin})
+    assert good.json() == {"ok": True}
+    assert client.get("/").status_code == 200
 
 
 def test_dashboard_serves_dropped_branding_logo(tmp_path, monkeypatch) -> None:
@@ -72,7 +103,17 @@ def test_dashboard_serves_dropped_branding_logo(tmp_path, monkeypatch) -> None:
     (tmp_path / "branding").mkdir()
     payload = b"\x89PNG\r\n\x1a\n" + b"official-crest"
     (tmp_path / "branding" / "cybersym-logo.png").write_bytes(payload)
-    client = TestClient(create_app(Engine(AppConfig())))
+    client, _, _, _ = open_dashboard()
     logo = client.get("/static/logo.png")
     assert logo.status_code == 200
     assert logo.content == payload
+
+
+def test_guard_pin_compare() -> None:
+    guard = DashboardGuard()
+    assert guard.pin_ok(guard.pin)
+    assert not guard.pin_ok("999999")
+    assert guard.token_ok(guard.unlock_token)
+    assert not guard.token_ok("nope")
+    assert not guard.cookie_ok("nope")
+    assert guard.cookie_ok(guard.cookie)

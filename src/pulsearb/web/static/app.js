@@ -19,6 +19,7 @@ const modePick = document.getElementById("mode-pick");
 const modeAuto = document.getElementById("mode-auto");
 const amountHint = document.getElementById("amount-hint");
 const toastEl = document.getElementById("toast");
+const guardBanner = document.getElementById("guard-banner");
 const fillsMeta = document.getElementById("fills-meta");
 const themeDarkBtn = document.getElementById("theme-dark");
 const themeLightBtn = document.getElementById("theme-light");
@@ -613,3 +614,23 @@ function connect() {
 }
 connect();
 paintDesk();
+paintSecurity();
+
+async function paintSecurity() {
+  if (!guardBanner) return;
+  try {
+    const res = await fetch("/api/security");
+    if (!res.ok) return;
+    const data = await res.json();
+    const bits = [
+      data.network === "lan" ? "On your Wi-Fi · PIN required" : "This computer only",
+      data.execution === "live" ? `LIVE · cap $${fmt(data.live_cap, 0)}` : "Paper trading",
+      data.keys_file ? "Coinbase key file on this PC" : "No Coinbase key file",
+      data.killed ? "Kill switch on" : "",
+      data.note,
+    ];
+    guardBanner.textContent = bits.filter(Boolean).join(" · ");
+  } catch (err) {
+    /* ignore */
+  }
+}
