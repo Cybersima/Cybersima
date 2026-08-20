@@ -61,7 +61,8 @@ Live market data (still paper trading):
 
 Real Coinbase orders (your money):
    Read LIVE.txt first.
-   Put the Coinbase API JSON in keys\coinbase.json
+   Create the key at https://portal.cdp.coinbase.com/projects/api-keys
+   Download API key, save as keys\coinbase.json
    Windows:  double-click CHECK-LIVE.bat, then GO-LIVE.bat
    Mac:      double-click Check-Live.command, then Go-Live.command
    Linux:    ./check-live.sh && ./go-live.sh

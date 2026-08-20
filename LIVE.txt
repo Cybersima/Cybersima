@@ -21,12 +21,19 @@ This is not a profit guarantee.
 
 Setup (once)
 ------------
-1. On Coinbase.com create an Advanced Trade API key:
-     Settings → API → Create API key
+1. Create a Coinbase Advanced Trade / Coinbase App API key (this is
+   YOUR Coinbase account, not a CyberSym login):
+     https://portal.cdp.coinbase.com/projects/api-keys
+   Sign in with the same Coinbase account that holds your USD.
+   Click Create API key.
+   Nickname: anything, e.g. SecureTrade.
    Permissions: View + Trade. Do NOT enable Transfer / Send / Withdraw.
-   Download the JSON file Coinbase gives you.
+   Signature algorithm: ECDSA (not Ed25519).
+   Coinbase no longer auto-downloads the file. In the popup, click
+   Download API key. The secret is shown only once.
 
-2. Put that file here (same folder as start.bat):
+2. Rename that download to coinbase.json and put it here
+   (same folder as start.bat):
      keys\coinbase.json
 
 3. Leave some USD (and a little BTC/ETH if you want sell legs) in Coinbase.
