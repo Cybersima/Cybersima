@@ -59,6 +59,13 @@ This computer's browser unlocks by itself. iPad: enter that PIN.
 Use Kill switch or close the window to stop new orders. A failed live
 order also trips the kill switch.
 
+If CHECK-LIVE says Coinbase did not accept the key:
+the key must be a Coinbase App / Advanced Trade Secret API key
+(View + Trade, ECDSA) from
+  https://portal.cdp.coinbase.com/projects/api-keys
+A cloud-only CDP key will not work. Download a new JSON and replace
+keys\coinbase.json, then run CHECK-LIVE.bat again.
+
 If Coinbase auth fails, the app will not start live. Fix the JSON
 and try again. Never paste keys into the dashboard or email.
 

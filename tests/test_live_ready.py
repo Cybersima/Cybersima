@@ -100,6 +100,25 @@ async def test_live_ready_short_cash(tmp_path, monkeypatch) -> None:
     assert _ids(report)["usd_cash"]["ok"] is False
 
 
+@pytest.mark.asyncio
+async def test_live_ready_ping_401_waits_on_cash(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_keys(tmp_path)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, content=b"")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
+    report = await assess_live_ready(AppConfig(), cwd=tmp_path, client=client, ping=True)
+    await client.aclose()
+    by_id = _ids(report)
+    assert report["ready"] is False
+    assert by_id["key_sign"]["ok"] is True
+    assert by_id["coinbase_ping"]["ok"] is False
+    assert "401" in by_id["coinbase_ping"]["detail"]
+    assert by_id["usd_cash"]["status"] == "wait"
+
+
 def test_check_live_cli_exits_not_ready(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     with pytest.raises(SystemExit) as caught:

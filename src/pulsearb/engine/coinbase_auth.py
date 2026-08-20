@@ -71,7 +71,7 @@ def build_rest_jwt(key_name: str, secret: str, method: str, path: str, host: str
     header = {
         "alg": jwt_algorithm(private_key),
         "kid": key_name,
-        "nonce": secrets.token_hex(16),
+        "nonce": secrets.token_hex(),
         "typ": "JWT",
     }
     payload = {

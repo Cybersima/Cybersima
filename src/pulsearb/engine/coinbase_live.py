@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 import uuid
 from typing import Any
-from urllib.parse import urlencode
 
 import httpx
 
@@ -43,13 +42,10 @@ class LiveCoinbaseBroker(Broker):
     def paper(self) -> bool:
         return False
 
-    def _path_with_query(self, path: str, params: dict[str, Any] | None) -> str:
-        if not params:
-            return path
-        return f"{path}?{urlencode(params)}"
-
-    def _auth_headers(self, method: str, path_with_query: str) -> dict[str, str]:
-        token = build_rest_jwt(self.api_key, self.api_secret, method, path_with_query, host=self.host)
+    def _auth_headers(self, method: str, path: str) -> dict[str, str]:
+        # Coinbase JWTs must use the path only. Query strings in the uri claim
+        # are rejected (often as HTTP 401 with an empty body).
+        token = build_rest_jwt(self.api_key, self.api_secret, method, path, host=self.host)
         return {
             **HTTP_HEADERS,
             "Authorization": f"Bearer {token}",
@@ -65,24 +61,42 @@ class LiveCoinbaseBroker(Broker):
         params: dict[str, Any] | None = None,
         json_body: dict[str, Any] | None = None,
     ) -> httpx.Response:
-        path_with_query = self._path_with_query(path, params)
         return await client.request(
             method,
             f"{self.rest_url}{path}",
             params=params,
             json=json_body,
-            headers=self._auth_headers(method, path_with_query),
+            headers=self._auth_headers(method, path),
         )
+
+    def _payload_or_error(self, response: httpx.Response) -> dict[str, Any]:
+        text = (response.text or "").strip()
+        payload: dict[str, Any] = {}
+        if text:
+            try:
+                data = response.json()
+                if isinstance(data, dict):
+                    payload = data
+                else:
+                    payload = {"message": text[:200]}
+            except Exception:
+                payload = {"message": text[:200]}
+        if response.status_code != 200:
+            self.status = f"auth error {response.status_code}"
+            detail = (
+                str(payload.get("error_response") or payload.get("message") or payload.get("error") or "").strip()
+                or text
+                or "empty body"
+            )
+            raise RuntimeError(f"Coinbase HTTP {response.status_code}: {detail}"[:240])
+        return payload
 
     async def refresh_balances(self, client: httpx.AsyncClient | None = None) -> dict[str, float]:
         own = client is None and self._client is None
         session = client or self._client or httpx.AsyncClient(timeout=8.0)
         try:
             response = await self._request(session, "GET", "/api/v3/brokerage/accounts", params={"limit": 250})
-            payload = response.json()
-            if response.status_code != 200:
-                self.status = f"auth error {response.status_code}"
-                raise RuntimeError(str(payload)[:240])
+            payload = self._payload_or_error(response)
             balances: dict[str, float] = {}
             for row in payload.get("accounts") or []:
                 currency = str(row.get("currency") or "").upper()

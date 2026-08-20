@@ -56,6 +56,25 @@ def quote_cash(balances: dict[str, float]) -> float:
     return sum(float(balances.get(asset, 0) or 0) for asset in QUOTE_CASH)
 
 
+def explain_coinbase_error(err: str) -> str:
+    text = str(err)
+    lower = text.lower()
+    if "401" in text or "unauthorized" in lower:
+        return (
+            "Coinbase rejected the signed request (HTTP 401). "
+            "Use a Coinbase App / Advanced Trade Secret API key with View + Trade and ECDSA — "
+            f"not a cloud-only CDP key. Create it at {KEY_HELP}."
+        )
+    if "403" in text or "missing required scopes" in lower:
+        return "Coinbase key is missing View + Trade. Do not enable Transfer. Recreate the key and download again."
+    if "expecting value" in lower or "empty body" in lower:
+        return (
+            "Coinbase returned an empty reply. "
+            f"{text[:160]}"
+        )
+    return text[:240]
+
+
 async def ping_coinbase_accounts(
     api_key: str,
     api_secret: str,
@@ -167,7 +186,7 @@ async def assess_live_ready(
                 rest_url = str(coinbase_cfg.get("brokerage_url") or "https://api.coinbase.com")
                 balances, err = await ping_coinbase_accounts(creds[0], creds[1], rest_url=rest_url, client=client)
                 if err:
-                    ping_detail = f"Coinbase did not accept the key: {err}"
+                    ping_detail = explain_coinbase_error(err)
                 else:
                     ping_ok = True
                     shown = ", ".join(
@@ -192,16 +211,24 @@ async def assess_live_ready(
                         if cash_ok
                         else f"Only ${cash:.2f} cash. Leave at least ${cap:.0f} USD in Coinbase."
                     )
+                    checks.append(
+                        _check("usd_cash", f"At least ${cap:.0f} USD cash", cash_ok, cash_detail, required=ping)
+                    )
                 elif ping:
-                    cash_ok = False
-                    cash_detail = "Cannot check cash until Coinbase answers."
+                    checks.append(
+                        _wait("usd_cash", f"At least ${cap:.0f} USD cash", "Waiting until Coinbase answers.")
+                    )
                 else:
-                    cash_ok = True
-                    cash = 0.0
-                    cash_detail = "Cash check skipped."
-                checks.append(
-                    _check("usd_cash", f"At least ${cap:.0f} USD cash", cash_ok, cash_detail, required=ping)
-                )
+                    checks.append(
+                        _check(
+                            "usd_cash",
+                            f"At least ${cap:.0f} USD cash",
+                            True,
+                            "Cash check skipped.",
+                            required=False,
+                            status="wait",
+                        )
+                    )
 
     cash = quote_cash(balances)
     checks.append(

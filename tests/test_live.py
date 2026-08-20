@@ -192,8 +192,43 @@ async def test_coinbase_blocks_without_cash() -> None:
 
 
 @pytest.mark.asyncio
+async def test_accounts_jwt_omits_query_string() -> None:
+    pem = _ecdsa_pem()
+    seen: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["auth"] = request.headers.get("authorization", "")
+        seen["query"] = request.url.query.decode() if isinstance(request.url.query, bytes) else str(request.url.query)
+        return httpx.Response(200, json={"accounts": []})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
+    risk = RiskManager(cooldown_seconds=0)
+    broker = LiveCoinbaseBroker(risk, "organizations/x/apiKeys/y", pem, PaperBroker(risk), client=client)
+    await broker.refresh_balances(client)
+    await client.aclose()
+    token = seen["auth"].split(" ", 1)[1]
+    payload = json.loads(_b64url_decode(token.split(".")[1]))
+    assert payload["uri"] == "GET api.coinbase.com/api/v3/brokerage/accounts"
+    assert "limit=250" in seen["query"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_balances_empty_401() -> None:
+    pem = _ecdsa_pem()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, content=b"")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
+    risk = RiskManager(cooldown_seconds=0)
+    broker = LiveCoinbaseBroker(risk, "organizations/x/apiKeys/y", pem, PaperBroker(risk), client=client)
+    with pytest.raises(RuntimeError, match="HTTP 401"):
+        await broker.refresh_balances(client)
+    await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_paper_fill_type_still_works() -> None:
-    # Keep a live Fill shape available for reports.
     fill = Fill(
         venue="coinbase",
         symbol="BTC-USD",
