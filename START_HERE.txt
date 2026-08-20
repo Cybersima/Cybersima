@@ -42,6 +42,8 @@ when a trade completes. Toasts still appear if sound is off.
 On the dashboard, set How much per tap ($1, $2, $3, $4, $5, …).
 Coins priced under $1 still buy a fraction of a coin. While live,
 the $25 is a session budget you can split across many taps.
+Use Show pairs → Under $ or Over $ to hide expensive (or cheap)
+coins. Example: Under $ and 5 keeps pairs at $5 or less.
 
 Profit / trades spreadsheet:
 

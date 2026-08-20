@@ -19,6 +19,12 @@ const modePick = document.getElementById("mode-pick");
 const modeAuto = document.getElementById("mode-auto");
 const amountHint = document.getElementById("amount-hint");
 const modeHint = document.getElementById("mode-hint");
+const priceAny = document.getElementById("price-any");
+const priceUnder = document.getElementById("price-under");
+const priceOver = document.getElementById("price-over");
+const priceLimitInput = document.getElementById("price-limit");
+const pricePresetsEl = document.getElementById("price-presets");
+const priceHint = document.getElementById("price-hint");
 const toastEl = document.getElementById("toast");
 const guardBanner = document.getElementById("guard-banner");
 const liveReadyEl = document.getElementById("live-ready");
@@ -69,6 +75,9 @@ let desk = {
   budget: null,
   budget_left: null,
   taps_left: null,
+  price_mode: "any",
+  price_limit: 5,
+  price_presets: [1, 2, 5, 10, 50, 100, 1000],
 };
 
 function fmt(n, d = 2) {
@@ -129,6 +138,8 @@ function persistDeskLocal() {
         assets: desk.assets,
         venues: desk.venues,
         kinds: desk.kinds,
+        price_mode: desk.price_mode || "any",
+        price_limit: desk.price_limit ?? 5,
       })
     );
   } catch (err) {
@@ -340,6 +351,42 @@ function paintDesk() {
       : "Live mode: Auto stays off. Tap Invest on each Coinbase-only triangle.";
   }
 
+  const priceMode = desk.price_mode || "any";
+  const priceLimit = Number(desk.price_limit) || 5;
+  if (priceAny) priceAny.classList.toggle("on", priceMode === "any");
+  if (priceUnder) priceUnder.classList.toggle("on", priceMode === "under");
+  if (priceOver) priceOver.classList.toggle("on", priceMode === "over");
+  if (priceLimitInput && document.activeElement !== priceLimitInput) {
+    priceLimitInput.value = String(priceLimit);
+  }
+  if (pricePresetsEl) {
+    const presets = desk.price_presets || [1, 2, 5, 10, 50, 100, 1000];
+    pricePresetsEl.replaceChildren(
+      ...presets.map((amt) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `preset${Number(priceLimit) === Number(amt) ? " on" : ""}`;
+        btn.textContent = `$${amt}`;
+        btn.addEventListener("click", () => {
+          const patch = { price_limit: amt };
+          if ((desk.price_mode || "any") === "any") patch.price_mode = "under";
+          saveDesk(patch);
+        });
+        return btn;
+      })
+    );
+  }
+  if (priceHint) {
+    if (priceMode === "under") {
+      priceHint.textContent = `Showing coins at $${fmt(priceLimit, 0)} or less. Over $${fmt(priceLimit, 0)} is hidden. Uses the coin’s USD price, not ETH-BTC ratios.`;
+    } else if (priceMode === "over") {
+      priceHint.textContent = `Showing coins at $${fmt(priceLimit, 0)} or more. Under $${fmt(priceLimit, 0)} is hidden. Uses the coin’s USD price, not ETH-BTC ratios.`;
+    } else {
+      priceHint.textContent =
+        "Leave on Any to see every pair. Under $5 hides coins priced above $5. Over does the reverse. Uses the coin’s USD price, not ETH-BTC ratios.";
+    }
+  }
+
   const allOn = Boolean(desk.all_assets);
   assetChips.replaceChildren(
     chip("All coins", allOn, () => saveDesk({ all_assets: !allOn })),
@@ -386,9 +433,71 @@ async function saveDesk(patch) {
     desk = await res.json();
     persistDeskLocal();
     paintDesk();
+    render();
   } catch (err) {
     showToast("Could not save your choices. " + err);
   }
+}
+
+function pairParts(symbol) {
+  const text = String(symbol || "")
+    .toUpperCase()
+    .replace("/", "-");
+  if (text.includes("-")) {
+    const [base, quote] = text.split("-");
+    return [base, quote || ""];
+  }
+  return [text, ""];
+}
+
+const USD_QUOTES = new Set(["USD", "USDT", "USDC", "FDUSD", "BUSD", "TUSD"]);
+
+function coinUsdPrice(coin, venue) {
+  const wanted = String(coin || "").toUpperCase();
+  if (!wanted) return null;
+  const markets = snapshot.quotes || [];
+  const rank = (row) => {
+    const [, quote] = pairParts(row.canonical || row.native_symbol);
+    if (row.venue === venue && quote === "USD") return 0;
+    if (row.venue === venue && USD_QUOTES.has(quote)) return 1;
+    if (quote === "USD") return 2;
+    if (USD_QUOTES.has(quote)) return 3;
+    return 9;
+  };
+  let best = null;
+  let bestRank = 9;
+  for (const row of markets) {
+    const [base, quote] = pairParts(row.canonical || row.native_symbol);
+    if (base !== wanted || !USD_QUOTES.has(quote)) continue;
+    if (!Number.isFinite(row.mid) || row.mid <= 0) continue;
+    const next = rank(row);
+    if (next < bestRank) {
+      best = row.mid;
+      bestRank = next;
+      if (next === 0) break;
+    }
+  }
+  return best;
+}
+
+function quotePassesPriceFilter(row) {
+  const mode = desk.price_mode || "any";
+  if (mode === "any") return true;
+  const limit = Number(desk.price_limit) || 5;
+  const [base] = pairParts(row.canonical || row.native_symbol);
+  const price = coinUsdPrice(base, row.venue);
+  if (price == null) return false;
+  if (mode === "under") return price <= limit;
+  if (mode === "over") return price >= limit;
+  return true;
+}
+
+function priceFilterLabel() {
+  const mode = desk.price_mode || "any";
+  const limit = Number(desk.price_limit) || 5;
+  if (mode === "under") return `under $${fmt(limit, 0)}`;
+  if (mode === "over") return `over $${fmt(limit, 0)}`;
+  return "";
 }
 
 function friendlyOpp(row) {
@@ -407,30 +516,46 @@ function friendlyOpp(row) {
 function render() {
   const q = (filter.value || "").trim().toLowerCase();
   const quotes = (snapshot.quotes || []).filter((row) => {
+    if (!quotePassesPriceFilter(row)) return false;
     if (!q) return true;
     return `${row.venue} ${row.native_symbol} ${row.canonical}`.toLowerCase().includes(q);
   });
-  grid.replaceChildren(
-    ...quotes.map((row) => {
-      const prev = lastMids.get(`${row.venue}:${row.native_symbol}`);
-      const dir = prev === undefined ? "" : row.mid > prev ? "up" : row.mid < prev ? "down" : "";
-      lastMids.set(`${row.venue}:${row.native_symbol}`, row.mid);
-      const el = document.createElement("div");
-      el.className = `cell ${dir}`;
-      el.innerHTML = `
+  if (!quotes.length) {
+    const empty = document.createElement("div");
+    empty.className = "grid-empty";
+    const range = priceFilterLabel();
+    empty.textContent = range
+      ? `No pairs ${range} right now. Try Any price, or change the dollar cutoff.`
+      : q
+        ? "No pairs match that search."
+        : "Waiting for market quotes…";
+    grid.replaceChildren(empty);
+  } else {
+    grid.replaceChildren(
+      ...quotes.map((row) => {
+        const prev = lastMids.get(`${row.venue}:${row.native_symbol}`);
+        const dir = prev === undefined ? "" : row.mid > prev ? "up" : row.mid < prev ? "down" : "";
+        lastMids.set(`${row.venue}:${row.native_symbol}`, row.mid);
+        const el = document.createElement("div");
+        el.className = `cell ${dir}`;
+        el.innerHTML = `
         <div class="sym">${row.venue} · ${row.native_symbol}</div>
         <div class="px ${dir}">${fmt(row.mid, 4)}</div>
         <div class="meta"><span>${fmt(row.bid, 4)} / ${fmt(row.ask, 4)}</span><span>${fmt(row.spread_bps, 1)} bps</span></div>
       `;
-      return el;
-    })
-  );
+        return el;
+      })
+    );
+  }
 
   const mine = (snapshot.opportunities || []).filter((row) => row.chosen !== false);
   if (!mine.length) {
     const empty = document.createElement("li");
     empty.className = "empty";
-    empty.textContent = "No matching trades right now. Pick more coins, or wait for the next scan.";
+    const range = priceFilterLabel();
+    empty.textContent = range
+      ? `No matching trades ${range} right now. Try Any price, or pick more coins.`
+      : "No matching trades right now. Pick more coins, or wait for the next scan.";
     opps.replaceChildren(empty);
   } else {
     opps.replaceChildren(
@@ -574,6 +699,12 @@ modeAuto.addEventListener("click", () => {
   saveDesk({ auto_invest: true });
 });
 amountInput.addEventListener("change", () => saveDesk({ notional: Number(amountInput.value) }));
+if (priceAny) priceAny.addEventListener("click", () => saveDesk({ price_mode: "any" }));
+if (priceUnder) priceUnder.addEventListener("click", () => saveDesk({ price_mode: "under" }));
+if (priceOver) priceOver.addEventListener("click", () => saveDesk({ price_mode: "over" }));
+if (priceLimitInput) {
+  priceLimitInput.addEventListener("change", () => saveDesk({ price_limit: Number(priceLimitInput.value) }));
+}
 
 exportBtn.addEventListener("click", async (ev) => {
   ev.preventDefault();

@@ -34,7 +34,7 @@ That first run is **demo / paper trading**. No API keys, no real orders. Close t
 
 See `DOWNLOAD.txt` in the zip for the same steps.
 
-On the dashboard, set **How much per tap** ($1–$5 typical), choose coins and exchanges, then tap **Invest** on a trade (or turn on Auto in paper). Coins priced under $1 still buy a fraction of a coin.
+On the dashboard, set **How much per tap** ($1–$5 typical), choose coins and exchanges, then tap **Invest** on a trade (or turn on Auto in paper). Use **Show pairs** to keep only coins under (or over) a dollar amount, for example under $5. Coins priced under $1 still buy a fraction of a coin.
 
 Your official crest: save it as `branding/cybersym-logo.png` next to `start.bat`, then refresh (Ctrl+F5). Windows: **Use-This-Logo.bat** opens that folder.
 

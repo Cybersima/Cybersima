@@ -130,7 +130,7 @@ class Engine:
                 "live_notional": self.desk.notional if live else self.desk.notional,
             },
             "desk": self.desk_view(),
-            "quotes": [q.to_dict() for q in quotes],
+            "quotes": [q.to_dict() for q in quotes if self.desk.quote_ok(q, self.book)],
             "opportunities": [self._opp_view(o) for o in list(self.opportunities)[:40]],
             "fills": [f.to_dict() for f in list(self.fills)[:40]],
         }
@@ -156,7 +156,7 @@ class Engine:
         pending = (
             opp.executable
             and opp.id not in self.invested
-            and self.desk.matches(opp)
+            and self.desk.matches(opp, self.book)
             and not self.risk.killed
         )
         data.update(
@@ -166,7 +166,7 @@ class Engine:
                 "notional": self.desk.notional,
                 "pending": pending,
                 "investable": pending and not self.desk.auto_invest,
-                "chosen": self.desk.matches(opp),
+                "chosen": self.desk.matches(opp, self.book),
             }
         )
         return data
@@ -194,8 +194,8 @@ class Engine:
             return {"ok": False, "error": "That trade is no longer on the board."}
         if not opp.executable:
             return {"ok": False, "error": "That row is watch-only (delayed data)."}
-        if not self.desk.matches(opp):
-            return {"ok": False, "error": "Turn on that coin or exchange in Choose what to invest."}
+        if not self.desk.matches(opp, self.book):
+            return {"ok": False, "error": "That pair is outside your price filter, or that coin/exchange is off."}
         if opportunity_id in self.invested:
             return {"ok": False, "error": "You already took this trade."}
         fills = await self._take(opp)
@@ -368,7 +368,7 @@ class Engine:
                     and self.desk.auto_invest
                     and not self.desk.live
                     and not self.config.live_enabled()
-                    and self.desk.matches(opp)
+                    and self.desk.matches(opp, self.book)
                     and not self.risk.killed
                 ):
                     await self._take(opp)

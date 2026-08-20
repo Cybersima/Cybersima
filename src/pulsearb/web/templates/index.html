@@ -87,6 +87,18 @@
         </div>
         <div class="presets" id="presets"></div>
         <p class="hint" id="amount-hint">Each tap is this size. $1–$5 is typical. Coins under $1 still buy a fraction.</p>
+        <label class="sub-label" for="price-limit">Show pairs</label>
+        <div class="segmented" role="group" aria-label="Pair price filter">
+          <button type="button" id="price-any" class="on">Any price</button>
+          <button type="button" id="price-under">Under $</button>
+          <button type="button" id="price-over">Over $</button>
+        </div>
+        <div class="amount-row price-row">
+          <span class="dollar price-dollar">$</span>
+          <input id="price-limit" type="number" min="0.01" step="1" value="5" inputmode="decimal" />
+        </div>
+        <div class="presets" id="price-presets"></div>
+        <p class="hint" id="price-hint">Leave on Any to see every pair. Under $5 hides coins priced above $5. Over does the reverse. Uses the coin’s USD price, not ETH-BTC ratios.</p>
       </div>
       <div class="desk-block">
         <label>How trades are taken</label>

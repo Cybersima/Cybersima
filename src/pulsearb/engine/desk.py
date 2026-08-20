@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from pulsearb.models import Opportunity, OpportunityKind
+from pulsearb.engine.book import MarketBook
+from pulsearb.models import Opportunity, OpportunityKind, Quote
 from pulsearb.symbols import split_pair
 
 POPULAR_ASSETS = [
@@ -20,6 +21,9 @@ POPULAR_ASSETS = [
     "AAVE",
 ]
 QUOTE_SKIP = {"USD", "USDT", "USDC", "EUR", "GBP", "DAI"}
+USD_PRICE_QUOTES = ("USD", "USDT", "USDC", "FDUSD", "BUSD", "TUSD")
+PRICE_MODES = ("any", "under", "over")
+PRICE_PRESETS = [1, 2, 5, 10, 50, 100, 1000]
 VENUES = ["coinbase", "kraken", "gemini", "bitstamp"]
 KINDS = ["cross_venue", "triangular"]
 KIND_LABELS = {
@@ -48,6 +52,20 @@ def opportunity_assets(opportunity: Opportunity) -> set[str]:
     return found
 
 
+def coin_usd_price(book: MarketBook | None, coin: str, venue: str | None = None) -> float | None:
+    """USD (or stablecoin) mid for a coin. Prefers the given venue, then any venue."""
+    if book is None or not coin:
+        return None
+    coin = str(coin).upper()
+    for quote in USD_PRICE_QUOTES:
+        found = book.find_pair(coin, quote, venue=venue)
+        if found is None and venue is not None:
+            found = book.find_pair(coin, quote)
+        if found is not None and found.mid > 0:
+            return found.mid
+    return None
+
+
 @dataclass
 class TradeDesk:
     """Customer choices: size, auto vs pick, coins, exchanges, trade style."""
@@ -62,6 +80,10 @@ class TradeDesk:
     live_max: float = 25.0
     min_notional: float = 1.0
     live: bool = False
+    price_mode: str = "any"
+    price_limit: float = 5.0
+    min_price_limit: float = 0.01
+    max_price_limit: float = 1_000_000.0
 
     @property
     def cap(self) -> float:
@@ -86,6 +108,15 @@ class TradeDesk:
             out.append(cap_value)
         return out
 
+    def clamp_price_limit(self, value: float) -> float:
+        try:
+            amount = float(value)
+        except (TypeError, ValueError):
+            amount = self.price_limit
+        floor = max(0.01, float(self.min_price_limit))
+        ceiling = max(floor, float(self.max_price_limit))
+        return round(max(floor, min(amount, ceiling)), 4)
+
     def apply(self, payload: dict) -> None:
         if "notional" in payload:
             self.notional = self.clamp_notional(payload.get("notional"))
@@ -106,10 +137,15 @@ class TradeDesk:
         if "kinds" in payload:
             picked = [str(item) for item in payload.get("kinds") or []]
             self.kinds = [item for item in KINDS if item in picked] or list(KINDS)
+        if "price_mode" in payload:
+            mode = str(payload.get("price_mode") or "any").strip().lower()
+            self.price_mode = mode if mode in PRICE_MODES else "any"
+        if "price_limit" in payload:
+            self.price_limit = self.clamp_price_limit(payload.get("price_limit"))
 
-    def matches(self, opportunity: Opportunity) -> bool:
+    def matches(self, opportunity: Opportunity, book: MarketBook | None = None) -> bool:
         if opportunity.kind == OpportunityKind.ALERT:
-            return self._assets_ok(opportunity)
+            return self._assets_ok(opportunity) and self._price_ok(opportunity, book)
         if opportunity.kind.value not in self.kinds:
             return False
         needed = {
@@ -119,7 +155,43 @@ class TradeDesk:
         }
         if needed and not needed.issubset(set(self.venues)):
             return False
-        return self._assets_ok(opportunity)
+        return self._assets_ok(opportunity) and self._price_ok(opportunity, book)
+
+    def quote_ok(self, quote: Quote, book: MarketBook | None = None) -> bool:
+        if self.price_mode == "any":
+            return True
+        try:
+            base, _quote = split_pair(quote.canonical or quote.native_symbol)
+        except ValueError:
+            return False
+        return self._limit_ok(coin_usd_price(book, base, quote.venue))
+
+    def _limit_ok(self, price: float | None) -> bool:
+        if price is None or price <= 0:
+            return False
+        limit = self.price_limit
+        if self.price_mode == "under":
+            return price <= limit + 1e-12
+        if self.price_mode == "over":
+            return price >= limit - 1e-12
+        return True
+
+    def _price_ok(self, opportunity: Opportunity, book: MarketBook | None) -> bool:
+        if self.price_mode == "any":
+            return True
+        coins = opportunity_assets(opportunity)
+        if not coins:
+            return False
+        venues = [leg.venue for leg in opportunity.legs]
+        for coin in coins:
+            price = None
+            for venue in venues:
+                price = coin_usd_price(book, coin, venue)
+                if price is not None:
+                    break
+            if not self._limit_ok(price):
+                return False
+        return True
 
     def _assets_ok(self, opportunity: Opportunity) -> bool:
         if self.all_assets:
@@ -146,4 +218,7 @@ class TradeDesk:
             "asset_choices": list(POPULAR_ASSETS),
             "venue_choices": [{"id": item, "label": VENUE_LABELS[item]} for item in VENUES],
             "kind_choices": [{"id": item, "label": KIND_LABELS[item]} for item in KINDS],
+            "price_mode": self.price_mode,
+            "price_limit": self.price_limit,
+            "price_presets": list(PRICE_PRESETS),
         }
