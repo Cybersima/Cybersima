@@ -155,11 +155,10 @@ async function saveDesk(patch) {
 }
 
 function friendlyOpp(row) {
-  const legs = row.legs || [];
-  const buy = legs.find((leg) => leg.action === "buy");
-  const sell = legs.find((leg) => leg.action === "sell");
+  const buy = (row.legs || []).find((leg) => leg.action === "buy");
+  const sell = (row.legs || []).find((leg) => leg.action === "sell");
   if (row.kind === "triangular") {
-    const venue = (buy && buy.venue) || (legs[0] && legs[0].venue) || "";
+    const venue = (buy && buy.venue) || (row.legs[0] && row.legs[0].venue) || "";
     return `Same-exchange triangle on ${venue}`;
   }
   if (row.kind === "alert") return row.summary;
@@ -168,17 +167,8 @@ function friendlyOpp(row) {
 }
 
 function render() {
-  try {
-    paintSnapshot();
-  } catch (err) {
-    console.error(err);
-    showToast("Dashboard update failed. " + err);
-  }
-}
-
-function paintSnapshot() {
   const q = (filter.value || "").trim().toLowerCase();
-  const quotes = (snapshot.quotes || []).filter((row) => {
+  const quotes = snapshot.quotes.filter((row) => {
     if (!q) return true;
     return `${row.venue} ${row.native_symbol} ${row.canonical}`.toLowerCase().includes(q);
   });
@@ -372,12 +362,7 @@ function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
   ws.onmessage = (ev) => {
-    try {
-      snapshot = JSON.parse(ev.data);
-    } catch (err) {
-      showToast("Could not read a market update.");
-      return;
-    }
+    snapshot = JSON.parse(ev.data);
     if (snapshot.desk) {
       desk = { ...desk, ...snapshot.desk };
       if (!deskReady) {

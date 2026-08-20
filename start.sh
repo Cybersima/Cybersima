@@ -15,17 +15,9 @@ else
   exit 1
 fi
 
-if [[ -x .venv/bin/python ]] && ! .venv/bin/python -c "import encodings" >/dev/null 2>&1; then
-  echo "Broken .venv detected. Rebuilding (data/ profit CSV is kept)..."
-  rm -rf .venv
-fi
 if [[ ! -d .venv ]]; then
   echo "Creating virtual environment..."
   "$PY" -m venv .venv
-  .venv/bin/python -m pip install -U pip
-  .venv/bin/pip install -e .
-elif ! .venv/bin/python -c "import pulsearb" >/dev/null 2>&1; then
-  echo "Installing SecureTrade packages into .venv..."
   .venv/bin/python -m pip install -U pip
   .venv/bin/pip install -e .
 fi
@@ -44,4 +36,4 @@ echo "Leave this window open. Close it or press Ctrl+C to stop."
 echo "Profit report file: $(pwd)/data/CyberSym-SecureTrade-profit-report.csv"
 echo "If Export fails, open that CSV in Excel or run ./Open-Report.sh"
 # shellcheck disable=SC2086
-exec .venv/bin/python -m pulsearb $MODE --host 127.0.0.1 --port 8080 --open-browser
+exec .venv/bin/python -E -m pulsearb $MODE --host 127.0.0.1 --port 8080 --open-browser

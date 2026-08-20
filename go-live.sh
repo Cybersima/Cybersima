@@ -34,4 +34,4 @@ unset PULSEARB_DEMO_ONLY || true
 export PULSEARB_EXECUTION_MODE=live
 export PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK
 
-exec .venv/bin/python -m pulsearb --live-trading --host 127.0.0.1 --port 8080 --open-browser
+exec .venv/bin/python -E -m pulsearb --live-trading --host 127.0.0.1 --port 8080 --open-browser

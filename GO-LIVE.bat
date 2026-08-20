@@ -1,13 +1,13 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title CyberSym SecureTrade 1.6 LIVE
+title CyberSym SecureTrade LIVE
 
 set PYTHONHOME=
 set PYTHONPATH=
 
 echo.
-echo  CyberSym SecureTrade 1.6 — LIVE TRADING
+echo  CyberSym SecureTrade — LIVE TRADING
 echo  This sends REAL Coinbase market orders with your money.
 echo  Default cap is $25 per trade.
 echo  Cross-venue (Coinbase vs Kraken/Gemini/Bitstamp) stays PAPER.
@@ -24,8 +24,12 @@ if not exist "keys\coinbase.json" (
 echo Press Ctrl+C to cancel, or
 pause
 
-call "%~dp0scripts\find-python.bat"
-if errorlevel 1 (
+set "PY=python"
+py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
+if not errorlevel 1 set "PY=py -3"
+
+if not exist .venv (
+  echo Run INSTALL.bat first.
   pause
   exit /b 1
 )
@@ -35,8 +39,7 @@ set PULSEARB_EXECUTION_MODE=live
 set PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK
 
 echo.
-echo Using Python: %BASEPY%
 echo Starting live trading...
 echo.
-"%BASEPY%" "%~dp0scripts\windows_launch.py" --live-trading --host 127.0.0.1 --port 8080 --open-browser
+.venv\Scripts\python.exe -E -m pulsearb --live-trading --host 127.0.0.1 --port 8080 --open-browser
 pause

@@ -1,30 +1,45 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title CyberSym SecureTrade 1.6
+title CyberSym SecureTrade
 
-rem Do not use python -E. On Python 3.14 that makes .venv look for encodings
-rem inside this folder and crash. Clearing PYTHONHOME is enough.
+rem Avoid the Windows "Could not find platform independent libraries <prefix>" warning.
 set PYTHONHOME=
 set PYTHONPATH=
 
-echo.
-echo  CyberSym SecureTrade 1.6
-echo  A CyberSym product
-echo.
-echo  If this window does not say 1.6, you are in an old unzip folder.
-echo.
+set "PY=python"
+py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
+if not errorlevel 1 set "PY=py -3"
 
-call "%~dp0scripts\find-python.bat"
+%PY% -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
 if errorlevel 1 (
+  echo.
+  echo Python 3.11+ was not found.
+  echo Install it from https://www.python.org/downloads/
+  echo Tick "Add python.exe to PATH", then run INSTALL.bat first.
+  echo.
   pause
   exit /b 1
 )
 
-echo Using Python: %BASEPY%
+if not exist .venv (
+  echo Installing CyberSym SecureTrade for the first time...
+  %PY% -m venv .venv
+  .venv\Scripts\python.exe -m pip install -U pip
+  .venv\Scripts\pip.exe install -e .
+  if errorlevel 1 (
+    echo Install failed. Try INSTALL.bat
+    pause
+    exit /b 1
+  )
+)
+
+echo.
+echo Starting CyberSym SecureTrade...
 echo If port 8080 is already in use, the app will pick the next free port.
 echo Leave this window open. Close it to stop the scanner.
 echo Profit report file: %cd%\data\CyberSym-SecureTrade-profit-report.csv
+echo If Export fails, open that CSV in Excel or run Open-Report.bat
 echo.
-"%BASEPY%" "%~dp0scripts\windows_launch.py" --demo --host 127.0.0.1 --port 8080 --open-browser
+.venv\Scripts\python.exe -E -m pulsearb --demo --host 127.0.0.1 --port 8080 --open-browser
 pause

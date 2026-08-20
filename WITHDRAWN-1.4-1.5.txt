@@ -1,0 +1,12 @@
+CyberSym SecureTrade — restored working build (v01.3)
+
+Versions 1.4 and 1.5 are withdrawn. They broke Python on Windows
+(No module named encodings). Do not use those folders.
+
+This zip is the last working copy: v01.3.
+Same start.bat, same dashboard, same Python 3.14 support.
+
+Unzip into a NEW folder. Do not copy .venv from 1.4 or 1.5.
+You can keep using your existing working v01.3 folder as-is.
+
+Then: INSTALL.bat, then start.bat.

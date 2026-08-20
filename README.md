@@ -11,11 +11,9 @@ This is a scanner with hard risk limits. Public APIs are not an HFT pipe. Yahoo 
 **Installer zip (click to download):**  
 https://github.com/Cybersima/Cybersima/raw/cursor/pulsearb-multimarket-scanner-c11f/releases/CyberSym-SecureTrade.zip
 
-You need [Python 3.11+](https://www.python.org/downloads/). On Windows, tick **Add python.exe to PATH**. Python 3.14 is supported.
+**Versions 1.4 and 1.5 are withdrawn.** They broke Windows Python (`No module named encodings`). This zip is the restored **v01.3** working build. Unzip into a new folder. Do not copy `.venv` from 1.4 or 1.5.
 
-This zip is **product version 1.6**. Cursor unzip folders named v01.4 / v01.5 / v01.6 are download names, not the product version. `start.bat` prints **CyberSym SecureTrade 1.6**.
-
-The encodings crash on Python 3.14 came from `python -E` inside `.venv`. 1.6 starts with your installed Python 3.14 (the same one that already runs v01.3) and does not use `-E`. Do not copy `.venv` from Version 4. Your CSV in `data\` is kept.
+You need [Python 3.11+](https://www.python.org/downloads/). On Windows, tick **Add python.exe to PATH**.
 
 1. Download and unzip `CyberSym-SecureTrade.zip`.
 2. Install, then start:

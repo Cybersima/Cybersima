@@ -5,10 +5,9 @@ from pathlib import Path
 COMPANY = "CyberSym"
 PRODUCT = "CyberSym SecureTrade"
 PRODUCT_SHORT = "SecureTrade"
-VERSION = "1.6"
 SIGNATURE = "A CyberSym product"
 COPYRIGHT = "© CyberSym. All rights reserved."
-USER_AGENT = "CyberSym-SecureTrade/1.6"
+USER_AGENT = "CyberSym-SecureTrade/0.1"
 
 # Drop the official crest in branding/ next to start.bat.
 CUSTOM_LOGO_NAMES = (
