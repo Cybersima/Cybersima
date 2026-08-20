@@ -26,3 +26,4 @@ fi
 echo
 echo "Installed CyberSym SecureTrade."
 echo "Start with: ./start.sh   or double-click start.command"
+echo "Before real Coinbase orders: ./check-live.sh then ./go-live.sh"

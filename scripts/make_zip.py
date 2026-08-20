@@ -10,7 +10,18 @@ from pathlib import Path
 
 SKIP_DIRS = {".git", ".venv", ".pytest_cache", "__pycache__", "dist", ".mypy_cache", "releases", "data"}
 SKIP_NAMES = {"PulseArb.zip", "CyberSym-SecureTrade.zip"}
-EXECUTABLE = {"start.sh", "start.command", "install.sh", "make-zip.sh", "Install.command", "Open-Report.sh", "go-live.sh", "Go-Live.command"}
+EXECUTABLE = {
+    "start.sh",
+    "start.command",
+    "install.sh",
+    "make-zip.sh",
+    "Install.command",
+    "Open-Report.sh",
+    "go-live.sh",
+    "Go-Live.command",
+    "check-live.sh",
+    "Check-Live.command",
+}
 FOLDER = "CyberSym-SecureTrade"
 
 

@@ -78,6 +78,8 @@ class TradeDesk:
             self.notional = self.clamp_notional(payload.get("notional"))
         if "auto_invest" in payload:
             self.auto_invest = bool(payload.get("auto_invest"))
+        if self.live:
+            self.auto_invest = False
         if "all_assets" in payload:
             self.all_assets = bool(payload.get("all_assets"))
         if "assets" in payload:
@@ -119,6 +121,7 @@ class TradeDesk:
         return {
             "notional": self.notional,
             "auto_invest": self.auto_invest,
+            "auto_allowed": not self.live,
             "all_assets": self.all_assets,
             "assets": list(self.assets),
             "venues": list(self.venues),

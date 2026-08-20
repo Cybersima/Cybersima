@@ -50,6 +50,20 @@ def test_notional_clamps_to_cap() -> None:
     assert desk.notional == 25
 
 
+def test_auto_forced_off_when_live() -> None:
+    desk = TradeDesk(live=True, live_max=25)
+    desk.apply({"auto_invest": True})
+    assert desk.auto_invest is False
+    assert desk.to_dict()["auto_allowed"] is False
+
+
+def test_auto_allowed_when_paper() -> None:
+    desk = TradeDesk(live=False)
+    desk.apply({"auto_invest": True})
+    assert desk.auto_invest is True
+    assert desk.to_dict()["auto_allowed"] is True
+
+
 def test_opportunity_assets_skips_quote() -> None:
     assert opportunity_assets(_opp()) == {"BTC"}
 

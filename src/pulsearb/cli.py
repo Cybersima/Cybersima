@@ -26,6 +26,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Send real Coinbase orders. Requires keys/coinbase.json and PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK",
     )
+    parser.add_argument(
+        "--check-live",
+        action="store_true",
+        help="Check Coinbase keys and cash. Does not send orders or start the dashboard.",
+    )
     parser.add_argument("--binance", action="store_true", help="Also enable Binance (not available to US residents)")
     parser.add_argument("--open-browser", action="store_true", help="Open the dashboard in a browser")
     parser.add_argument("--strict-port", action="store_true", help="Fail if the requested port is busy instead of trying the next one")
@@ -43,6 +48,10 @@ def main(argv: list[str] | None = None) -> None:
     if args.demo:
         config.env.demo_only = True
         config._apply_env_overrides()
+    if args.check_live:
+        from pulsearb.engine.live_ready import print_live_ready
+
+        raise SystemExit(print_live_ready(config))
     if args.live_trading and args.demo:
         raise SystemExit("Cannot combine --demo and --live-trading.")
     if args.live_trading:

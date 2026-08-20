@@ -8,6 +8,7 @@ What goes live
 --------------
 • Coinbase-only triangles (buy/sell all on Coinbase).
 • Default cap: $25 per trade (see settings.yaml live_max_notional_usdt).
+• Every live order is a tap. Auto-invest stays off while live.
 
 What stays paper
 ----------------
@@ -29,12 +30,21 @@ Setup (once)
      keys\coinbase.json
 
 3. Leave some USD (and a little BTC/ETH if you want sell legs) in Coinbase.
+   You need at least the live cap in USD/USDC/USDT (default $25).
 
 4. Stop the demo window first (close the black window).
 
-5. Windows:  double-click GO-LIVE.bat
+5. Check first (does not send orders):
+   Windows:  double-click CHECK-LIVE.bat
+   Mac:      double-click Check-Live.command
+   Linux:    ./check-live.sh
+
+6. When the check says Ready:
+   Windows:  double-click GO-LIVE.bat
    Mac:      double-click Go-Live.command
    Linux:    ./go-live.sh
+
+GO-LIVE runs the same check again and will refuse to start if it fails.
 
 You will be asked to confirm. The dashboard shows a red LIVE banner,
 your balances, and the $25 cap. The black window prints a lock PIN.

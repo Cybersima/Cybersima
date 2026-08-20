@@ -123,6 +123,12 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     async def health() -> dict:
         return {"ok": True, "killed": engine.risk.killed}
 
+    @app.get("/api/live-ready")
+    async def live_ready() -> dict:
+        from pulsearb.engine.live_ready import assess_live_ready
+
+        return await assess_live_ready(engine.config, killed=engine.risk.killed)
+
     @app.get("/api/security")
     async def security() -> dict:
         host = engine.config.host

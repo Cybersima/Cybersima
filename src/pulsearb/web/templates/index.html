@@ -37,7 +37,7 @@
         <div class="brand-copy">
           <p class="company">{{ company }}</p>
           <h1>{{ product_short }}</h1>
-          <p class="lede">Choose what you invest. Approve each trade, or turn on Auto.</p>
+          <p class="lede">{% if execution.startswith('live') %}Choose what you invest. Every live Coinbase order is a tap.{% else %}Choose what you invest. Approve each trade, or turn on Auto.{% endif %}</p>
         </div>
       </div>
       <div class="mast-meta">
@@ -69,6 +69,15 @@
     <p class="guard-banner" id="guard-banner"></p>
     <p class="toast" id="toast" hidden></p>
 
+    <section class="live-ready" id="live-ready" aria-label="Ready for live Coinbase">
+      <div class="live-ready-head">
+        <label>Ready for live Coinbase</label>
+        <button type="button" id="live-ready-refresh">Check again</button>
+      </div>
+      <p class="hint" id="live-ready-status">Checking Coinbase keys and cash…</p>
+      <ul id="live-ready-list" class="ready-list"></ul>
+    </section>
+
     <section class="desk" id="desk" aria-label="Choose what to invest">
       <div class="desk-block amount-block">
         <label for="invest-amount">How much to invest per trade</label>
@@ -85,7 +94,7 @@
           <button type="button" id="mode-pick" class="on">I’ll pick each trade</button>
           <button type="button" id="mode-auto">Invest automatically</button>
         </div>
-        <p class="hint">Picking is safer. Auto uses your amount on matching trades.</p>
+        <p class="hint" id="mode-hint">Picking is safer. Auto uses your amount on matching trades.</p>
       </div>
       <div class="desk-block">
         <label>Coins I want</label>

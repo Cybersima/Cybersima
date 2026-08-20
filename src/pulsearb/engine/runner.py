@@ -342,7 +342,14 @@ class Engine:
                     self.by_id = {item.id: item for item in self.opportunities}
                 self.opportunities.appendleft(opp)
                 self.stats.opportunities += 1
-                if opp.executable and self.desk.auto_invest and self.desk.matches(opp) and not self.risk.killed:
+                if (
+                    opp.executable
+                    and self.desk.auto_invest
+                    and not self.desk.live
+                    and not self.config.live_enabled()
+                    and self.desk.matches(opp)
+                    and not self.risk.killed
+                ):
                     await self._take(opp)
                 elif not opp.executable:
                     self.report.record_opportunity(

@@ -26,7 +26,7 @@ MODE="--demo"
 if [[ "${1:-}" == "--live" ]]; then
   MODE=""
   echo "Starting CyberSym SecureTrade with live Coinbase / Kraken / Gemini / Bitstamp / Yahoo data (paper trading)."
-  echo "For real Coinbase orders, use ./go-live.sh after keys/coinbase.json is in place."
+  echo "For real Coinbase orders, use ./check-live.sh then ./go-live.sh after keys/coinbase.json is in place."
 else
   echo "Starting CyberSym SecureTrade..."
 fi

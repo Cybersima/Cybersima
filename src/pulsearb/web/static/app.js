@@ -18,8 +18,13 @@ const kindChips = document.getElementById("kind-chips");
 const modePick = document.getElementById("mode-pick");
 const modeAuto = document.getElementById("mode-auto");
 const amountHint = document.getElementById("amount-hint");
+const modeHint = document.getElementById("mode-hint");
 const toastEl = document.getElementById("toast");
 const guardBanner = document.getElementById("guard-banner");
+const liveReadyEl = document.getElementById("live-ready");
+const liveReadyList = document.getElementById("live-ready-list");
+const liveReadyStatus = document.getElementById("live-ready-status");
+const liveReadyRefresh = document.getElementById("live-ready-refresh");
 const fillsMeta = document.getElementById("fills-meta");
 const themeDarkBtn = document.getElementById("theme-dark");
 const themeLightBtn = document.getElementById("theme-light");
@@ -59,6 +64,7 @@ let desk = {
     { id: "triangular", label: "Same-exchange triangles" },
   ],
   live: false,
+  auto_allowed: true,
 };
 
 function fmt(n, d = 2) {
@@ -314,11 +320,19 @@ function paintDesk() {
       return btn;
     })
   );
+  const autoAllowed = desk.auto_allowed !== false;
   modePick.classList.toggle("on", !desk.auto_invest);
   modeAuto.classList.toggle("on", desk.auto_invest);
+  modeAuto.disabled = !autoAllowed;
+  modeAuto.title = autoAllowed ? "" : "Auto stays off while live Coinbase orders are armed.";
   amountHint.textContent = desk.live
-    ? `Live Coinbase orders · max $${desk.cap} per trade.`
+    ? `Live Coinbase orders · max $${desk.cap} per trade. Every order is a tap.`
     : "Paper trading until you go live. Change this anytime.";
+  if (modeHint) {
+    modeHint.textContent = autoAllowed
+      ? "Picking is safer. Auto uses your amount on matching trades."
+      : "Live mode: Auto stays off. Tap Invest on each Coinbase-only triangle.";
+  }
 
   const allOn = Boolean(desk.all_assets);
   assetChips.replaceChildren(
@@ -545,7 +559,13 @@ killBtn.addEventListener("click", async () => {
 });
 
 modePick.addEventListener("click", () => saveDesk({ auto_invest: false }));
-modeAuto.addEventListener("click", () => saveDesk({ auto_invest: true }));
+modeAuto.addEventListener("click", () => {
+  if (desk.auto_allowed === false) {
+    showToast("Auto stays off while live Coinbase orders are armed.");
+    return;
+  }
+  saveDesk({ auto_invest: true });
+});
 amountInput.addEventListener("change", () => saveDesk({ notional: Number(amountInput.value) }));
 
 exportBtn.addEventListener("click", async (ev) => {
@@ -615,6 +635,8 @@ function connect() {
 connect();
 paintDesk();
 paintSecurity();
+paintLiveReady();
+if (liveReadyRefresh) liveReadyRefresh.addEventListener("click", () => paintLiveReady());
 
 async function paintSecurity() {
   if (!guardBanner) return;
@@ -632,5 +654,42 @@ async function paintSecurity() {
     guardBanner.textContent = bits.filter(Boolean).join(" · ");
   } catch (err) {
     /* ignore */
+  }
+}
+
+async function paintLiveReady() {
+  if (!liveReadyEl || !liveReadyList) return;
+  if (liveReadyRefresh) liveReadyRefresh.disabled = true;
+  if (liveReadyStatus) liveReadyStatus.textContent = "Checking Coinbase keys and cash…";
+  try {
+    const res = await fetch("/api/live-ready");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+    liveReadyEl.classList.toggle("ready", Boolean(data.ready));
+    liveReadyEl.classList.toggle("not-ready", !data.ready);
+    if (liveReadyStatus) liveReadyStatus.textContent = data.note || "";
+    liveReadyList.replaceChildren(
+      ...(data.checks || []).map((row) => {
+        const li = document.createElement("li");
+        const mark = document.createElement("span");
+        mark.className = `mark ${row.ok ? "ok" : "fail"}`;
+        mark.textContent = row.ok ? "OK" : "FAIL";
+        const body = document.createElement("div");
+        const title = document.createElement("strong");
+        title.textContent = row.label;
+        const detail = document.createElement("div");
+        detail.className = "hint";
+        detail.textContent = row.detail;
+        body.append(title, detail);
+        li.append(mark, body);
+        return li;
+      })
+    );
+  } catch (err) {
+    liveReadyEl.classList.remove("ready");
+    liveReadyEl.classList.add("not-ready");
+    if (liveReadyStatus) liveReadyStatus.textContent = "Could not run the live ready check. " + err;
+  } finally {
+    if (liveReadyRefresh) liveReadyRefresh.disabled = false;
   }
 }

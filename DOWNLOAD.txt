@@ -23,6 +23,7 @@ Dashboard: http://127.0.0.1:8080
 Profit report (Excel): data\CyberSym-SecureTrade-profit-report.csv
 Windows: double-click Open-Report.bat if the Export button does not download.
 
-Real Coinbase orders: read LIVE.txt, then GO-LIVE.bat (not start-live.bat — that is live prices with paper trades).
+Real Coinbase orders: read LIVE.txt, run CHECK-LIVE.bat, then GO-LIVE.bat
+(not start-live.bat — that is live prices with paper trades).
 
 © CyberSym. All rights reserved.

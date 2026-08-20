@@ -40,7 +40,11 @@ not want the chime. Sound dings for a new matching setup and again
 when a trade completes. Toasts still appear if sound is off.
 
 On the dashboard, set How much to invest, pick your coins, then tap
-Invest on a trade — or turn on Invest automatically.
+Invest on a trade — or turn on Invest automatically (paper only).
+While live Coinbase orders are armed, Auto stays off so every real
+order is a tap.
+
+Profit / trades spreadsheet:
 
 Profit / trades spreadsheet:
    While the scanner is running it writes:
@@ -58,9 +62,10 @@ Live market data (still paper trading):
 Real Coinbase orders (your money):
    Read LIVE.txt first.
    Put the Coinbase API JSON in keys\coinbase.json
-   Windows:  double-click GO-LIVE.bat
-   Mac:      double-click Go-Live.command
-   Linux:    ./go-live.sh
+   Windows:  double-click CHECK-LIVE.bat, then GO-LIVE.bat
+   Mac:      double-click Check-Live.command, then Go-Live.command
+   Linux:    ./check-live.sh && ./go-live.sh
    Default cap is $25 per trade. Cross-venue stays paper.
+   Auto stays off while live.
 
 © CyberSym. All rights reserved.

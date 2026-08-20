@@ -88,13 +88,14 @@ Yahoo is polled about every 2s on purpose. US exchange tickers refresh about onc
 
 `start-live.bat` / `./start.sh --live` is **live market data with paper fills**.
 
-Real Coinbase orders are a separate add-on. Read `LIVE.txt`, save the Coinbase Advanced Trade API JSON as `keys/coinbase.json` (View + Trade, no Transfer), then run **GO-LIVE.bat** (Mac: `Go-Live.command`, Linux: `./go-live.sh`).
+Real Coinbase orders are a separate add-on. Read `LIVE.txt`, save the Coinbase Advanced Trade API JSON as `keys/coinbase.json` (View + Trade, no Transfer), run **CHECK-LIVE.bat** (does not send orders), then **GO-LIVE.bat** (Mac: `Check-Live.command` then `Go-Live.command`, Linux: `./check-live.sh` then `./go-live.sh`). GO-LIVE refuses to start if the check fails.
 
 Live mode:
 
 - Sends **Coinbase-only** triangles as market IOC orders
 - Caps size at `live_max_notional_usdt` (default **$25**)
 - Leaves cross-venue (Coinbase vs Kraken/Gemini/Bitstamp) on **paper** — you cannot instantly move coins between exchanges
+- Keeps **Auto off** so every live order is a tap
 - Requires `PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK` (GO-LIVE sets this)
 - Trips the kill switch if a live order fails
 

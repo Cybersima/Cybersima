@@ -31,6 +31,7 @@ def test_dashboard_and_kill_switch() -> None:
     assert "--gold" in css.text
     assert 'html[data-theme="light"]' in css.text
     assert "--input" in css.text
+    assert ".live-ready" in css.text
     logo = client.get("/static/logo.png")
     assert logo.status_code == 200
     assert logo.headers["content-type"].startswith("image/")
@@ -48,6 +49,9 @@ def test_dashboard_and_kill_switch() -> None:
     assert "Export report" in page.text
     assert 'id="live-banner"' in page.text
     assert 'id="guard-banner"' in page.text
+    assert 'id="live-ready"' in page.text
+    assert 'id="live-ready-refresh"' in page.text
+    assert "Ready for live Coinbase" in page.text
     assert "logo.png" in page.text
     assert 'id="theme-dark"' in page.text
     assert 'id="theme-light"' in page.text
@@ -60,6 +64,8 @@ def test_dashboard_and_kill_switch() -> None:
     assert "playChime" in js.text
     assert "noticeNewFills" in js.text
     assert "Trade complete" in js.text
+    assert "paintLiveReady" in js.text
+    assert "auto_allowed" in js.text
     assert 'id="fills-meta"' in page.text
     assert "cybersym-theme" in page.text
     assert "I’ll pick each trade" in page.text or "I'll pick each trade" in page.text
@@ -67,6 +73,7 @@ def test_dashboard_and_kill_switch() -> None:
     desk = client.get("/api/desk")
     assert desk.status_code == 200
     assert desk.json()["auto_invest"] is False
+    assert desk.json()["auto_allowed"] is True
     assert desk.json()["notional"] == 25
     updated = client.post("/api/desk", json={"notional": 50, "assets": ["BTC", "ETH"]})
     assert updated.status_code == 200
@@ -78,6 +85,13 @@ def test_dashboard_and_kill_switch() -> None:
     assert status["ok"] is True
     assert status["lock"] == "on"
     assert status["execution"] == "paper"
+    ready = client.get("/api/live-ready")
+    assert ready.status_code == 200
+    body = ready.json()
+    assert body["ok"] is True
+    assert body["ready"] is False
+    assert body["armed"] is False
+    assert any(row["id"] == "keys_file" for row in body["checks"])
 
 
 def test_dashboard_requires_lock_without_session() -> None:
