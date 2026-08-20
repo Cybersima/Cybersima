@@ -248,6 +248,7 @@ async def test_coinbase_does_not_sell_coins_already_held() -> None:
     assert eth_sells == []
     btc_flatten = [row for row in posted if row.get("product_id") == "BTC-USD" and row.get("side") == "SELL"]
     assert btc_flatten
+    assert risk.killed is False
 
 
 @pytest.mark.asyncio
@@ -364,3 +365,83 @@ async def test_engine_toggles_paper_and_live(tmp_path, monkeypatch) -> None:
     assert engine.live_active() is False
     assert engine.desk.live is False
     assert engine.broker.armed is False
+
+
+@pytest.mark.asyncio
+async def test_recovered_flatten_does_not_kill_or_disarm() -> None:
+    pem = _ecdsa_pem()
+    orders: dict[str, dict] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("/accounts"):
+            return httpx.Response(
+                200,
+                json={"accounts": [{"currency": "USD", "available_balance": {"value": "80.00"}}]},
+            )
+        if path.endswith("/orders") and request.method == "POST":
+            body = json.loads(request.content)
+            oid = f"oid-{len(orders) + 1}"
+            orders[oid] = body
+            return httpx.Response(200, json={"success": True, "success_response": {"order_id": oid}})
+        if "historical" in path:
+            oid = path.rstrip("/").split("/")[-1]
+            qty, px = _fill_from_order(orders[oid])
+            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px}})
+        return httpx.Response(404, json={"message": path})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
+    risk = RiskManager(cooldown_seconds=0, max_notional_usdt=25)
+    paper = PaperBroker(risk)
+    broker = LiveCoinbaseBroker(risk, "organizations/x/apiKeys/y", pem, paper, client=client)
+    fills = await broker.execute(_opp(notional=10))
+    await client.aclose()
+    assert any(row.status == "filled" and row.side == "buy" for row in fills)
+    assert any("already hold" in (row.note or "") or row.status == "blocked" for row in fills)
+    assert any("flatten" in (row.note or "") for row in fills)
+    assert risk.killed is False
+
+
+@pytest.mark.asyncio
+async def test_stuck_leftover_still_kills() -> None:
+    pem = _ecdsa_pem()
+    orders: dict[str, dict] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("/accounts"):
+            return httpx.Response(
+                200,
+                json={"accounts": [{"currency": "USD", "available_balance": {"value": "80.00"}}]},
+            )
+        if path.endswith("/orders") and request.method == "POST":
+            body = json.loads(request.content)
+            if body.get("product_id") == "BTC-USD" and body.get("side") == "SELL":
+                return httpx.Response(200, json={"success": False, "error_response": {"message": "could not flatten"}})
+            oid = f"oid-{len(orders) + 1}"
+            orders[oid] = body
+            return httpx.Response(200, json={"success": True, "success_response": {"order_id": oid}})
+        if "historical" in path:
+            oid = path.rstrip("/").split("/")[-1]
+            qty, px = _fill_from_order(orders[oid])
+            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px}})
+        return httpx.Response(404, json={"message": path})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
+    risk = RiskManager(cooldown_seconds=0, max_notional_usdt=25)
+    paper = PaperBroker(risk)
+    broker = LiveCoinbaseBroker(risk, "organizations/x/apiKeys/y", pem, paper, client=client)
+    await broker.execute(_opp(notional=10))
+    await client.aclose()
+    assert risk.killed is True
+
+
+def test_snapshot_shows_cash_and_trades_on_paper() -> None:
+    engine = Engine(AppConfig())
+    engine.paper.fills = []
+    snap = engine.snapshot()
+    assert "cash_usd" in snap["stats"]
+    assert "trades" in snap
+    assert snap["stats"]["live_armed"] is False
+    assert snap["stats"]["execution"] == "paper"
+

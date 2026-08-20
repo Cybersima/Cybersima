@@ -96,14 +96,29 @@ def test_filled_paper_row_extracts_venues_and_pnl() -> None:
 
 def test_csv_round_trip(tmp_path) -> None:
     ledger = ProfitLedger(csv_path=tmp_path / "report.csv")
+    opp = _opp()
+    fills = [
+        Fill(
+            venue="coinbase",
+            symbol="BTC-USD",
+            side="buy",
+            qty=0.002,
+            price=97010,
+            notional=250,
+            ts=1_700_000_001,
+            paper=True,
+            opportunity_id="gap-1",
+            status="filled",
+        )
+    ]
     row = build_report_row(
-        _opp(executable=False),
-        [],
+        opp,
+        fills,
         paper=True,
         killed=False,
-        fee_map={"coinbase": 50, "yahoo": 0},
+        fee_map={"coinbase": 50, "kraken": 26},
         slippage_bps=2,
-        closed_at=1_700_000_000.4,
+        closed_at=1_700_000_001.5,
     )
     ledger.record(row)
     raw = ledger.to_csv_bytes()
@@ -112,8 +127,7 @@ def test_csv_round_trip(tmp_path) -> None:
     parsed = list(csv.reader(io.StringIO(text)))
     assert parsed[0] == REPORT_HEADERS
     assert parsed[1][0] == "gap-1"
-    assert parsed[1][2] == "Alert"
-    assert parsed[1][10] == "0.0" or float(parsed[1][10]) == 0.0
+    assert parsed[1][6] == "paper"
     assert ledger.export_csv_bytes().startswith(b"\xef\xbb\xbf")
     assert b"gap-1" in ledger.export_csv_bytes()
 
@@ -123,8 +137,21 @@ def test_export_prefers_full_disk_file_over_memory_window(tmp_path) -> None:
     ledger = ProfitLedger(csv_path=path, max_rows=2)
     for index in range(5):
         row = build_report_row(
-            _opp(executable=False),
-            [],
+            _opp(),
+            [
+                Fill(
+                    venue="coinbase",
+                    symbol="BTC-USD",
+                    side="buy",
+                    qty=0.001,
+                    price=97010,
+                    notional=250,
+                    ts=1_700_000_001,
+                    paper=True,
+                    opportunity_id=f"gap-{index}",
+                    status="filled",
+                )
+            ],
             paper=True,
             killed=False,
             fee_map={"coinbase": 50, "yahoo": 0},
@@ -141,3 +168,61 @@ def test_export_prefers_full_disk_file_over_memory_window(tmp_path) -> None:
     memory_only = ledger.to_csv_bytes().decode("utf-8-sig")
     assert "gap-0" not in memory_only
     assert "gap-3" in memory_only
+
+
+def test_export_skips_alert_rows(tmp_path) -> None:
+    path = tmp_path / "report.csv"
+    ledger = ProfitLedger(csv_path=path)
+    alert = build_report_row(
+        _opp(executable=False),
+        [],
+        paper=True,
+        killed=False,
+        fee_map={"coinbase": 50, "yahoo": 0},
+        slippage_bps=2,
+        closed_at=1_700_000_000.4,
+    )
+    taken = build_report_row(
+        _opp(),
+        [
+            Fill(
+                venue="coinbase",
+                symbol="BTC-USD",
+                side="buy",
+                qty=0.001,
+                price=97010,
+                notional=250,
+                ts=1_700_000_001,
+                paper=True,
+                opportunity_id="gap-1",
+                status="filled",
+            )
+        ],
+        paper=True,
+        killed=False,
+        fee_map={"coinbase": 50, "kraken": 26},
+        slippage_bps=2,
+        closed_at=1_700_000_001.5,
+    )
+    ledger.record(alert)
+    ledger.record(taken)
+    assert ledger.taken_rows == 1
+    assert ledger.as_dicts()[0]["ID"] == "gap-1"
+    exported = ledger.export_csv_bytes().decode("utf-8-sig")
+    assert "alert" not in exported.splitlines()[1] if exported.strip() else True
+    assert "paper" in exported
+    assert "gap-1" in exported
+    # Old files that already mixed alerts still filter on download.
+    mixed = tmp_path / "mixed.csv"
+    mixed.write_text(
+        "ID,Detected Time,Strategy,Market,Route,Financial,Execution,Guardian,Guardian,Expected P&L,Realized P&L,Edge Lifetime,Close Reason,Buy Venue,Sell Venue,Raw Edge,Net Edge (bps),Fee (bps),Slippage (bps),Fill Ratio,Paper Notional\n"
+        "scan-1,t,Alert,BTC-USD,watch,paper USD,alert,watch,data,0,0,0,alert_only,coinbase,kraken,1,1,0,0,0,0\n"
+        "trade-1,t,Triangular,ETH-USD,buy,live USD,live,pass,ok,0.1,0.1,1,live_fill,coinbase,coinbase,12,8,50,2,1,10\n",
+        encoding="utf-8-sig",
+    )
+    from pulsearb.engine.report import filter_taken_csv_bytes
+
+    filtered = filter_taken_csv_bytes(mixed.read_bytes()).decode("utf-8-sig")
+    assert "scan-1" not in filtered
+    assert "trade-1" in filtered
+    assert "alert" not in filtered.split("\n")[1]

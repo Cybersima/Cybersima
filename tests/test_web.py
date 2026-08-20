@@ -46,7 +46,9 @@ def test_dashboard_and_kill_switch() -> None:
     assert b"Detected Time" in csv_file.content
     assert b"Paper Notional" in csv_file.content
     assert 'id="export-report"' in page.text
-    assert "Export report" in page.text
+    assert "Export my trades" in page.text
+    assert 'id="cash-bar"' in page.text
+    assert "Your trades" in page.text
     assert 'id="live-banner"' in page.text
     assert 'id="guard-banner"' in page.text
     assert 'id="live-ready"' in page.text
@@ -71,7 +73,8 @@ def test_dashboard_and_kill_switch() -> None:
     assert "auto_allowed" in js.text
     assert "emptyOppsMessage" in js.text
     assert "three Coinbase fees" in js.text
-    assert 'id="fills-meta"' in page.text
+    assert "tradeCard" in js.text
+    assert "cash-usd" in js.text
     assert "cybersym-theme" in page.text
     assert "I’ll pick each trade" in page.text or "I'll pick each trade" in page.text
     assert 'id="invest-amount"' in page.text

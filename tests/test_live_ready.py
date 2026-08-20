@@ -137,3 +137,14 @@ def test_live_engine_rejects_auto(tmp_path, monkeypatch) -> None:
     assert desk["auto_invest"] is False
     assert desk["auto_allowed"] is False
     assert engine.desk.auto_invest is False
+
+
+@pytest.mark.asyncio
+async def test_live_ready_killed_while_armed_says_still_live(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_keys(tmp_path)
+    report = await assess_live_ready(AppConfig(), cwd=tmp_path, ping=False, killed=True, armed=True)
+    assert report["armed"] is True
+    assert report["ready"] is False
+    assert "not back on paper" in report["note"].lower()
+    assert "resume" in report["note"].lower()

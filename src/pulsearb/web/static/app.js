@@ -50,6 +50,7 @@ let snapshot = { quotes: [], opportunities: [], fills: [], stats: {}, desk: {} }
 let lastMids = new Map();
 let renderTimer = null;
 let deskReady = false;
+let lastKilled = false;
 let soundOn = true;
 let audioCtx = null;
 let seenTradeKeys = null;
@@ -93,6 +94,14 @@ function fmt(n, d = 2) {
   if (Math.abs(x) >= 1000) return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
   if (Math.abs(x) < 0.001) return x.toExponential(2);
   return x.toFixed(d);
+}
+
+function clockTime(ts) {
+  const value = Number(ts);
+  if (!Number.isFinite(value) || value <= 0) return "";
+  const date = new Date(value * 1000);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString();
 }
 
 function tickClock() {
@@ -302,6 +311,53 @@ function noticeNewFills(data) {
     showToast(`Trade not filled: ${row.side} ${row.symbol} ${row.note || row.status}`.trim());
     playChime(false, "blocked");
   }
+}
+
+function tradeCard(trade) {
+  const li = document.createElement("li");
+  li.className = `trade-card ${trade.status === "blocked" || trade.status === "open" ? "blocked" : ""}`;
+  const head = document.createElement("div");
+  head.className = "trade-head";
+  const mode = document.createElement("span");
+  mode.className = `trade-mode${trade.execution === "live" ? " live" : ""}`;
+  mode.textContent = trade.execution === "live" ? "LIVE" : "PAPER";
+  const status = document.createElement("span");
+  status.className = `trade-status ${trade.status || ""}`;
+  status.textContent = trade.status || "";
+  const when = document.createElement("span");
+  when.className = "leg-meta";
+  const opened = clockTime(trade.opened_at);
+  const closed = clockTime(trade.closed_at);
+  when.textContent = opened && closed && closed !== opened ? `Opened ${opened} · closed ${closed}` : opened ? `Opened ${opened}` : "";
+  head.append(mode, status, when);
+  const legs = document.createElement("ol");
+  legs.className = "trade-legs";
+  (trade.legs || []).forEach((leg, index) => {
+    const row = document.createElement("li");
+    const qty = leg.qty ? fmt(leg.qty, 6) : "0";
+    const px = leg.price ? fmt(leg.price, 2) : "—";
+    const usd = leg.notional ? `$${fmt(leg.notional, 2)}` : "";
+    const label = leg.flatten ? "sold leftover to USD" : leg.note || "";
+    row.innerHTML = "";
+    const line = document.createElement("div");
+    line.textContent = `${index + 1}. ${String(leg.side || "").toUpperCase()} ${leg.symbol} · ${qty} @ ${px} ${usd}`.trim();
+    row.append(line);
+    if (label) {
+      const meta = document.createElement("div");
+      meta.className = "leg-meta";
+      meta.textContent = label;
+      row.append(meta);
+    }
+    legs.append(row);
+  });
+  const close = document.createElement("div");
+  close.className = "close-label";
+  const cashBits = [];
+  if (Number(trade.spent_usd) > 0) cashBits.push(`spent $${fmt(trade.spent_usd, 2)}`);
+  if (Number(trade.received_usd) > 0) cashBits.push(`back $${fmt(trade.received_usd, 2)}`);
+  close.textContent = [trade.close_label, cashBits.join(" · ")].filter(Boolean).join(" · ");
+  li.append(head, legs, close);
+  return li;
 }
 
 applySound(soundEnabled());
@@ -678,20 +734,26 @@ function render() {
     );
   }
 
+  const trades = snapshot.trades || [];
   const fillRows = snapshot.fills || [];
   const completed = fillRows.filter((row) => row.status === "filled");
   if (fillsMeta) {
-    if (!completed.length) {
+    if (!trades.length && !completed.length) {
       fillsMeta.textContent = "";
+    } else if (trades.length) {
+      const last = trades[0];
+      fillsMeta.textContent = `${trades.length} trade${trades.length === 1 ? "" : "s"} · last ${last.status}`;
     } else {
       const last = completed[completed.length - 1];
       fillsMeta.textContent = `${completed.length} complete · last ${last.side} ${last.symbol}`;
     }
   }
-  if (!fillRows.length) {
+  if (trades.length) {
+    fills.replaceChildren(...trades.map(tradeCard));
+  } else if (!fillRows.length) {
     const empty = document.createElement("li");
     empty.className = "empty";
-    empty.textContent = "No fills yet. Pick a trade when one appears.";
+    empty.textContent = "No trades yet. When you tap a row, it shows here: opened, each leg, and closed back to USD.";
     fills.replaceChildren(empty);
   } else {
     fills.replaceChildren(
@@ -735,6 +797,27 @@ function render() {
         .join(" ");
     }
   }
+  const cashUsd = document.getElementById("cash-usd");
+  const cashTap = document.getElementById("cash-tap");
+  const cashSession = document.getElementById("cash-session");
+  const cashTaps = document.getElementById("cash-taps");
+  if (cashUsd) {
+    cashUsd.textContent =
+      s.cash_usd == null || s.cash_usd === "" ? "—" : `$${fmt(Number(s.cash_usd), 2)}`;
+  }
+  if (cashTap) cashTap.textContent = `$${fmt(desk.notional, 0)}`;
+  if (cashSession) {
+    if (desk.budget != null) {
+      cashSession.textContent = `$${fmt(desk.budget_left ?? 0, 2)} of $${fmt(desk.budget, 0)}`;
+    } else if (live) {
+      cashSession.textContent = "No cap set";
+    } else {
+      cashSession.textContent = "Paper";
+    }
+  }
+  if (cashTaps) {
+    cashTaps.textContent = desk.taps_left == null ? (live ? "—" : "Paper") : String(desk.taps_left);
+  }
   document.getElementById("kpi-tri").textContent = s.triangles ?? 0;
   document.getElementById("kpi-up").textContent = `${fmt(s.uptime_s, 0)}s`;
   const feeds = s.feed_status || {};
@@ -742,7 +825,7 @@ function render() {
   killBtn.classList.toggle("on", Boolean(s.killed));
   killBtn.textContent = s.killed ? "Resume" : "Kill switch";
   const reportRows = s.report_rows ?? 0;
-  exportBtn.textContent = reportRows ? `Export report (${reportRows})` : "Export report";
+  exportBtn.textContent = reportRows ? `Export my trades (${reportRows})` : "Export my trades";
   if (reportPath) {
     reportPath.textContent = s.report_path ? `Profit report file: ${s.report_path}` : "";
   }
@@ -761,8 +844,8 @@ async function invest(id, btn) {
     if (!data.ok) throw new Error(data.error || "Could not invest");
     showToast(
       desk.live
-        ? `Round-trip sent ($${fmt(desk.notional, 0)}). Check Your fills — it should buy, then sell back to USD.`
-        : `Invested $${fmt(desk.notional, 0)}. Check Your fills.`
+        ? `Round-trip sent ($${fmt(desk.notional, 0)}). Check Your trades — opened, each leg, and close back to USD.`
+        : `Invested $${fmt(desk.notional, 0)}. Check Your trades.`
     );
   } catch (err) {
     showToast(String(err.message || err));
@@ -858,6 +941,12 @@ function connect() {
     }
     noticeNewTrades(snapshot);
     noticeNewFills(snapshot);
+    const killedNow = Boolean(snapshot.stats && snapshot.stats.killed);
+    if (killedNow !== lastKilled) {
+      lastKilled = killedNow;
+      paintLiveReady();
+      paintSecurity();
+    }
     scheduleRender();
   };
   ws.onclose = () => setTimeout(connect, 1200);
@@ -900,7 +989,11 @@ async function paintSecurity() {
       data.network === "lan" ? "On your Wi-Fi · PIN required" : "This computer only",
       data.execution === "live" ? `LIVE · cap $${fmt(data.live_cap, 0)}` : "Paper trading",
       data.keys_file ? "Coinbase key file on this PC" : "No Coinbase key file",
-      data.killed ? "Kill switch on" : "",
+      data.killed && data.execution === "live"
+        ? "Kill switch paused new orders — still LIVE"
+        : data.killed
+          ? "Kill switch on"
+          : "",
       data.note,
     ];
     guardBanner.textContent = bits.filter(Boolean).join(" · ");

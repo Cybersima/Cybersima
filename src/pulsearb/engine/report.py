@@ -10,6 +10,8 @@ from typing import Any, Iterable
 
 from pulsearb.models import Fill, Opportunity
 
+TAKEN_EXECUTION = {"paper", "live", "blocked"}
+
 # Spreadsheet columns, in export order.
 REPORT_HEADERS = [
     "ID",
@@ -143,6 +145,11 @@ def build_report_row(
     }
 
 
+def is_taken_row(row: dict[str, Any]) -> bool:
+    """True for trades you took or that were blocked — not scanner alerts."""
+    return str(row.get("Execution") or "").strip().lower() in TAKEN_EXECUTION
+
+
 def ordered_values(row: dict[str, Any]) -> list[Any]:
     return [
         row.get("ID", ""),
@@ -176,12 +183,16 @@ class ProfitLedger:
         self.rows: deque[dict[str, Any]] = deque(maxlen=max_rows)
         self.csv_path = csv_path.resolve() if csv_path else None
         self.total_rows = 0
+        self.taken_rows = 0
         if self.csv_path:
             self.csv_path.parent.mkdir(parents=True, exist_ok=True)
 
     def record(self, row: dict[str, Any]) -> None:
+        if not is_taken_row(row):
+            return
         self.rows.append(row)
         self.total_rows += 1
+        self.taken_rows += 1
         if self.csv_path:
             try:
                 self._append_csv(row)
@@ -211,21 +222,22 @@ class ProfitLedger:
         return row
 
     def as_dicts(self) -> list[dict[str, Any]]:
-        return [dict(row) for row in self.rows]
+        return [dict(row) for row in self.rows if is_taken_row(row)]
 
     def to_csv_bytes(self) -> bytes:
         buffer = io.StringIO()
         writer = csv.writer(buffer)
         writer.writerow(REPORT_HEADERS)
         for row in self.rows:
-            writer.writerow(ordered_values(row))
+            if is_taken_row(row):
+                writer.writerow(ordered_values(row))
         return buffer.getvalue().encode("utf-8-sig")
 
     def export_csv_bytes(self) -> bytes:
-        """Prefer the on-disk log (full session) over the in-memory window."""
+        """Taken trades only. Old on-disk scanner alerts are filtered out."""
         if self.csv_path and self.csv_path.exists() and self.csv_path.stat().st_size > 32:
             try:
-                return self.csv_path.read_bytes()
+                return filter_taken_csv_bytes(self.csv_path.read_bytes())
             except OSError:
                 pass
         return self.to_csv_bytes()
@@ -238,3 +250,24 @@ class ProfitLedger:
             if new_file:
                 writer.writerow(REPORT_HEADERS)
             writer.writerow(ordered_values(row))
+
+
+def filter_taken_csv_bytes(raw: bytes) -> bytes:
+    text = raw.decode("utf-8-sig")
+    parsed = list(csv.reader(io.StringIO(text)))
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(REPORT_HEADERS)
+    if not parsed:
+        return buffer.getvalue().encode("utf-8-sig")
+    header = parsed[0]
+    try:
+        exec_idx = header.index("Execution")
+    except ValueError:
+        exec_idx = 6 if len(header) > 6 else None
+    for row in parsed[1:]:
+        if exec_idx is None or exec_idx >= len(row):
+            continue
+        if str(row[exec_idx]).strip().lower() in TAKEN_EXECUTION:
+            writer.writerow(row)
+    return buffer.getvalue().encode("utf-8-sig")

@@ -12,8 +12,10 @@ from pulsearb.engine.book import MarketBook
 from pulsearb.engine.broker import Broker, LiveBinanceBroker, LiveRouter, PaperBroker
 from pulsearb.engine.coinbase_live import LiveCoinbaseBroker
 from pulsearb.engine.desk import KIND_LABELS, TradeDesk
+from pulsearb.engine.live_ready import quote_cash
 from pulsearb.engine.report import ProfitLedger
 from pulsearb.engine.risk import RiskManager
+from pulsearb.engine.trades import group_trades
 from pulsearb.feeds.binance import BinanceFeed
 from pulsearb.feeds.bitstamp import BitstampFeed
 from pulsearb.feeds.coinbase import CoinbaseFeed
@@ -67,6 +69,7 @@ class Engine:
             if config.symbols(venue)
         }
         self._lock = asyncio.Lock()
+        self._balances_at = 0.0
 
     def subscribe(self) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue(maxsize=8)
@@ -171,6 +174,7 @@ class Engine:
         if isinstance(self.broker, LiveRouter):
             self.broker.armed = True
         self._apply_mode_settings()
+        await self._refresh_cash()
         await self.broadcast()
         return {
             "ok": True,
@@ -179,38 +183,61 @@ class Engine:
             "note": "LIVE. Each tap buys and sells on Coinbase, then aims to finish back in USD.",
         }
 
+    async def _refresh_cash(self) -> None:
+        coinbase = getattr(self.broker, "coinbase", None)
+        if coinbase is None or not hasattr(coinbase, "refresh_balances"):
+            return
+        try:
+            await coinbase.refresh_balances()
+            self._balances_at = time.time()
+        except Exception:
+            pass
+
     def snapshot(self) -> dict:
         quotes = sorted(self.book.snapshot(), key=lambda q: (q.venue, q.native_symbol))
         live = self.live_active()
-        live_pnl = float(getattr(self.broker, "live_pnl", 0.0)) if live else 0.0
+        live_pnl = float(getattr(self.broker, "live_pnl", 0.0))
         venues = "+".join(getattr(self.broker, "live_venues", None) or self.config.live_venue_names())
         execution = f"live {venues}".strip() if live else "paper"
-        balances = getattr(self.broker, "balances", {}) if live else {}
+        balances = getattr(self.broker, "balances", {}) or {}
+        cash_usd = quote_cash(balances)
+        kill_paused = bool(self.risk.killed and live)
+        fill_list = list(self.fills)[:80]
+        if kill_paused:
+            live_note = (
+                "LIVE is still on. Kill switch paused new orders. Click Resume. You are not back on paper."
+            )
+        elif live:
+            live_note = (
+                "LIVE Coinbase: each tap buys and sells a Coinbase triangle and aims to finish back in USD. "
+                "Not buy-and-hold. Cross-venue (Coinbase vs Kraken) stays off — that would mean holding coins to move them. "
+                "Each tap is your desk size. Session budget is the $25 cap. Kill switch stops new orders."
+            )
+        else:
+            live_note = ""
         return {
             "stats": {
                 **self.stats.to_dict(),
                 "paper_pnl": round(self.paper.pnl + live_pnl, 4),
                 "live_pnl": round(live_pnl, 4),
                 "killed": self.risk.killed,
+                "kill_paused": kill_paused,
                 "execution": execution,
+                "live_armed": live,
                 "uptime_s": round(time.time() - self.stats.started_at, 1),
                 "triangles": sum(1 for item in self.opportunities if item.kind.value == "triangular"),
-                "report_rows": self.report.total_rows,
+                "report_rows": self.report.taken_rows,
                 "report_path": str(self.report.csv_path) if self.report.csv_path else "",
-                "balances": {str(k): round(float(v), 8) for k, v in (balances or {}).items() if float(v) > 0},
-                "live_note": (
-                    "LIVE Coinbase: each tap buys and sells a Coinbase triangle and aims to finish back in USD. "
-                    "Not buy-and-hold. Cross-venue (Coinbase vs Kraken) stays off — that would mean holding coins to move them. "
-                    "Each tap is your desk size. Session budget is the $25 cap. Kill switch stops new orders."
-                    if live
-                    else ""
-                ),
-                "live_notional": self.desk.notional if live else self.desk.notional,
+                "balances": {str(k): round(float(v), 8) for k, v in balances.items() if float(v) > 0},
+                "cash_usd": round(cash_usd, 2),
+                "live_note": live_note,
+                "live_notional": self.desk.notional,
             },
             "desk": self.desk_view(),
             "quotes": [q.to_dict() for q in quotes if self.desk.quote_ok(q, self.book)],
             "opportunities": [self._opp_view(o) for o in list(self.opportunities)[:40]],
-            "fills": [f.to_dict() for f in list(self.fills)[:40]],
+            "fills": [f.to_dict() for f in fill_list],
+            "trades": group_trades(fill_list),
         }
 
     async def broadcast(self) -> None:
@@ -254,7 +281,7 @@ class Engine:
         left = self.risk.remaining_budget()
         data.update(
             {
-                "budget": self.risk.live_budget_usdt if self.live_active() else None,
+                "budget": self.risk.live_budget_usdt or None,
                 "budget_left": left,
                 "taps_left": self.risk.taps_left(self.desk.notional),
             }
@@ -305,6 +332,7 @@ class Engine:
             fee_map=self._fee_map,
             slippage_bps=self._slippage,
         )
+        await self._refresh_cash()
         return fills
 
     def _demo_instruments(self) -> list[tuple[str, str, bool]]:
@@ -460,15 +488,9 @@ class Engine:
                     and not self.risk.killed
                 ):
                     await self._take(opp)
-                elif not opp.executable:
-                    self.report.record_opportunity(
-                        opp,
-                        [],
-                        paper=True,
-                        killed=self.risk.killed,
-                        fee_map=fee_map,
-                        slippage_bps=extra,
-                    )
+            now = time.time()
+            if now - self._balances_at > 30:
+                await self._refresh_cash()
             self.stats.scans += 1
             self.stats.quotes = self.book.size()
             self.stats.markets_live = self.book.live_count(stale)
@@ -481,6 +503,7 @@ async def run_engine(engine: Engine) -> None:
     coinbase = getattr(engine.broker, "coinbase", None)
     if coinbase is not None and hasattr(coinbase, "refresh_balances"):
         balances = await coinbase.refresh_balances()
+        engine._balances_at = time.time()
         shown = ", ".join(
             f"{asset} {amount:.6g}" for asset, amount in list(balances.items())[:8]
         ) or "(empty)"

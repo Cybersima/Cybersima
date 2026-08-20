@@ -256,13 +256,18 @@ async def assess_live_ready(
                 "kill_switch",
                 "Kill switch",
                 False,
-                "Kill switch is on. Resume on the dashboard before new live orders.",
+                "New orders are paused. Click Resume on the dashboard. Paper/Live did not change.",
             )
         )
 
     ready = all(row["ok"] for row in checks if row["required"])
     live_on = config.live_enabled() if armed is None else bool(armed)
-    if live_on and ready:
+    if live_on and killed:
+        note = (
+            "LIVE is still on. The kill switch paused new orders. "
+            "Click Resume. You are not back on paper."
+        )
+    elif live_on and ready:
         note = "Live Coinbase is on. Switch back to Paper on this dashboard any time. Every real order is a tap."
     elif ready:
         note = "Ready. Stay on Paper to practice, then switch to Live on this dashboard when you want real Coinbase orders."

@@ -370,6 +370,24 @@ label, .tag {
   font-size: 26px;
   margin-top: 4px;
 }
+.cash-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.cash-bar article {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+.cash-bar strong {
+  display: block;
+  font-family: Rajdhani, sans-serif;
+  font-size: 24px;
+  margin-top: 4px;
+}
 .up { color: var(--up); }
 .down { color: var(--down); }
 
@@ -445,6 +463,36 @@ h2 {
 }
 .tape .edge { color: var(--cyan); font-weight: 600; margin-bottom: 4px; }
 .tape .blocked { color: var(--down); }
+.trade-card { display: grid; gap: 8px; }
+.trade-card .trade-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: baseline;
+  font-weight: 600;
+}
+.trade-card .trade-mode {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: var(--cyan);
+}
+.trade-card .trade-mode.live { color: var(--down); }
+.trade-card .trade-status { font-size: 12px; color: var(--muted); }
+.trade-card .trade-status.closed { color: var(--up); }
+.trade-card .trade-status.open, .trade-card .trade-status.blocked { color: var(--down); }
+.trade-card .trade-legs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.trade-card .trade-legs li { border: 0; padding: 0; }
+.trade-card .leg-meta { color: var(--muted); font-size: 12px; }
+.trade-card .close-label { color: var(--muted); font-size: 12px; }
 .opp-card { display: grid; gap: 8px; }
 .opp-meta { display: flex; gap: 12px; color: var(--muted); font-size: 12px; }
 .invest-btn {
@@ -477,10 +525,10 @@ h2 {
 @media (max-width: 1100px) {
   .desk { grid-template-columns: 1fr 1fr; }
   .amount-block { grid-row: auto; grid-column: 1 / -1; }
-  .layout, .kpis { grid-template-columns: 1fr 1fr; }
+  .layout, .kpis, .cash-bar { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 720px) {
-  .desk, .layout, .kpis { grid-template-columns: 1fr; }
+  .desk, .layout, .kpis, .cash-bar { grid-template-columns: 1fr; }
   .logo { width: 72px; height: 72px; }
   h1 { font-size: 26px; }
 }

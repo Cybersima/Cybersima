@@ -346,9 +346,15 @@ class LiveCoinbaseBroker(Broker):
                 expected = opportunity.notional * (opportunity.net_edge_bps / 10_000)
                 self.pnl += expected
                 self.risk.record_pnl(expected)
-            if failed or any(item.status != "filled" for item in leftover):
+            # Stay LIVE after a recovered tap. Kill only if this tap still holds
+            # coins we could not sell back to USD — that is leftover risk, not paper mode.
+            if self._pocket_stuck(pocket, last_px):
                 self.risk.kill()
         finally:
+            try:
+                await self.refresh_balances(client)
+            except Exception:
+                pass
             if reserved and not any(item.status == "filled" for item in fills):
                 self.risk.release_live(opportunity.notional)
             self.risk.on_complete()
@@ -356,6 +362,18 @@ class LiveCoinbaseBroker(Broker):
                 await client.aclose()
         self.fills.extend(fills)
         return fills
+
+    def _pocket_stuck(self, pocket: dict[str, float], last_px: dict[str, float]) -> bool:
+        """True when this tap still holds sellable leftover crypto."""
+        for asset, qty in pocket.items():
+            qty = _floor_qty(qty)
+            if asset in STABLE or qty <= 0:
+                continue
+            px = float(last_px.get(asset, 0.0) or 0.0)
+            if px and qty * px < 1.0:
+                continue
+            return True
+        return False
 
     async def _place_order(
         self,

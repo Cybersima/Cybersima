@@ -82,6 +82,7 @@ class PaperBroker(Broker):
                     paper=True,
                     opportunity_id=opportunity.id,
                     status="filled",
+                    note="paper fill",
                 )
             )
         self.pnl += expected

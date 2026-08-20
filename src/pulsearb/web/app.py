@@ -190,7 +190,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     async def report_json() -> dict:
         return {
             "headers": REPORT_HEADERS,
-            "count": len(engine.report.rows),
+            "count": engine.report.taken_rows,
             "rows": engine.report.as_dicts(),
         }
 

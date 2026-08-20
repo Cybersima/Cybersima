@@ -60,7 +60,7 @@
             <button type="button" id="sound-off" aria-pressed="false">Off</button>
           </div>
         </div>
-        <a id="export-report" class="export-btn" href="/api/report.csv" download="CyberSym-SecureTrade-profit-report.csv">Export report</a>
+        <a id="export-report" class="export-btn" href="/api/report.csv" download="CyberSym-SecureTrade-profit-report.csv">Export my trades</a>
         <button id="kill" type="button">Kill switch</button>
       </div>
     </header>
@@ -68,6 +68,25 @@
     <p class="live-banner" id="live-banner" hidden></p>
     <p class="guard-banner" id="guard-banner"></p>
     <p class="toast" id="toast" hidden></p>
+
+    <section class="cash-bar" id="cash-bar" aria-label="Buying power">
+      <article>
+        <label>Coinbase cash</label>
+        <strong id="cash-usd">—</strong>
+      </article>
+      <article>
+        <label>This tap</label>
+        <strong id="cash-tap">—</strong>
+      </article>
+      <article>
+        <label>Session left</label>
+        <strong id="cash-session">—</strong>
+      </article>
+      <article>
+        <label>Taps left</label>
+        <strong id="cash-taps">—</strong>
+      </article>
+    </section>
 
     <section class="live-ready" id="live-ready" aria-label="Ready for live Coinbase">
       <div class="live-ready-head">
@@ -160,7 +179,7 @@
         </section>
         <section class="panel">
           <header>
-            <h2>Your fills</h2>
+            <h2>Your trades</h2>
             <span class="panel-meta" id="fills-meta"></span>
           </header>
           <ol id="fills" class="tape"></ol>
