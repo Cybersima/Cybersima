@@ -21,6 +21,8 @@ def test_dashboard_and_kill_switch() -> None:
     assert css.status_code == 200
     assert "--cyan" in css.text
     assert "--gold" in css.text
+    assert 'html[data-theme="light"]' in css.text
+    assert "--input" in css.text
     logo = client.get("/static/logo.png")
     assert logo.status_code == 200
     assert logo.headers["content-type"].startswith("image/")
@@ -38,6 +40,9 @@ def test_dashboard_and_kill_switch() -> None:
     assert "Export report" in page.text
     assert 'id="live-banner"' in page.text
     assert "logo.png" in page.text
+    assert 'id="theme-dark"' in page.text
+    assert 'id="theme-light"' in page.text
+    assert "cybersym-theme" in page.text
     assert "I’ll pick each trade" in page.text or "I'll pick each trade" in page.text
     assert 'id="invest-amount"' in page.text
     desk = client.get("/api/desk")

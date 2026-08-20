@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -9,6 +9,18 @@
   <meta name="theme-color" content="#05070c" />
   <meta name="application-name" content="{{ product }}" />
   <title>{{ product }} — {{ company }}</title>
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem("cybersym-theme");
+        if (theme !== "light" && theme !== "dark") theme = "dark";
+        document.documentElement.setAttribute("data-theme", theme);
+        document.documentElement.style.colorScheme = theme;
+      } catch (err) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
   <link rel="icon" href="/static/logo.png" />
   <link rel="apple-touch-icon" href="/static/logo.png" />
   <link rel="manifest" href="/static/manifest.json" />
@@ -33,6 +45,13 @@
         <div class="badges">
           <span class="badge" id="exec-badge">{{ execution }}</span>
           <span class="badge dim" id="feed-badge">connecting</span>
+        </div>
+        <div class="appearance">
+          <span class="tag">Look</span>
+          <div class="segmented" role="group" aria-label="Appearance">
+            <button type="button" id="theme-dark" class="on" aria-pressed="true">Dark</button>
+            <button type="button" id="theme-light" aria-pressed="false">Light</button>
+          </div>
         </div>
         <a id="export-report" class="export-btn" href="/api/report.csv" download="CyberSym-SecureTrade-profit-report.csv">Export report</a>
         <button id="kill" type="button">Kill switch</button>

@@ -19,6 +19,10 @@ const modePick = document.getElementById("mode-pick");
 const modeAuto = document.getElementById("mode-auto");
 const amountHint = document.getElementById("amount-hint");
 const toastEl = document.getElementById("toast");
+const themeDarkBtn = document.getElementById("theme-dark");
+const themeLightBtn = document.getElementById("theme-light");
+const THEME_KEY = "cybersym-theme";
+const DESK_KEY = "cybersym-desk";
 
 let snapshot = { quotes: [], opportunities: [], fills: [], stats: {}, desk: {} };
 let lastMids = new Map();
@@ -60,6 +64,69 @@ function tickClock() {
 }
 setInterval(tickClock, 250);
 tickClock();
+
+function applyTheme(theme) {
+  const next = theme === "light" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  document.documentElement.style.colorScheme = next;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", next === "light" ? "#f4f8fc" : "#05070c");
+  const bar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if (bar) bar.setAttribute("content", next === "light" ? "default" : "black-translucent");
+  try {
+    localStorage.setItem(THEME_KEY, next);
+  } catch (err) {
+    /* private mode */
+  }
+  if (themeDarkBtn && themeLightBtn) {
+    themeDarkBtn.classList.toggle("on", next === "dark");
+    themeLightBtn.classList.toggle("on", next === "light");
+    themeDarkBtn.setAttribute("aria-pressed", String(next === "dark"));
+    themeLightBtn.setAttribute("aria-pressed", String(next === "light"));
+  }
+}
+
+function readSavedDesk() {
+  try {
+    const raw = localStorage.getItem(DESK_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved !== "object") return null;
+    return saved;
+  } catch (err) {
+    return null;
+  }
+}
+
+function persistDeskLocal() {
+  try {
+    localStorage.setItem(
+      DESK_KEY,
+      JSON.stringify({
+        notional: desk.notional,
+        auto_invest: desk.auto_invest,
+        all_assets: desk.all_assets,
+        assets: desk.assets,
+        venues: desk.venues,
+        kinds: desk.kinds,
+      })
+    );
+  } catch (err) {
+    /* private mode */
+  }
+}
+
+applyTheme(
+  (() => {
+    try {
+      return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark";
+    } catch (err) {
+      return "dark";
+    }
+  })()
+);
+if (themeDarkBtn) themeDarkBtn.addEventListener("click", () => applyTheme("dark"));
+if (themeLightBtn) themeLightBtn.addEventListener("click", () => applyTheme("light"));
 
 function showToast(text) {
   if (!toastEl) return;
@@ -148,6 +215,7 @@ async function saveDesk(patch) {
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
     desk = await res.json();
+    persistDeskLocal();
     paintDesk();
   } catch (err) {
     showToast("Could not save your choices. " + err);
@@ -155,10 +223,11 @@ async function saveDesk(patch) {
 }
 
 function friendlyOpp(row) {
-  const buy = (row.legs || []).find((leg) => leg.action === "buy");
-  const sell = (row.legs || []).find((leg) => leg.action === "sell");
+  const legs = row.legs || [];
+  const buy = legs.find((leg) => leg.action === "buy");
+  const sell = legs.find((leg) => leg.action === "sell");
   if (row.kind === "triangular") {
-    const venue = (buy && buy.venue) || (row.legs[0] && row.legs[0].venue) || "";
+    const venue = (buy && buy.venue) || (legs[0] && legs[0].venue) || "";
     return `Same-exchange triangle on ${venue}`;
   }
   if (row.kind === "alert") return row.summary;
@@ -168,7 +237,7 @@ function friendlyOpp(row) {
 
 function render() {
   const q = (filter.value || "").trim().toLowerCase();
-  const quotes = snapshot.quotes.filter((row) => {
+  const quotes = (snapshot.quotes || []).filter((row) => {
     if (!q) return true;
     return `${row.venue} ${row.native_symbol} ${row.canonical}`.toLowerCase().includes(q);
   });
@@ -367,7 +436,12 @@ function connect() {
       desk = { ...desk, ...snapshot.desk };
       if (!deskReady) {
         deskReady = true;
-        paintDesk();
+        const saved = readSavedDesk();
+        if (saved) {
+          saveDesk(saved);
+        } else {
+          paintDesk();
+        }
       }
     }
     scheduleRender();
