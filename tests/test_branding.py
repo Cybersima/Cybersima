@@ -1,10 +1,11 @@
-from pulsearb.branding import COMPANY, PRODUCT, SIGNATURE, resolve_logo_path
+from pulsearb.branding import COMPANY, PRODUCT, SIGNATURE, VERSION, resolve_logo_path
 
 
 def test_company_and_product_names() -> None:
     assert COMPANY == "CyberSym"
     assert PRODUCT == "CyberSym SecureTrade"
     assert SIGNATURE == "A CyberSym product"
+    assert VERSION == "1.5"
 
 
 def test_custom_logo_in_branding_folder_wins(tmp_path) -> None:

@@ -1,6 +1,6 @@
 """CyberSym SecureTrade — multi-market dislocation scanner."""
 
-from pulsearb.branding import COMPANY, PRODUCT, SIGNATURE
+from pulsearb.branding import COMPANY, PRODUCT, SIGNATURE, VERSION
 
-__version__ = "0.1.0"
-__all__ = ["COMPANY", "PRODUCT", "SIGNATURE", "__version__"]
+__version__ = VERSION
+__all__ = ["COMPANY", "PRODUCT", "SIGNATURE", "VERSION", "__version__"]

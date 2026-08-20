@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
-from pulsearb.branding import COMPANY, COPYRIGHT, PRODUCT, PRODUCT_SHORT, SIGNATURE, resolve_logo_path
+from pulsearb.branding import COMPANY, COPYRIGHT, PRODUCT, PRODUCT_SHORT, SIGNATURE, VERSION, resolve_logo_path
 from pulsearb.engine.report import REPORT_HEADERS
 from pulsearb.engine.runner import Engine, run_engine
 
@@ -57,6 +57,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
                 "product": PRODUCT,
                 "product_short": PRODUCT_SHORT,
                 "signature": SIGNATURE,
+                "version": VERSION,
                 "copyright": COPYRIGHT,
                 "execution": (
                     f"live {'+'.join(engine.config.live_venue_names())}".strip()

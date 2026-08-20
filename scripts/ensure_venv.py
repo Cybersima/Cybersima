@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create or repair the local .venv so Windows launchers can import encodings."""
+"""Create or rebuild the local .venv. Never rewrite pyvenv.cfg by hand."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def venv_ok(python: Path) -> bool:
         return False
     try:
         result = subprocess.run(
-            [str(python), "-c", "import encodings, sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"],
+            [str(python), "-E", "-c", "import encodings, sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -33,19 +33,6 @@ def venv_ok(python: Path) -> bool:
     except OSError:
         return False
     return result.returncode == 0
-
-
-def write_pyvenv_cfg(venv_dir: Path, home: str, executable: str, version: str) -> None:
-    (venv_dir / "pyvenv.cfg").write_text(
-        (
-            f"home = {home}\n"
-            f"include-system-site-packages = false\n"
-            f"version = {version}\n"
-            f"executable = {executable}\n"
-            f"command = {executable} -m venv {venv_dir}\n"
-        ),
-        encoding="utf-8",
-    )
 
 
 def remove_venv() -> None:
@@ -61,14 +48,14 @@ def remove_venv() -> None:
             time.sleep(0.6)
     raise SystemExit(
         "Could not remove the broken .venv folder.\n"
-        "Close every SecureTrade window, then run REPAIR.bat.\n"
+        "Close every SecureTrade window, then run FIX-VENV.bat.\n"
         f"({last_error})"
     )
 
 
 def create_venv() -> None:
     print("Creating a fresh Python environment...")
-    subprocess.check_call([sys.executable, "-m", "venv", str(VENV), "--clear"], cwd=ROOT)
+    subprocess.check_call([sys.executable, "-m", "venv", str(VENV)], cwd=ROOT)
 
 
 def install_app(python: Path) -> None:
@@ -83,7 +70,7 @@ def main() -> None:
     python = venv_python()
     if venv_ok(python):
         probe = subprocess.run(
-            [str(python), "-c", "import pulsearb"],
+            [str(python), "-E", "-c", "import pulsearb"],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -100,8 +87,7 @@ def main() -> None:
     if not venv_ok(python):
         raise SystemExit(
             "Python still cannot start after rebuilding .venv.\n"
-            "Use the same Python 3.14 (or 3.11+) that already runs v01.3,\n"
-            "close other SecureTrade windows, then run REPAIR.bat again."
+            "Keep using Python 3.14 (or 3.11+). Close other SecureTrade windows, then run FIX-VENV.bat."
         )
     install_app(python)
 

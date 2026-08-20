@@ -1,43 +1,19 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title CyberSym SecureTrade installer
+title CyberSym SecureTrade 1.5 installer
 
 echo.
-echo  CyberSym SecureTrade
+echo  CyberSym SecureTrade 1.5
 echo  A CyberSym product
 echo.
-echo  This installer needs Python 3.11 or newer.
+echo  This installer needs Python 3.11 or newer. Python 3.14 is fine.
 echo  If Python is missing, get it from https://www.python.org/downloads/
 echo  Tick "Add python.exe to PATH" during setup, then run this again.
 echo.
 
-set "PY=python"
-py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
-if not errorlevel 1 set "PY=py -3"
-
-%PY% -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
+call "%~dp0scripts\windows-venv.bat"
 if errorlevel 1 (
-  echo Python 3.11+ was not found.
-  pause
-  exit /b 1
-)
-
-if not exist .venv (
-  echo Creating virtual environment...
-  %PY% -m venv .venv
-  if errorlevel 1 (
-    echo Failed to create .venv
-    pause
-    exit /b 1
-  )
-)
-
-echo Installing CyberSym SecureTrade...
-.venv\Scripts\python.exe -m pip install -U pip
-.venv\Scripts\pip.exe install -e .
-if errorlevel 1 (
-  echo Install failed.
   pause
   exit /b 1
 )

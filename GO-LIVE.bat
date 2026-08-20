@@ -1,13 +1,13 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title CyberSym SecureTrade LIVE
+title CyberSym SecureTrade 1.5 LIVE
 
 set PYTHONHOME=
 set PYTHONPATH=
 
 echo.
-echo  CyberSym SecureTrade — LIVE TRADING
+echo  CyberSym SecureTrade 1.5 — LIVE TRADING
 echo  This sends REAL Coinbase market orders with your money.
 echo  Default cap is $25 per trade.
 echo  Cross-venue (Coinbase vs Kraken/Gemini/Bitstamp) stays PAPER.
@@ -24,12 +24,8 @@ if not exist "keys\coinbase.json" (
 echo Press Ctrl+C to cancel, or
 pause
 
-set "PY=python"
-py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
-if not errorlevel 1 set "PY=py -3"
-
-if not exist .venv (
-  echo Run INSTALL.bat first.
+call "%~dp0scripts\windows-venv.bat"
+if errorlevel 1 (
   pause
   exit /b 1
 )

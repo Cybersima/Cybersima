@@ -13,7 +13,7 @@ if not errorlevel 1 set "PY=py -3"
 %PY% -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
 if errorlevel 1 (
   echo Python 3.11+ was not found.
-  echo Use the same Python that already runs v01.3.
+  echo Python 3.14 is fine. Tick "Add python.exe to PATH".
   exit /b 1
 )
 

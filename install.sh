@@ -17,6 +17,10 @@ fi
   exit 1
 }
 
+if [[ -x .venv/bin/python ]] && ! .venv/bin/python -E -c "import encodings" >/dev/null 2>&1; then
+  echo "Broken .venv detected. Rebuilding..."
+  rm -rf .venv
+fi
 if [[ ! -d .venv ]]; then
   echo "Creating virtual environment..."
   "$PY" -m venv .venv

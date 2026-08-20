@@ -15,9 +15,17 @@ else
   exit 1
 fi
 
+if [[ -x .venv/bin/python ]] && ! .venv/bin/python -E -c "import encodings" >/dev/null 2>&1; then
+  echo "Broken .venv detected. Rebuilding (data/ profit CSV is kept)..."
+  rm -rf .venv
+fi
 if [[ ! -d .venv ]]; then
   echo "Creating virtual environment..."
   "$PY" -m venv .venv
+  .venv/bin/python -m pip install -U pip
+  .venv/bin/pip install -e .
+elif ! .venv/bin/python -E -c "import pulsearb" >/dev/null 2>&1; then
+  echo "Installing SecureTrade packages into .venv..."
   .venv/bin/python -m pip install -U pip
   .venv/bin/pip install -e .
 fi

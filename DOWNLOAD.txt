@@ -8,6 +8,10 @@ https://github.com/Cybersima/Cybersima/raw/cursor/pulsearb-multimarket-scanner-c
 You need Python 3.11+ from https://www.python.org/downloads/
 Windows: tick "Add python.exe to PATH". Python 3.14 is fine.
 
+This zip is product version 1.5 (start.bat prints that). Cursor folder
+names like v01.4 are not the product version. If Version 4 failed,
+1.5 rebuilds the broken .venv automatically, or double-click FIX-VENV.bat.
+
 Then:
   Windows:  double-click INSTALL.bat, then start.bat
   Mac:      double-click Install.command, then start.command

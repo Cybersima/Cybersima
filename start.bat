@@ -1,37 +1,24 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title CyberSym SecureTrade
+title CyberSym SecureTrade 1.5
 
 rem Avoid the Windows "Could not find platform independent libraries <prefix>" warning.
 set PYTHONHOME=
 set PYTHONPATH=
 
-set "PY=python"
-py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
-if not errorlevel 1 set "PY=py -3"
+echo.
+echo  CyberSym SecureTrade 1.5
+echo  A CyberSym product
+echo.
+echo  If this window does not say 1.5, you are in an old unzip folder.
+echo  Cursor names like v01.4 are not the product version.
+echo.
 
-%PY% -c "import sys; raise SystemExit(0 if sys.version_info >= (3,11) else 1)" >nul 2>nul
+call "%~dp0scripts\windows-venv.bat"
 if errorlevel 1 (
-  echo.
-  echo Python 3.11+ was not found.
-  echo Install it from https://www.python.org/downloads/
-  echo Tick "Add python.exe to PATH", then run INSTALL.bat first.
-  echo.
   pause
   exit /b 1
-)
-
-if not exist .venv (
-  echo Installing CyberSym SecureTrade for the first time...
-  %PY% -m venv .venv
-  .venv\Scripts\python.exe -m pip install -U pip
-  .venv\Scripts\pip.exe install -e .
-  if errorlevel 1 (
-    echo Install failed. Try INSTALL.bat
-    pause
-    exit /b 1
-  )
 )
 
 echo.
