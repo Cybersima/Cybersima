@@ -237,7 +237,7 @@ async def assess_live_ready(
             "live_cap",
             "Live size cap",
             True,
-            f"Each tap is $1–${cap:.0f}. Session budget ${cap:.0f}. Cross-venue stays paper.",
+            f"Each tap is $1–${cap:.0f}. Session budget ${cap:.0f}. Live is Coinbase USD/USDC dislocations and triangles. Cross-venue stays paper.",
             required=False,
         )
     )
@@ -268,7 +268,7 @@ async def assess_live_ready(
             "Click Resume. You are not back on paper."
         )
     elif live_on and ready:
-        note = "Live Coinbase is on. Switch back to Paper on this dashboard any time. Every real order is a tap."
+        note = "Live Coinbase dislocations are on (USD vs USDC books, plus triangles). Switch back to Paper any time. Every real order is a tap."
     elif ready:
         note = "Ready. Stay on Paper to practice, then switch to Live on this dashboard when you want real Coinbase orders."
     elif not file_ok:

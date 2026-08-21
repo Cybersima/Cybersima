@@ -7,8 +7,10 @@ from urllib.parse import urlencode
 
 import httpx
 
+from pulsearb.engine.money import CONVERT_TO_USD, STABLE, cash_pnl
 from pulsearb.engine.risk import RiskManager
 from pulsearb.models import Fill, Opportunity
+from pulsearb.symbols import split_pair
 
 
 class Broker:
@@ -67,28 +69,132 @@ class PaperBroker(Broker):
         self.risk.on_submit()
         fills: list[Fill] = []
         now = time.time()
-        expected = opportunity.notional * (opportunity.net_edge_bps / 10_000)
+        start_quote = ""
+        try:
+            if opportunity.legs:
+                _base0, start_quote = split_pair(opportunity.legs[0].symbol)
+        except ValueError:
+            start_quote = ""
+        chained = bool(
+            opportunity.legs
+            and opportunity.legs[0].action == "buy"
+            and start_quote in STABLE
+        )
+        if chained:
+            fills = self._chain_fills(opportunity, now)
+            realized = cash_pnl(fills)
+        else:
+            expected = opportunity.notional * (opportunity.net_edge_bps / 10_000)
+            for leg in opportunity.legs:
+                qty = opportunity.notional / leg.price if leg.price else 0.0
+                fills.append(
+                    Fill(
+                        venue=leg.venue,
+                        symbol=leg.symbol,
+                        side=leg.action,
+                        qty=qty,
+                        price=leg.price,
+                        notional=opportunity.notional,
+                        ts=now,
+                        paper=True,
+                        opportunity_id=opportunity.id,
+                        status="filled",
+                        note="paper fill",
+                    )
+                )
+            realized = expected
+        self.pnl += realized
+        self.risk.record_pnl(realized)
+        self.risk.on_complete()
+        self.fills.extend(fills)
+        return fills
+
+    def _chain_fills(self, opportunity: Opportunity, now: float) -> list[Fill]:
+        fills: list[Fill] = []
+        pocket: dict[str, float] = {"USD": float(opportunity.notional)}
         for leg in opportunity.legs:
-            qty = opportunity.notional / leg.price if leg.price else 0.0
+            try:
+                base, quote = split_pair(leg.symbol)
+            except ValueError:
+                base, quote = leg.symbol.upper(), "USD"
+            if leg.action == "buy":
+                spend = float(pocket.get(quote, 0.0) or 0.0)
+                if spend <= 0:
+                    fills.append(
+                        Fill(
+                            venue=leg.venue,
+                            symbol=leg.symbol,
+                            side="buy",
+                            qty=0,
+                            price=leg.price,
+                            notional=opportunity.notional,
+                            ts=now,
+                            paper=True,
+                            opportunity_id=opportunity.id,
+                            status="blocked",
+                            note=f"paper: no {quote} in this tap to buy {leg.symbol}",
+                        )
+                    )
+                    break
+                qty = spend / leg.price if leg.price else 0.0
+                pocket[quote] = max(0.0, pocket.get(quote, 0.0) - spend)
+                pocket[base] = pocket.get(base, 0.0) + qty
+                fills.append(
+                    Fill(
+                        venue=leg.venue,
+                        symbol=leg.symbol,
+                        side="buy",
+                        qty=qty,
+                        price=leg.price,
+                        notional=spend,
+                        ts=now,
+                        paper=True,
+                        opportunity_id=opportunity.id,
+                        status="filled",
+                        note="paper fill",
+                    )
+                )
+            else:
+                qty = float(pocket.get(base, 0.0) or 0.0)
+                proceeds = qty * leg.price if leg.price else 0.0
+                pocket[base] = 0.0
+                pocket[quote] = pocket.get(quote, 0.0) + proceeds
+                fills.append(
+                    Fill(
+                        venue=leg.venue,
+                        symbol=leg.symbol,
+                        side="sell",
+                        qty=qty,
+                        price=leg.price,
+                        notional=proceeds,
+                        ts=now,
+                        paper=True,
+                        opportunity_id=opportunity.id,
+                        status="filled",
+                        note="paper fill",
+                    )
+                )
+        for asset in CONVERT_TO_USD:
+            qty = float(pocket.get(asset, 0.0) or 0.0)
+            if qty < 0.01:
+                continue
             fills.append(
                 Fill(
-                    venue=leg.venue,
-                    symbol=leg.symbol,
-                    side=leg.action,
+                    venue="coinbase",
+                    symbol=f"{asset}-USD",
+                    side="sell",
                     qty=qty,
-                    price=leg.price,
-                    notional=opportunity.notional,
+                    price=1.0,
+                    notional=qty,
                     ts=now,
                     paper=True,
                     opportunity_id=opportunity.id,
                     status="filled",
-                    note="paper fill",
+                    note="paper flatten to USD",
                 )
             )
-        self.pnl += expected
-        self.risk.record_pnl(expected)
-        self.risk.on_complete()
-        self.fills.extend(fills)
+            pocket[asset] = 0.0
+            pocket["USD"] = pocket.get("USD", 0.0) + qty
         return fills
 
 

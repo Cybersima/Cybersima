@@ -12,6 +12,7 @@ yahoo_poll_seconds: 2.0
 
 fees:
   coinbase_taker_bps: 50.0
+  coinbase_stable_taker_bps: 1.0
   kraken_taker_bps: 26.0
   gemini_taker_bps: 40.0
   bitstamp_taker_bps: 40.0

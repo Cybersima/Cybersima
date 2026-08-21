@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from pulsearb.engine.money import cash_pnl, taker_bps
 from pulsearb.models import Fill, Opportunity
 
 TAKEN_EXECUTION = {"paper", "live", "blocked"}
@@ -40,6 +41,7 @@ REPORT_HEADERS = [
 STRATEGY_LABEL = {
     "cross_venue": "Cross-venue",
     "triangular": "Triangular",
+    "dislocation": "Coinbase dislocation",
     "alert": "Alert",
 }
 
@@ -76,7 +78,7 @@ def _route(opportunity: Opportunity) -> str:
 
 
 def _fee_bps(opportunity: Opportunity, fee_map: dict[str, float]) -> float:
-    return sum(float(fee_map.get(leg.venue, 0.0)) for leg in opportunity.legs)
+    return sum(taker_bps(fee_map, leg.venue, leg.symbol) for leg in opportunity.legs)
 
 
 def build_report_row(
@@ -107,7 +109,7 @@ def build_report_row(
         guardian_status, guardian_detail = "pass", "ok"
     if filled:
         close_reason = "paper_fill" if paper else "live_fill"
-        realized = expected
+        realized = cash_pnl(fill_list)
         fill_ratio = 1.0
         execution = "paper" if paper else "live"
     elif blocked:

@@ -7,12 +7,19 @@ from collections import deque
 
 from pulsearb.branding import PRODUCT
 from pulsearb.config import SPOT_VENUES, AppConfig
-from pulsearb.engine.arbitrage import detect_auto_cross, detect_cross_venue, detect_triangles, discover_triangles
+from pulsearb.engine.arbitrage import (
+    detect_auto_cross,
+    detect_cross_venue,
+    detect_quote_dislocations,
+    detect_triangles,
+    discover_triangles,
+)
 from pulsearb.engine.book import MarketBook
 from pulsearb.engine.broker import Broker, LiveBinanceBroker, LiveRouter, PaperBroker
 from pulsearb.engine.coinbase_live import LiveCoinbaseBroker
 from pulsearb.engine.desk import KIND_LABELS, TradeDesk
 from pulsearb.engine.live_ready import quote_cash
+from pulsearb.engine.money import coinbase_live_ok
 from pulsearb.engine.report import ProfitLedger
 from pulsearb.engine.risk import RiskManager
 from pulsearb.engine.trades import group_trades
@@ -125,6 +132,11 @@ class Engine:
         self.desk.live = live
         if live:
             self.desk.auto_invest = False
+            if "coinbase" not in self.desk.venues:
+                self.desk.venues = ["coinbase", *self.desk.venues]
+            for kind in ("dislocation", "triangular"):
+                if kind not in self.desk.kinds:
+                    self.desk.kinds.append(kind)
             self.risk.max_notional_usdt = float(self.config.risk.get("live_max_notional_usdt", 25))
             self.risk.cooldown_seconds = float(self.config.risk.get("live_cooldown_seconds", 2))
             if self.risk.live_budget_usdt <= 0:
@@ -209,9 +221,10 @@ class Engine:
             )
         elif live:
             live_note = (
-                "LIVE Coinbase: each tap buys and sells a Coinbase triangle and aims to finish back in USD. "
-                "Not buy-and-hold. Cross-venue (Coinbase vs Kraken) stays off — that would mean holding coins to move them. "
-                "Each tap is your desk size. Session budget is the $25 cap. Kill switch stops new orders."
+                "LIVE Coinbase dislocations: USD vs USDC books, plus same-exchange triangles. "
+                "Each tap buys with USD and aims to finish back in USD. Not buy-and-hold. "
+                "Cross-venue (Coinbase vs Kraken) stays paper — that would mean holding coins to move them. "
+                "Each tap is your desk size. Session budget is the $25 cap."
             )
         else:
             live_note = ""
@@ -258,11 +271,14 @@ class Engine:
 
     def _opp_view(self, opp: Opportunity) -> dict:
         data = opp.to_dict()
+        live_ok = coinbase_live_ok(opp)
+        paper_only = self.live_active() and not live_ok
         pending = (
             opp.executable
             and opp.id not in self.invested
             and self.desk.matches(opp, self.book)
             and not self.risk.killed
+            and not paper_only
         )
         data.update(
             {
@@ -272,6 +288,8 @@ class Engine:
                 "pending": pending,
                 "investable": pending and not self.desk.auto_invest,
                 "chosen": self.desk.matches(opp, self.book),
+                "live_ok": live_ok,
+                "paper_only": paper_only,
             }
         )
         return data
@@ -303,6 +321,11 @@ class Engine:
             return {"ok": False, "error": "That pair is outside your price filter, or that coin/exchange is off."}
         if opportunity_id in self.invested:
             return {"ok": False, "error": "You already took this trade."}
+        if self.live_active() and not coinbase_live_ok(opp):
+            return {
+                "ok": False,
+                "error": "Live only takes Coinbase dislocations that buy with USD and sell back toward USD. Cross-exchange gaps stay paper.",
+            }
         fills = await self._take(opp)
         await self.broadcast()
         if not any(item.status == "filled" for item in fills):
@@ -470,8 +493,17 @@ class Engine:
                         min_executable_edge_bps=min_exec,
                     )
                 )
+            dislocations = detect_quote_dislocations(
+                self.book,
+                venue="coinbase",
+                min_edge_bps=min_alert,
+                fee_map=fee_map,
+                extra_slippage_bps=extra,
+                notional=notional,
+                min_executable_edge_bps=min_exec,
+            )
             # Demo quotes use real venue names, so the venue-scoped scan above is enough.
-            fresh = [opp for opp in (*cross, *auto, *triangles) if opp.id not in self.seen]
+            fresh = [opp for opp in (*cross, *auto, *triangles, *dislocations) if opp.id not in self.seen]
             for opp in fresh:
                 self.seen.add(opp.id)
                 self.by_id[opp.id] = opp

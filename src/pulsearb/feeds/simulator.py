@@ -47,9 +47,20 @@ SEED: dict[str, float] = {
     "ONDO-USD": 1.12,
     "ETH-BTC": 3520.0 / 97500.0,
     "LTC-BTC": 92.0 / 97500.0,
+    "SOL-BTC": 178.0 / 97500.0,
     "BTC-EUR": 89800.0,
     "ETH-EUR": 3240.0,
     "EUR-USD": 1.085,
+    "USDC-USD": 1.0,
+    "BTC-USDC": 97500.0,
+    "ETH-USDC": 3520.0,
+    "SOL-USDC": 178.0,
+    "XRP-USDC": 2.42,
+    "LTC-USDC": 92.0,
+    "LINK-USDC": 18.2,
+    "DOGE-USDC": 0.32,
+    "AVAX-USDC": 38.5,
+    "ADA-USDC": 0.78,
     "GBP-USD": 1.275,
     "USD-JPY": 149.2,
     "AUD-USD": 0.662,
@@ -123,19 +134,37 @@ class SimulatorFeed(Feed):
             shock_venue = random.choice(["coinbase", "kraken", "gemini", "bitstamp"])
             cross_shock = (shock_canon, shock_venue, 0.988 if random.random() < 0.5 else 1.012)
         if inject and triangle_shock is None:
-            tri_pairs = [canon for _v, canon, _e in self.instruments if canon in {"ETH-BTC", "LTC-BTC"}]
+            tri_pairs = [canon for _v, canon, _e in self.instruments if canon in {"ETH-BTC", "LTC-BTC", "SOL-BTC"}]
             if tri_pairs:
                 triangle_shock = (
                     random.choice(tri_pairs),
                     random.choice(["coinbase", "kraken", "gemini", "bitstamp"]),
                     0.975 if random.random() < 0.5 else 1.025,
                 )
+        if inject:
+            usdc_pairs = [
+                canon
+                for venue, canon, _e in self.instruments
+                if venue == "coinbase" and canon.endswith("-USDC") and canon != "USDC-USD"
+            ]
+            if usdc_pairs:
+                quote_shock = (
+                    random.choice(usdc_pairs),
+                    "coinbase",
+                    0.985 if random.random() < 0.5 else 1.015,
+                )
+            else:
+                quote_shock = None
+        else:
+            quote_shock = None
         for venue, canon, executable in self.instruments:
             mid = self._walk(canon) * VENUE_BIAS.get(venue, 1.0)
             if cross_shock and canon == cross_shock[0] and venue == cross_shock[1]:
                 mid *= cross_shock[2]
             if triangle_shock and canon == triangle_shock[0] and venue == triangle_shock[1]:
                 mid *= triangle_shock[2]
+            if quote_shock and canon == quote_shock[0] and venue == quote_shock[1]:
+                mid *= quote_shock[2]
             spread = mid * (0.0002 if venue == "yahoo" else 0.00012)
             native = canon if venue == "yahoo" else to_native_symbol(venue, canon)
             try:

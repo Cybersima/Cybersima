@@ -106,8 +106,8 @@ async def test_invest_uses_customer_amount() -> None:
     engine.by_id[opp.id] = opp
     result = await engine.invest(opp.id)
     assert result["ok"] is True
-    assert engine.paper.pnl > 0
-    assert list(engine.fills)[0].notional == 15
+    assert engine.paper.pnl != 0
+    assert any(abs(fill.notional - 15) < 1e-9 for fill in engine.fills)
 
 
 def test_under_filter_hides_expensive_pairs() -> None:

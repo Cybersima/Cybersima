@@ -14,6 +14,7 @@ class Venue(str, Enum):
 class OpportunityKind(str, Enum):
     CROSS_VENUE = "cross_venue"
     TRIANGULAR = "triangular"
+    DISLOCATION = "dislocation"
     ALERT = "alert"
 
 

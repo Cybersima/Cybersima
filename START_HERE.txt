@@ -67,8 +67,8 @@ Real Coinbase orders (your money):
    Windows:  CHECK-LIVE.bat, then start-live.bat. Practice on Paper.
              Switch to Live on the dashboard when you are ready.
              GO-LIVE.bat still starts already live if you prefer.
-   Default: $5 per tap, $25 session budget. Each live tap buys and sells
-   back toward USD (not hold). Cross-venue two-exchange gaps are not live.
-   Auto stays off while live.
+   Default: $5 per tap, $25 session budget. Live takes Coinbase USD vs USDC
+   dislocations and Coinbase triangles, then sells back toward USD.
+   Cross-venue two-exchange gaps stay paper. Auto stays off while live.
 
 © CyberSym. All rights reserved.

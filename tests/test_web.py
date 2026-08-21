@@ -73,6 +73,7 @@ def test_dashboard_and_kill_switch() -> None:
     assert "auto_allowed" in js.text
     assert "emptyOppsMessage" in js.text
     assert "three Coinbase fees" in js.text
+    assert "Coinbase dislocations" in page.text
     assert "tradeCard" in js.text
     assert "cash-usd" in js.text
     assert "cybersym-theme" in page.text

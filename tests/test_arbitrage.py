@@ -1,6 +1,7 @@
 from pulsearb.engine.arbitrage import (
     detect_auto_cross,
     detect_cross_venue,
+    detect_quote_dislocations,
     detect_triangles,
     discover_triangles,
 )
@@ -152,3 +153,26 @@ def test_coinbase_triangle_clears_retail_fees_on_two_and_a_half_percent() -> Non
     best = max(opps, key=lambda o: o.net_edge_bps)
     assert best.net_edge_bps >= 25
     assert best.executable
+
+
+def test_coinbase_usd_vs_usdc_dislocation_is_live_route() -> None:
+    book = MarketBook()
+    book.update(make_quote("coinbase", "BTC-USD", 97000, 97010, executable=True))
+    book.update(make_quote("coinbase", "BTC-USDC", 98990, 99000, executable=True))
+    book.update(make_quote("coinbase", "USDC-USD", 0.999, 1.001, executable=True))
+    opps = detect_quote_dislocations(
+        book,
+        venue="coinbase",
+        min_edge_bps=8,
+        fee_map={"coinbase": 50, "coinbase_stable": 1.0},
+        extra_slippage_bps=2,
+        notional=10,
+        min_executable_edge_bps=25,
+    )
+    assert opps
+    best = max(opps, key=lambda o: o.net_edge_bps)
+    assert best.kind is OpportunityKind.DISLOCATION
+    assert best.executable
+    assert best.legs[0].action == "buy"
+    assert best.legs[0].symbol == "BTC-USD"
+    assert any(leg.symbol == "BTC-USDC" and leg.action == "sell" for leg in best.legs)

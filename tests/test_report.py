@@ -83,7 +83,7 @@ def test_filled_paper_row_extracts_venues_and_pnl() -> None:
     assert row["Fee (bps)"] == 76
     assert row["Slippage (bps)"] == 2
     assert row["Expected P&L"] == 1.1
-    assert row["Realized P&L"] == 1.1
+    assert row["Realized P&L"] == round(-0.002 * 97010, 6)
     assert row["Fill Ratio"] == 1.0
     assert row["Paper Notional"] == 250
     assert row["Guardian Status"] == "pass"

@@ -92,13 +92,14 @@ Real Coinbase orders need a **Secret API key** at [portal.cdp.coinbase.com/proje
 
 Live mode:
 
-- Sends **Coinbase-only** triangles as market IOC orders: buy, then sell, aiming to finish back in **USD** (not buy-and-hold)
+- Sends **Coinbase dislocations** (same coin on the USD book vs the USDC book) and Coinbase triangles as market IOC orders: buy with USD, then sell, aiming to finish back in **USD**
 - Default tap size **$5** (buttons $1, $2, $3, $4, $5 …). Max **$25** per tap
 - Session live budget **$25** (split across many taps)
 - Does **not** take cross-venue live (Coinbase vs Kraken/Gemini/Bitstamp) — that would mean holding a coin to move it
 - Keeps **Auto off** so every live order is a tap
+- P&L is from actual fill prices
 - Requires `PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK` (GO-LIVE sets this)
-- Trips the kill switch if a live order fails; leftover coins from that tap are sold back toward USD
+- Pauses new orders if leftover coins from that tap cannot be sold back to USD
 
 You can lose money. Optional Binance live orders (non-US) still require `--binance`, keys, live mode, and the confirm phrase.
 

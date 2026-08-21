@@ -5,9 +5,8 @@ import itertools
 import time
 from collections import defaultdict
 
-import itertools
-
 from pulsearb.engine.book import MarketBook
+from pulsearb.engine.money import taker_bps
 from pulsearb.models import Leg, Opportunity, OpportunityKind, Quote
 from pulsearb.symbols import comparison_key, split_pair
 
@@ -224,6 +223,98 @@ def detect_triangles(
                     executable=all(leg.executable for leg in legs) and net >= min_exec - 1e-9,
                     ts=now,
                     id=_oid("tri", venue or "any", start, x, y, f"{net:.2f}"),
+                )
+            )
+    return found
+
+
+QUOTE_BOOKS = ("USD", "USDC", "USDT", "EUR")
+
+
+def _usd_price(book: MarketBook, price: float, quote: str, venue: str) -> float | None:
+    if quote == "USD":
+        return price
+    fx = book.find_pair(quote, "USD", venue=venue)
+    if fx and fx.mid > 0:
+        return price * fx.mid
+    if quote in {"USDC", "USDT"}:
+        return price
+    return None
+
+
+def detect_quote_dislocations(
+    book: MarketBook,
+    *,
+    venue: str,
+    min_edge_bps: float,
+    fee_map: dict[str, float],
+    extra_slippage_bps: float,
+    notional: float,
+    min_executable_edge_bps: float | None = None,
+) -> list[Opportunity]:
+    """Same-venue base priced in USD vs USDC (or EUR) — Coinbase dislocations live can take."""
+    min_exec = min_edge_bps if min_executable_edge_bps is None else min_executable_edge_bps
+    now = time.time()
+    by_base: dict[str, list[Quote]] = {}
+    for quote in book.snapshot():
+        if quote.venue != venue or not quote.executable:
+            continue
+        try:
+            base, q = split_pair(quote.canonical)
+        except ValueError:
+            continue
+        if base in {"USD", "USDC", "USDT"} or q not in QUOTE_BOOKS:
+            continue
+        by_base.setdefault(base, []).append(quote)
+
+    found: list[Opportunity] = []
+    for base, rows in by_base.items():
+        if len(rows) < 2:
+            continue
+        for cheap, rich in itertools.permutations(rows, 2):
+            try:
+                _b, cheap_q = split_pair(cheap.canonical)
+                _b2, rich_q = split_pair(rich.canonical)
+            except ValueError:
+                continue
+            if cheap_q == rich_q:
+                continue
+            cheap_ask = _usd_price(book, cheap.ask, cheap_q, venue)
+            rich_bid = _usd_price(book, rich.bid, rich_q, venue)
+            if not cheap_ask or not rich_bid or cheap_ask <= 0:
+                continue
+            raw_bps = (rich_bid / cheap_ask - 1.0) * 10_000
+            legs: list[Leg] = []
+            if cheap_q == "USD":
+                legs = [
+                    Leg("buy", venue, cheap.native_symbol, cheap.ask, True),
+                    Leg("sell", venue, rich.native_symbol, rich.bid, True),
+                ]
+            else:
+                bridge = book.find_pair(cheap_q, "USD", venue=venue)
+                if bridge is None or rich_q != "USD":
+                    continue
+                legs = [
+                    Leg("buy", venue, bridge.native_symbol, bridge.ask, True),
+                    Leg("buy", venue, cheap.native_symbol, cheap.ask, True),
+                    Leg("sell", venue, rich.native_symbol, rich.bid, True),
+                ]
+            fees = sum(taker_bps(fee_map, venue, leg.symbol) for leg in legs) + extra_slippage_bps
+            net = raw_bps - fees
+            if net < min_edge_bps:
+                continue
+            route = " → ".join(f"{leg.action} {leg.symbol}" for leg in legs)
+            found.append(
+                Opportunity(
+                    kind=OpportunityKind.DISLOCATION,
+                    edge_bps=raw_bps,
+                    net_edge_bps=net,
+                    notional=notional,
+                    legs=legs,
+                    summary=f"{base} dislocation on {venue}: {route}  net {net:.1f} bps",
+                    executable=net >= min_exec - 1e-9,
+                    ts=now,
+                    id=_oid("disloc", venue, base, cheap.native_symbol, rich.native_symbol, f"{net:.2f}"),
                 )
             )
     return found

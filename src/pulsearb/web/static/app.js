@@ -63,7 +63,7 @@ let desk = {
   all_assets: false,
   assets: ["BTC", "ETH", "SOL", "XRP"],
   venues: ["coinbase", "kraken", "gemini", "bitstamp"],
-  kinds: ["cross_venue", "triangular"],
+  kinds: ["cross_venue", "dislocation", "triangular"],
   cap: 250,
   min_notional: 1,
   presets: [1, 2, 3, 4, 5, 10, 25, 50, 100, 250],
@@ -76,6 +76,7 @@ let desk = {
   ],
   kind_choices: [
     { id: "cross_venue", label: "Price gaps" },
+    { id: "dislocation", label: "Coinbase dislocations" },
     { id: "triangular", label: "Same-exchange triangles" },
   ],
   live: false,
@@ -383,8 +384,8 @@ function paintExecToggle() {
   if (execLive) execLive.classList.toggle("on", live);
   if (ledeEl) {
     ledeEl.textContent = live
-      ? "Each live tap buys and sells the same Coinbase gap, then aims to finish back in USD. It is not buy-and-hold."
-      : "Paper first. Switch to Live on this dashboard when you are ready. Each live tap buys and sells back to USD.";
+      ? "Live: Coinbase dislocations (USD vs USDC) and Coinbase triangles. Each tap buys with USD and aims to finish back in USD."
+      : "Paper first. Switch to Live for real Coinbase dislocation taps. Cross-exchange gaps stay paper.";
   }
 }
 
@@ -455,7 +456,7 @@ function paintDesk() {
   if (modeHint) {
     modeHint.textContent = autoAllowed
       ? "Picking is safer. Auto uses your amount on matching trades."
-      : "Live mode: Auto stays off. Each tap buys and sells a Coinbase triangle back toward USD. Cross-venue gaps are not live — that would mean holding coins.";
+      : "Live mode: Auto stays off. Each tap is a Coinbase dislocation or triangle that starts in USD and aims to finish in USD. Cross-venue gaps stay paper.";
   }
 
   const priceMode = desk.price_mode || "any";
@@ -611,6 +612,7 @@ function priceFilterLabel() {
 function emptyOppsMessage() {
   const kinds = desk.kinds || [];
   const onlyTri = kinds.length === 1 && kinds[0] === "triangular";
+  const onlyDis = kinds.length === 1 && kinds[0] === "dislocation";
   const range = priceFilterLabel();
   const feeds = (snapshot.stats && snapshot.stats.feed_status) || {};
   const demo = Boolean(feeds.simulator);
@@ -623,7 +625,12 @@ function emptyOppsMessage() {
   if (onlyTri) {
     return demo
       ? "Waiting for a same-exchange triangle. Demo injects one about every 18 seconds. If Show pairs is Under $5, set it to Any. Auto cannot fire until a row appears."
-      : "Same-exchange triangles are rare on live prices — three Coinbase fees eat most edges. Nothing is blocked; nothing has printed yet. For paper practice, also turn on Price gaps, or run start.bat (demo injects triangle gaps). Auto cannot fire until a row appears.";
+      : "Same-exchange triangles are rare on live prices — three Coinbase fees eat most edges. Turn on Coinbase dislocations (USD vs USDC) as well. Auto cannot fire until a row appears.";
+  }
+  if (onlyDis) {
+    return demo
+      ? "Waiting for a Coinbase USD vs USDC dislocation. Demo injects one about every 18 seconds."
+      : "Watching Coinbase USD vs USDC books. A takeable live tap needs the gap to clear two Coinbase fees. Nothing is blocked; nothing has printed yet.";
   }
   return "No matching trades right now. Pick more coins, or wait for the next scan.";
 }
@@ -632,6 +639,9 @@ function friendlyOpp(row) {
   const legs = row.legs || [];
   const buy = legs.find((leg) => leg.action === "buy");
   const sell = legs.find((leg) => leg.action === "sell");
+  if (row.kind === "dislocation") {
+    return row.summary || "Coinbase USD vs USDC dislocation — buy, sell, finish toward USD";
+  }
   if (row.kind === "triangular") {
     const venue = (buy && buy.venue) || (legs[0] && legs[0].venue) || "";
     if (row.summary) return row.summary;
@@ -712,9 +722,14 @@ function render() {
           if (desk.live) {
             const note = document.createElement("div");
             note.className = "hint";
-            note.textContent = "Buys, then sells. Aims to finish in USD — not hold coins.";
+            note.textContent = "Live Coinbase: buys with USD, then sells back toward USD.";
             li.append(note);
           }
+        } else if (row.paper_only) {
+          const note = document.createElement("div");
+          note.className = "hint";
+          note.textContent = "Paper only while Live is on — this gap needs two exchanges. Live stays on Coinbase round-trips.";
+          li.append(note);
         } else if (row.pending && desk.auto_invest) {
           const note = document.createElement("div");
           note.className = "hint";

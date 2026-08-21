@@ -25,9 +25,10 @@ USD_PRICE_QUOTES = ("USD", "USDT", "USDC", "FDUSD", "BUSD", "TUSD")
 PRICE_MODES = ("any", "under", "over")
 PRICE_PRESETS = [1, 2, 5, 10, 50, 100, 1000]
 VENUES = ["coinbase", "kraken", "gemini", "bitstamp"]
-KINDS = ["cross_venue", "triangular"]
+KINDS = ["cross_venue", "dislocation", "triangular"]
 KIND_LABELS = {
     "cross_venue": "Price gaps",
+    "dislocation": "Coinbase dislocations",
     "triangular": "Same-exchange triangles",
     "alert": "Watch only",
 }

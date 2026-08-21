@@ -102,6 +102,23 @@ def _opp(*, venues: tuple[str, str] = ("coinbase", "coinbase"), notional: float 
     )
 
 
+def _disloc_opp(*, notional: float = 10) -> Opportunity:
+    return Opportunity(
+        kind=OpportunityKind.DISLOCATION,
+        edge_bps=110,
+        net_edge_bps=40,
+        notional=notional,
+        legs=[
+            Leg("buy", "coinbase", "BTC-USD", 97000, True),
+            Leg("sell", "coinbase", "BTC-USDC", 98100, True),
+        ],
+        summary="BTC-USD vs BTC-USDC on coinbase",
+        executable=True,
+        ts=0,
+        id="live-disloc-1",
+    )
+
+
 def test_jwt_is_three_part_token() -> None:
     token = build_rest_jwt("organizations/test/apiKeys/abc", _ecdsa_pem(), "GET", "/api/v3/brokerage/accounts")
     assert token.count(".") == 2
@@ -151,7 +168,13 @@ async def test_router_blocks_cross_venue_while_live() -> None:
 
 
 def _fill_from_order(body: dict) -> tuple[str, str]:
-    prices = {"BTC-USD": 97000.0, "ETH-BTC": 0.019, "ETH-USD": 2000.0}
+    prices = {
+        "BTC-USD": 97000.0,
+        "ETH-BTC": 0.019,
+        "ETH-USD": 2000.0,
+        "BTC-USDC": 98100.0,
+        "USDC-USD": 1.0,
+    }
     product = body["product_id"]
     side = body["side"]
     ioc = body["order_configuration"]["market_market_ioc"]
@@ -444,4 +467,66 @@ def test_snapshot_shows_cash_and_trades_on_paper() -> None:
     assert "trades" in snap
     assert snap["stats"]["live_armed"] is False
     assert snap["stats"]["execution"] == "paper"
+
+
+@pytest.mark.asyncio
+async def test_coinbase_dislocation_buys_usd_sells_usdc_flattens() -> None:
+    pem = _ecdsa_pem()
+    posted: list[dict] = []
+    orders: dict[str, dict] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("/accounts"):
+            return httpx.Response(
+                200,
+                json={"accounts": [{"currency": "USD", "available_balance": {"value": "100.00"}}]},
+            )
+        if path.endswith("/orders") and request.method == "POST":
+            body = json.loads(request.content)
+            oid = f"oid-{len(orders) + 1}"
+            orders[oid] = body
+            posted.append(body)
+            return httpx.Response(200, json={"success": True, "success_response": {"order_id": oid}})
+        if "historical" in path:
+            oid = path.rstrip("/").split("/")[-1]
+            qty, px = _fill_from_order(orders[oid])
+            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px}})
+        return httpx.Response(404, json={"message": path})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
+    risk = RiskManager(cooldown_seconds=0, max_notional_usdt=25)
+    paper = PaperBroker(risk)
+    broker = LiveCoinbaseBroker(risk, "organizations/x/apiKeys/y", pem, paper, client=client)
+    fills = await broker.execute(_disloc_opp(notional=10))
+    await client.aclose()
+    assert [row.symbol for row in fills if row.status == "filled"][:2] == ["BTC-USD", "BTC-USDC"]
+    assert any(row.symbol == "USDC-USD" for row in fills)
+    assert all(row.paper is False for row in fills if row.status == "filled")
+    assert posted[0]["side"] == "BUY"
+    assert posted[1]["side"] == "SELL"
+    assert risk.killed is False
+
+
+@pytest.mark.asyncio
+async def test_live_invest_rejects_cross_venue(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "keys").mkdir()
+    (tmp_path / "keys" / "coinbase.json").write_text(
+        json.dumps({"name": "organizations/x/apiKeys/y", "privateKey": _ecdsa_pem()}),
+        encoding="utf-8",
+    )
+
+    async def fake_ready(*_args, **_kwargs):
+        return {"ok": True, "ready": True, "note": "Ready", "checks": []}
+
+    monkeypatch.setattr("pulsearb.engine.live_ready.assess_live_ready", fake_ready)
+    engine = Engine(AppConfig())
+    armed = await engine.set_execution("live", confirm=engine.config.live_confirm_phrase)
+    assert armed["ok"] is True
+    opp = _opp(venues=("coinbase", "kraken"))
+    engine.by_id[opp.id] = opp
+    result = await engine.invest(opp.id)
+    assert result["ok"] is False
+    assert "coinbase" in result["error"].lower()
 

@@ -44,8 +44,20 @@ coinbase:
     - ONDO-USD
     - ETH-BTC
     - LTC-BTC
+    - SOL-BTC
     - BTC-EUR
     - ETH-EUR
+    - EUR-USD
+    - USDC-USD
+    - BTC-USDC
+    - ETH-USDC
+    - SOL-USDC
+    - XRP-USDC
+    - LTC-USDC
+    - LINK-USDC
+    - DOGE-USDC
+    - AVAX-USDC
+    - ADA-USDC
 
 kraken:
   enabled: true

@@ -9,13 +9,12 @@ import httpx
 
 from pulsearb.engine.broker import Broker, PaperBroker
 from pulsearb.engine.coinbase_auth import HOST, build_rest_jwt
+from pulsearb.engine.money import CONVERT_TO_USD, STABLE, cash_pnl
+from pulsearb.engine.risk import RiskManager
 from pulsearb.engine.risk import RiskManager
 from pulsearb.feeds.headers import HTTP_HEADERS
 from pulsearb.models import Fill, Opportunity
 from pulsearb.symbols import split_pair
-
-
-STABLE = {"USD", "USDT", "USDC"}
 
 
 def _floor_qty(qty: float, digits: int = 8) -> float:
@@ -194,7 +193,7 @@ class LiveCoinbaseBroker(Broker):
             have_pocket = pocket.get(asset, 0.0)
             # First USD buy uses cash on the account. Later legs spend only
             # what this tap just acquired (pocket), so we never spend the bag.
-            have = have_pocket if asset not in STABLE or have_pocket > 0 else have_acct
+            have = have_pocket if asset != "USD" or have_pocket > 0 else have_acct
             if have + 1e-9 < need:
                 return f"insufficient {asset} ({have:.8f} < {need})"
         else:
@@ -239,7 +238,7 @@ class LiveCoinbaseBroker(Broker):
     ) -> dict[str, Any] | str:
         base, quote = self._pair(symbol)
         if action == "buy":
-            if first_cash and quote in STABLE and pocket.get(quote, 0.0) <= 0:
+            if first_cash and quote == "USD" and pocket.get(quote, 0.0) <= 0:
                 spend = min(opportunity.notional, self.balances.get(quote, 0.0))
             else:
                 spend = pocket.get(quote, 0.0)
@@ -263,7 +262,7 @@ class LiveCoinbaseBroker(Broker):
         if not coinbase_legs or len(coinbase_legs) != len(opportunity.legs):
             return await self.paper_fallback.execute(opportunity)
         _, first_quote = self._pair(coinbase_legs[0].symbol)
-        if coinbase_legs[0].action != "buy" or first_quote not in STABLE:
+        if coinbase_legs[0].action != "buy" or first_quote != "USD":
             return self._blocked(
                 opportunity,
                 "Live taps start with USD, then sell back to USD. This one would use coins you already hold.",
@@ -339,13 +338,12 @@ class LiveCoinbaseBroker(Broker):
                 self._credit_pocket(pocket, last_px, sized, fill.qty, fill.price)
                 if sized["side"] == "BUY" and str(sized["_quote"]) in STABLE:
                     first_cash = False
-            strategy_ok = bool(fills) and all(item.status == "filled" for item in fills) and not failed
             leftover = await self._flatten_pocket(client, opportunity, pocket, last_px)
             fills.extend(leftover)
-            if strategy_ok and all(item.status == "filled" for item in leftover):
-                expected = opportunity.notional * (opportunity.net_edge_bps / 10_000)
-                self.pnl += expected
-                self.risk.record_pnl(expected)
+            realized = cash_pnl(fills)
+            if any(item.status == "filled" and item.qty > 0 for item in fills):
+                self.pnl += realized
+                self.risk.record_pnl(realized)
             # Stay LIVE after a recovered tap. Kill only if this tap still holds
             # coins we could not sell back to USD — that is leftover risk, not paper mode.
             if self._pocket_stuck(pocket, last_px):
@@ -364,15 +362,18 @@ class LiveCoinbaseBroker(Broker):
         return fills
 
     def _pocket_stuck(self, pocket: dict[str, float], last_px: dict[str, float]) -> bool:
-        """True when this tap still holds sellable leftover crypto."""
+        """True when this tap still holds sellable leftover crypto or USDC."""
         for asset, qty in pocket.items():
             qty = _floor_qty(qty)
-            if asset in STABLE or qty <= 0:
+            if asset == "USD" or qty <= 0:
                 continue
             px = float(last_px.get(asset, 0.0) or 0.0)
+            if asset in CONVERT_TO_USD:
+                px = px or 1.0
             if px and qty * px < 1.0:
                 continue
-            return True
+            if asset in CONVERT_TO_USD or asset not in STABLE:
+                return True
         return False
 
     async def _place_order(
@@ -442,13 +443,17 @@ class LiveCoinbaseBroker(Broker):
         pocket: dict[str, float],
         last_px: dict[str, float],
     ) -> list[Fill]:
-        """Sell leftover coins from this tap back to USD. Never sells the customer's bag."""
+        """Sell leftover coins and USDC from this tap back to USD. Never sells the customer's bag."""
         out: list[Fill] = []
         for asset, qty in list(pocket.items()):
             qty = _floor_qty(qty)
-            if asset in STABLE or qty <= 0:
+            if asset == "USD" or qty <= 0:
+                continue
+            if asset not in CONVERT_TO_USD and asset in STABLE:
                 continue
             px = last_px.get(asset, 0.0)
+            if asset in CONVERT_TO_USD:
+                px = px or 1.0
             if px and qty * px < 1.0:
                 continue
             symbol = f"{asset}-USD"

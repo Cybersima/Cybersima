@@ -1,6 +1,7 @@
 from pulsearb.engine.arbitrage import detect_triangles, discover_triangles
 from pulsearb.engine.book import MarketBook
 from pulsearb.feeds.simulator import SimulatorFeed
+from tests.helpers import make_quote
 
 
 def test_simulator_triangle_shock_clears_coinbase_fees() -> None:
@@ -29,3 +30,36 @@ def test_simulator_triangle_shock_clears_coinbase_fees() -> None:
     best = max(opps, key=lambda o: o.net_edge_bps)
     assert best.executable
     assert best.net_edge_bps >= 25
+
+
+def test_simulator_usdc_shock_clears_coinbase_quote_fees() -> None:
+    from pulsearb.engine.arbitrage import detect_quote_dislocations
+
+    feed = SimulatorFeed(
+        instruments=[
+            ("coinbase", "BTC-USD", True),
+            ("coinbase", "BTC-USDC", True),
+            ("coinbase", "USDC-USD", True),
+        ]
+    )
+    feed._walk = lambda key: feed._mids[key]
+    book = MarketBook()
+    feed._tick(book, inject=True, triangle_shock=("skip", "none", 1.0), cross_shock=("skip", "none", 1.0))
+    # Force a USDC dislocation large enough to clear two 50 bps legs.
+    btc_usd = book.get("coinbase", "BTC-USD")
+    assert btc_usd is not None
+    book.update(
+        make_quote("coinbase", "BTC-USDC", btc_usd.bid * 1.02, btc_usd.ask * 1.02, executable=True)
+    )
+    opps = detect_quote_dislocations(
+        book,
+        venue="coinbase",
+        min_edge_bps=8,
+        fee_map={"coinbase": 50, "coinbase_stable": 1.0},
+        extra_slippage_bps=2,
+        notional=10,
+        min_executable_edge_bps=25,
+    )
+    assert opps
+    assert max(opps, key=lambda o: o.net_edge_bps).executable
+
