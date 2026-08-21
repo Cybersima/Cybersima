@@ -192,7 +192,7 @@ class Engine:
             "ok": True,
             "execution": "live",
             "desk": self.desk_view(),
-            "note": "LIVE. Each tap buys and sells on Coinbase, then aims to finish back in USD.",
+            "note": "LIVE. Coinbase USD vs USDC dislocations and triangles. Each tap starts in USD and aims to finish in USD.",
         }
 
     async def _refresh_cash(self) -> None:
