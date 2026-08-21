@@ -63,7 +63,9 @@ Live market data (still paper trading):
 Real Coinbase or Kraken orders (your money):
    Read LIVE.txt first.
    Coinbase: keys\coinbase.json from https://portal.cdp.coinbase.com/projects/api-keys
-   Kraken:   keys\kraken.json  {"key":"...","secret":"..."} from Kraken API settings
+   Kraken:   copy keys\kraken.json.example to keys\kraken.json
+             Paste Kraken “API Key” into "key" and “Private Key” into "secret".
+             Kraken does not download a file.
    You only need the exchange you will trade on.
    Windows:  CHECK-LIVE.bat, then start-live.bat. Practice on Paper.
              Pick Live on: Coinbase or Kraken. Switch to Live when ready.

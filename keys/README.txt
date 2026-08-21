@@ -6,10 +6,13 @@ Create at: https://portal.cdp.coinbase.com/projects/api-keys
 View + Trade only — no Transfer. Signature: ECDSA.
 In the popup click Download API key, then rename the file coinbase.json.
 
-Kraken:
+Kraken (no download — you make this file):
     kraken.json
-Create at: https://www.kraken.com/u/security/api
-JSON shape: {"key":"...","secret":"..."}
+Copy kraken.json.example and rename it to kraken.json.
+Create the key at: https://www.kraken.com/u/security/api
+Paste:
+    "key"    = Kraken API Key
+    "secret" = Kraken Private Key
 Permissions: Query Funds + Create & Modify Orders. Do NOT enable Withdraw.
 
 You do not need both. Pick Coinbase or Kraken on the dashboard.

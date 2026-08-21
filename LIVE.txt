@@ -49,26 +49,46 @@ Setup (once) — Coinbase
 
 Setup (once) — Kraken
 ---------------------
+Kraken does NOT download a file. You copy the two values it shows
+(API Key and Private Key) into a small JSON file yourself.
+
 1. Create a Kraken API key:
      https://www.kraken.com/u/security/api
    Permissions: Query Funds + Create & Modify Orders.
    Do NOT enable Withdraw.
-   Save as keys\kraken.json:
-     {"key":"YOUR_API_KEY","secret":"YOUR_PRIVATE_KEY"}
+   Copy both values before you close the page. The private key is
+   shown only once.
 
-2. Leave USD on that exchange (at least the $25 session cap). You do
+2. In the same folder as start.bat, open the keys folder.
+   Copy keys\kraken.json.example and rename the copy to kraken.json
+   (Notepad: File → Save As → File name: kraken.json
+    Save as type: All Files. Not kraken.json.txt.)
+
+   The file must look like this — one line of key, one line of secret,
+   both in quotes, no extra commas:
+
+     {
+       "key": "PASTE_THE_API_KEY_HERE",
+       "secret": "PASTE_THE_PRIVATE_KEY_HERE"
+     }
+
+   Kraken’s “API Key” goes in "key".
+   Kraken’s “Private Key” (long, often with + / =) goes in "secret".
+   Keep it all on those two fields. Do not email this file.
+
+3. Leave USD on that exchange (at least the $25 session cap). You do
    not need to hold BTC/ETH for sell legs. Each tap spends USD, then
    sells back toward USD. It will not sell coins you already had.
 
-3. Stop the demo window first (close the black window).
+4. Stop the demo window first (close the black window).
 
-4. Check first (does not send orders):
+5. Check first (does not send orders):
    Windows:  double-click CHECK-LIVE.bat
    Mac:      double-click Check-Live.command
    Linux:    ./check-live.sh
 
-5. When the check says Ready:
-   Windows:  start-live.bat, then switch to Live on the dashboard
+6. When the check says Ready:
+   Windows:  start-live.bat, then pick Live on: Kraken, then switch to Live
              (or double-click GO-LIVE.bat to start already live)
    Mac:      start.command for paper, or Go-Live.command
    Linux:    ./start.sh for paper, or ./go-live.sh

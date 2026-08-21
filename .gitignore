@@ -18,6 +18,7 @@ keys/*.json
 keys/*.pem
 keys/*.key
 !keys/README.txt
+!keys/kraken.json.example
 *.db
 data/
 logs/
