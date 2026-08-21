@@ -24,5 +24,5 @@ def seeded_book() -> MarketBook:
     book = MarketBook()
     book.update(make_quote("binance", "BTCUSDT", 100000, 100010))
     book.update(make_quote("binance", "ETHUSDT", 2000, 2001))
-    book.update(make_quote("binance", "ETHBTC", 0.0190, 0.0191))
+    book.update(make_quote("binance", "ETHBTC", 0.01950, 0.01951))
     return book

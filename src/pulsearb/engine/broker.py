@@ -81,7 +81,7 @@ class PaperBroker(Broker):
             and start_quote in STABLE
         )
         if chained:
-            fills = self._chain_fills(opportunity, now)
+            fills = self._chain_fills(opportunity, now, start_quote=start_quote)
             realized = cash_pnl(fills)
         else:
             expected = opportunity.notional * (opportunity.net_edge_bps / 10_000)
@@ -109,9 +109,10 @@ class PaperBroker(Broker):
         self.fills.extend(fills)
         return fills
 
-    def _chain_fills(self, opportunity: Opportunity, now: float) -> list[Fill]:
+    def _chain_fills(self, opportunity: Opportunity, now: float, start_quote: str = "USD") -> list[Fill]:
         fills: list[Fill] = []
-        pocket: dict[str, float] = {"USD": float(opportunity.notional)}
+        cash = start_quote if start_quote in STABLE else "USD"
+        pocket: dict[str, float] = {cash: float(opportunity.notional)}
         for leg in opportunity.legs:
             try:
                 base, quote = split_pair(leg.symbol)

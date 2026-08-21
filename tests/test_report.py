@@ -226,3 +226,46 @@ def test_export_skips_alert_rows(tmp_path) -> None:
     assert "scan-1" not in filtered
     assert "trade-1" in filtered
     assert "alert" not in filtered.split("\n")[1]
+
+
+def test_cooldown_blocks_are_not_trades(tmp_path) -> None:
+    ledger = ProfitLedger(csv_path=tmp_path / "report.csv")
+    row = build_report_row(
+        _opp(),
+        [
+            Fill(
+                venue="paper",
+                symbol="-",
+                side="blocked",
+                qty=0,
+                price=0,
+                notional=0,
+                ts=1_700_000_001,
+                paper=True,
+                opportunity_id="gap-1",
+                status="blocked",
+                note="cooldown",
+            )
+        ],
+        paper=True,
+        killed=False,
+        fee_map={"coinbase": 50, "kraken": 26},
+        slippage_bps=2,
+        closed_at=1_700_000_001.5,
+    )
+    assert row["Close Reason"] == "cooldown"
+    ledger.record(row)
+    assert ledger.taken_rows == 0
+    assert ledger.as_dicts() == []
+    mixed = tmp_path / "mixed.csv"
+    mixed.write_text(
+        "ID,Detected Time,Strategy,Market,Route,Financial,Execution,Guardian,Guardian,Expected P&L,Realized P&L,Edge Lifetime,Close Reason,Buy Venue,Sell Venue,Raw Edge,Net Edge (bps),Fee (bps),Slippage (bps),Fill Ratio,Paper Notional\n"
+        "cool-1,t,Triangular,BTC-USD,sell XBTUSD,paper USD,blocked,block,cooldown,0.03,0,0.01,cooldown,kraken,kraken,110,30,78,2,0,1\n"
+        "fill-1,t,Triangular,ETH-USD,buy ETH-USD,paper USD,paper,pass,ok,0.02,0.01,1,paper_fill,coinbase,coinbase,40,28,50,2,1,1\n",
+        encoding="utf-8-sig",
+    )
+    from pulsearb.engine.report import filter_taken_csv_bytes
+
+    filtered = filter_taken_csv_bytes(mixed.read_bytes()).decode("utf-8-sig")
+    assert "cool-1" not in filtered
+    assert "fill-1" in filtered

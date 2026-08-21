@@ -34,6 +34,15 @@ from pulsearb.models import EngineStats, Fill, Opportunity
 from pulsearb.symbols import canonical_from_pair
 
 
+def _cooldown_block(fills: list[Fill]) -> bool:
+    """True when the desk refused because the same route is still cooling down."""
+    if not fills or any(item.status == "filled" for item in fills):
+        return False
+    return all(item.status == "blocked" for item in fills) and any(
+        (item.note or "").strip().lower() == "cooldown" for item in fills
+    )
+
+
 class Engine:
     def __init__(self, config: AppConfig) -> None:
         self.config = config
@@ -341,6 +350,8 @@ class Engine:
     async def _take(self, opp: Opportunity) -> list[Fill]:
         opp.notional = self.desk.notional
         fills = await self.broker.execute(opp)
+        if _cooldown_block(fills):
+            return fills
         if any(item.status == "filled" for item in fills):
             self.invested.add(opp.id)
         for fill in fills:
@@ -457,6 +468,8 @@ class Engine:
         min_alert = float(self.config.settings.get("min_edge_bps", 8))
         min_exec = float(self.config.settings.get("min_executable_edge_bps", 25))
         stale = float(self.config.risk.get("stale_quote_seconds", 8))
+        max_raw = float(self.config.settings.get("max_raw_edge_bps", 300))
+        max_skew = float(self.config.settings.get("max_quote_skew_seconds", 1.5))
         while True:
             started = time.perf_counter()
             notional = self.desk.notional
@@ -467,6 +480,9 @@ class Engine:
                 fee_map,
                 extra,
                 notional,
+                max_raw_edge_bps=max_raw,
+                max_quote_age=stale,
+                max_quote_skew=max_skew,
             )
             auto = detect_auto_cross(
                 self.book,
@@ -476,6 +492,8 @@ class Engine:
                 extra,
                 notional,
                 stale_seconds=stale,
+                max_raw_edge_bps=max_raw,
+                max_quote_skew=max_skew,
             )
             triangles: list[Opportunity] = []
             for venue, tri in self.triangles_by_venue.items():
@@ -491,6 +509,9 @@ class Engine:
                         notional,
                         venue=scan_venue,
                         min_executable_edge_bps=min_exec,
+                        max_raw_edge_bps=max_raw,
+                        max_quote_age=stale,
+                        max_quote_skew=max_skew,
                     )
                 )
             dislocations = detect_quote_dislocations(
@@ -501,25 +522,37 @@ class Engine:
                 extra_slippage_bps=extra,
                 notional=notional,
                 min_executable_edge_bps=min_exec,
+                max_raw_edge_bps=max_raw,
+                max_quote_age=stale,
+                max_quote_skew=max_skew,
             )
             # Demo quotes use real venue names, so the venue-scoped scan above is enough.
-            fresh = [opp for opp in (*cross, *auto, *triangles, *dislocations) if opp.id not in self.seen]
-            for opp in fresh:
-                self.seen.add(opp.id)
+            current = [*cross, *auto, *triangles, *dislocations]
+            for opp in current:
                 self.by_id[opp.id] = opp
+                if opp.id in self.seen:
+                    continue
+                self.seen.add(opp.id)
                 if len(self.by_id) > 2000:
                     self.by_id = {item.id: item for item in self.opportunities}
+                    self.by_id[opp.id] = opp
                 self.opportunities.appendleft(opp)
                 self.stats.opportunities += 1
-                if (
-                    opp.executable
-                    and self.desk.auto_invest
-                    and not self.desk.live
-                    and not self.live_active()
-                    and self.desk.matches(opp, self.book)
-                    and not self.risk.killed
-                ):
-                    await self._take(opp)
+            if (
+                self.desk.auto_invest
+                and not self.desk.live
+                and not self.live_active()
+                and not self.risk.killed
+                and self.risk.allow(self.desk.notional).allowed
+            ):
+                candidates = [
+                    opp
+                    for opp in current
+                    if opp.executable and self.desk.matches(opp, self.book)
+                ]
+                if candidates:
+                    best = max(candidates, key=lambda item: item.net_edge_bps)
+                    await self._take(best)
             now = time.time()
             if now - self._balances_at > 30:
                 await self._refresh_cash()

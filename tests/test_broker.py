@@ -53,6 +53,73 @@ def test_notional_cap() -> None:
     assert not decision.allowed
 
 
+def test_cooldown_block_helper_ignores_fills() -> None:
+    from pulsearb.engine.runner import _cooldown_block
+    from pulsearb.models import Fill
+
+    blocked = [
+        Fill(
+            venue="paper",
+            symbol="-",
+            side="blocked",
+            qty=0,
+            price=0,
+            notional=0,
+            ts=0,
+            paper=True,
+            opportunity_id="x",
+            status="blocked",
+            note="cooldown",
+        )
+    ]
+    filled = [
+        Fill(
+            venue="coinbase",
+            symbol="BTC-USD",
+            side="buy",
+            qty=0.001,
+            price=100000,
+            notional=100,
+            ts=0,
+            paper=True,
+            opportunity_id="x",
+            status="filled",
+            note="paper fill",
+        )
+    ]
+    assert _cooldown_block(blocked) is True
+    assert _cooldown_block(filled) is False
+    assert _cooldown_block([]) is False
+
+
+@pytest.mark.asyncio
+async def test_paper_usd_triangle_chains_cash_pnl() -> None:
+    from pulsearb.engine.money import cash_pnl
+
+    risk = RiskManager(max_notional_usdt=250, cooldown_seconds=0)
+    broker = PaperBroker(risk)
+    opp = Opportunity(
+        kind=OpportunityKind.TRIANGULAR,
+        edge_bps=250,
+        net_edge_bps=98,
+        notional=1,
+        legs=[
+            Leg("buy", "coinbase", "BTC-USD", 100010, True),
+            Leg("buy", "coinbase", "ETH-BTC", 0.01951, True),
+            Leg("sell", "coinbase", "ETH-USD", 2000, True),
+        ],
+        summary="USD → BTC → ETH → USD",
+        executable=True,
+        ts=0,
+        id="usd-tri",
+    )
+    fills = await broker.execute(opp)
+    assert all(item.status == "filled" for item in fills)
+    realized = cash_pnl(fills)
+    assert abs(realized) < 0.5
+    assert realized == pytest.approx(broker.pnl, abs=1e-9)
+
+
 def test_live_budget_splits_across_taps() -> None:
     risk = RiskManager(max_notional_usdt=25, live_budget_usdt=25, cooldown_seconds=0, min_notional_usdt=1)
     assert risk.allow(1).allowed

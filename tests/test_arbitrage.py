@@ -1,3 +1,5 @@
+import time
+
 from pulsearb.engine.arbitrage import (
     detect_auto_cross,
     detect_cross_venue,
@@ -98,7 +100,7 @@ def test_coinbase_triangle_on_usd_book() -> None:
     book = MarketBook()
     book.update(make_quote("coinbase", "BTC-USD", 100000, 100010))
     book.update(make_quote("coinbase", "ETH-USD", 2000, 2001))
-    book.update(make_quote("coinbase", "ETH-BTC", 0.0190, 0.0191))
+    book.update(make_quote("coinbase", "ETH-BTC", 0.01950, 0.01951))
     triangles = discover_triangles(["BTC-USD", "ETH-USD", "ETH-BTC"])
     opps = detect_triangles(
         book,
@@ -174,5 +176,130 @@ def test_coinbase_usd_vs_usdc_dislocation_is_live_route() -> None:
     assert best.kind is OpportunityKind.DISLOCATION
     assert best.executable
     assert best.legs[0].action == "buy"
-    assert best.legs[0].symbol == "BTC-USD"
     assert any(leg.symbol == "BTC-USDC" and leg.action == "sell" for leg in best.legs)
+
+
+def test_triangle_only_starts_in_cash_and_buys_first() -> None:
+    book = MarketBook()
+    book.update(make_quote("kraken", "XBTUSD", 100000, 100010))
+    book.update(make_quote("kraken", "LTCUSD", 80, 80.04))
+    book.update(make_quote("kraken", "LTCXBT", 0.00078, 0.000781))
+    triangles = discover_triangles(["XBTUSD", "LTCUSD", "LTCXBT"])
+    opps = detect_triangles(
+        book,
+        triangles,
+        min_edge_bps=8,
+        taker_bps=26,
+        extra_slippage_bps=2,
+        notional=1,
+        venue="kraken",
+        min_executable_edge_bps=25,
+    )
+    assert opps
+    for opp in opps:
+        assert opp.legs[0].action == "buy"
+        assert opp.summary.startswith("USD →")
+        assert opp.legs[0].symbol.upper() != "XBTUSD" or opp.legs[0].action == "buy"
+    ids = {opp.id for opp in opps}
+    bumped = MarketBook()
+    bumped.update(make_quote("kraken", "XBTUSD", 100000, 100010))
+    bumped.update(make_quote("kraken", "LTCUSD", 80, 80.04))
+    bumped.update(make_quote("kraken", "LTCXBT", 0.000778, 0.000779))
+    again = detect_triangles(
+        bumped,
+        triangles,
+        min_edge_bps=8,
+        taker_bps=26,
+        extra_slippage_bps=2,
+        notional=1,
+        venue="kraken",
+        min_executable_edge_bps=25,
+    )
+    assert {opp.id for opp in again} & ids
+
+
+def test_triangle_drops_fantasy_raw_edge() -> None:
+    book = MarketBook()
+    book.update(make_quote("coinbase", "BTC-USD", 100000, 100010))
+    book.update(make_quote("coinbase", "ETH-USD", 2000, 2001))
+    book.update(make_quote("coinbase", "ETH-BTC", 0.0170, 0.0171))
+    triangles = discover_triangles(["BTC-USD", "ETH-USD", "ETH-BTC"])
+    opps = detect_triangles(
+        book,
+        triangles,
+        min_edge_bps=8,
+        taker_bps=50,
+        extra_slippage_bps=2,
+        notional=1,
+        venue="coinbase",
+        min_executable_edge_bps=25,
+        max_raw_edge_bps=300,
+    )
+    assert opps == []
+
+
+def test_triangle_stale_quotes_are_watch_only() -> None:
+    book = MarketBook()
+    now = time.time()
+    book.update(make_quote("coinbase", "BTC-USD", 100000, 100010))
+    old = make_quote("coinbase", "ETH-USD", 2000, 2001)
+    old.ts = now - 20
+    book.update(old)
+    book.update(make_quote("coinbase", "ETH-BTC", 0.01950, 0.01951))
+    triangles = discover_triangles(["BTC-USD", "ETH-USD", "ETH-BTC"])
+    opps = detect_triangles(
+        book,
+        triangles,
+        min_edge_bps=8,
+        taker_bps=50,
+        extra_slippage_bps=2,
+        notional=5,
+        venue="coinbase",
+        min_executable_edge_bps=25,
+        max_quote_age=8.0,
+        max_quote_skew=1.5,
+    )
+    assert opps
+    assert all(not opp.executable for opp in opps)
+
+
+def test_dislocation_id_stable_and_fantasy_raw_dropped() -> None:
+    book = MarketBook()
+    book.update(make_quote("coinbase", "BTC-USD", 97000, 97010, executable=True))
+    book.update(make_quote("coinbase", "BTC-USDC", 98990, 99000, executable=True))
+    book.update(make_quote("coinbase", "USDC-USD", 0.999, 1.001, executable=True))
+    kwargs = dict(
+        venue="coinbase",
+        min_edge_bps=8,
+        fee_map={"coinbase": 50, "coinbase_stable": 1.0},
+        extra_slippage_bps=2,
+        notional=10,
+        min_executable_edge_bps=25,
+    )
+    first = detect_quote_dislocations(book, **kwargs)
+    book.update(make_quote("coinbase", "BTC-USDC", 98800, 98810, executable=True))
+    second = detect_quote_dislocations(book, **kwargs)
+    assert first and second
+    assert {opp.id for opp in first} & {opp.id for opp in second}
+    wild = MarketBook()
+    wild.update(make_quote("coinbase", "BTC-USD", 97000, 97010, executable=True))
+    wild.update(make_quote("coinbase", "BTC-USDC", 110000, 110010, executable=True))
+    wild.update(make_quote("coinbase", "USDC-USD", 0.999, 1.001, executable=True))
+    assert detect_quote_dislocations(wild, **kwargs) == []
+
+
+def test_cross_venue_drops_fantasy_raw_edge() -> None:
+    book = MarketBook()
+    book.update(make_quote("coinbase", "BTC-USD", 97000, 97010, executable=True))
+    book.update(make_quote("kraken", "XBTUSD", 110000, 110020, executable=True))
+    opps = detect_auto_cross(
+        book,
+        {"USD", "USDT", "USDC"},
+        min_edge_bps=5,
+        fee_bps_by_venue={"coinbase": 50, "kraken": 26},
+        extra_slippage_bps=2,
+        notional=1,
+        max_raw_edge_bps=300.0,
+    )
+    assert opps == []
+

@@ -12,6 +12,7 @@ from pulsearb.engine.money import cash_pnl, taker_bps
 from pulsearb.models import Fill, Opportunity
 
 TAKEN_EXECUTION = {"paper", "live", "blocked"}
+SKIP_CLOSE_REASONS = {"cooldown"}
 
 # Spreadsheet columns, in export order.
 REPORT_HEADERS = [
@@ -148,7 +149,9 @@ def build_report_row(
 
 
 def is_taken_row(row: dict[str, Any]) -> bool:
-    """True for trades you took or that were blocked — not scanner alerts."""
+    """True for trades you took or that were blocked — not scanner alerts or cooldown spam."""
+    if str(row.get("Close Reason") or "").strip().lower() in SKIP_CLOSE_REASONS:
+        return False
     return str(row.get("Execution") or "").strip().lower() in TAKEN_EXECUTION
 
 
@@ -267,9 +270,17 @@ def filter_taken_csv_bytes(raw: bytes) -> bytes:
         exec_idx = header.index("Execution")
     except ValueError:
         exec_idx = 6 if len(header) > 6 else None
+    try:
+        close_idx = header.index("Close Reason")
+    except ValueError:
+        close_idx = 12 if len(header) > 12 else None
     for row in parsed[1:]:
         if exec_idx is None or exec_idx >= len(row):
             continue
-        if str(row[exec_idx]).strip().lower() in TAKEN_EXECUTION:
-            writer.writerow(row)
+        if str(row[exec_idx]).strip().lower() not in TAKEN_EXECUTION:
+            continue
+        if close_idx is not None and close_idx < len(row):
+            if str(row[close_idx]).strip().lower() in SKIP_CLOSE_REASONS:
+                continue
+        writer.writerow(row)
     return buffer.getvalue().encode("utf-8-sig")
