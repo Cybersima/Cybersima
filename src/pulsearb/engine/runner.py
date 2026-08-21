@@ -18,10 +18,12 @@ from pulsearb.engine.book import MarketBook
 from pulsearb.engine.broker import Broker, LiveBinanceBroker, LiveRouter, PaperBroker
 from pulsearb.engine.coinbase_live import LiveCoinbaseBroker
 from pulsearb.engine.desk import KIND_LABELS, TradeDesk
+from pulsearb.engine.kraken_live import LiveKrakenBroker
 from pulsearb.engine.live_ready import quote_cash
-from pulsearb.engine.money import coinbase_live_ok
+from pulsearb.engine.money import venue_live_ok
 from pulsearb.engine.report import ProfitLedger
 from pulsearb.engine.risk import RiskManager
+from pulsearb.engine.schedule import window_open
 from pulsearb.engine.trades import group_trades
 from pulsearb.feeds.binance import BinanceFeed
 from pulsearb.feeds.bitstamp import BitstampFeed
@@ -78,6 +80,9 @@ class Engine:
         self.broker: Broker = self.paper
         self.report = ProfitLedger(Path.cwd() / "data" / "CyberSym-SecureTrade-profit-report.csv")
         self._ensure_live_router()
+        names = self.config.live_venue_names()
+        if names and self.desk.live_venue not in names:
+            self.desk.live_venue = names[0]
         self._apply_mode_settings()
         self.triangles_by_venue = {
             venue: discover_triangles(config.symbols(venue))
@@ -99,10 +104,14 @@ class Engine:
         return bool(self.live_armed)
 
     def _ensure_live_router(self) -> bool:
-        if isinstance(self.broker, LiveRouter) and (self.broker.coinbase is not None or self.broker.binance is not None):
+        if isinstance(self.broker, LiveRouter) and (
+            self.broker.coinbase is not None or self.broker.kraken is not None or self.broker.binance is not None
+        ):
             self.broker.armed = self.live_armed
-            return True
+            self.broker.live_venue = self.desk.live_venue
+            return self._broker_for_live() is not None
         coinbase_broker = None
+        kraken_broker = None
         binance_broker = None
         creds = self.config.coinbase_credentials()
         if creds:
@@ -115,6 +124,17 @@ class Engine:
                 paper_fallback=self.paper,
                 rest_url=str(coinbase_cfg.get("brokerage_url") or "https://api.coinbase.com"),
             )
+        kraken_creds = self.config.kraken_credentials()
+        if kraken_creds:
+            key_name, secret = kraken_creds
+            kraken_cfg = self.config.markets.get("kraken") or {}
+            kraken_broker = LiveKrakenBroker(
+                risk=self.risk,
+                api_key=key_name,
+                api_secret=secret,
+                paper_fallback=self.paper,
+                rest_url=str(kraken_cfg.get("rest_url") or "https://api.kraken.com"),
+            )
         if self.config.binance_live_ready():
             binance = self.config.markets.get("binance") or {}
             rest = binance.get("testnet_rest_url" if self.config.env.binance_testnet else "rest_url")
@@ -125,24 +145,34 @@ class Engine:
                 rest_url=str(rest),
                 paper_fallback=self.paper,
             )
-        if coinbase_broker is None and binance_broker is None:
+        if coinbase_broker is None and kraken_broker is None and binance_broker is None:
             self.broker = self.paper
             return False
         self.broker = LiveRouter(
             self.paper,
             coinbase=coinbase_broker,
+            kraken=kraken_broker,
             binance=binance_broker,
             armed=self.live_armed,
+            live_venue=self.desk.live_venue,
         )
-        return True
+        return self._broker_for_live() is not None
+
+    def _broker_for_live(self):
+        if not isinstance(self.broker, LiveRouter):
+            return None
+        return getattr(self.broker, self.desk.live_venue, None)
 
     def _apply_mode_settings(self) -> None:
         live = self.live_armed
         self.desk.live = live
+        if isinstance(self.broker, LiveRouter):
+            self.broker.live_venue = self.desk.live_venue
         if live:
-            self.desk.auto_invest = False
-            if "coinbase" not in self.desk.venues:
-                self.desk.venues = ["coinbase", *self.desk.venues]
+            if not self.desk.schedule_enabled:
+                self.desk.auto_invest = False
+            if self.desk.live_venue not in self.desk.venues:
+                self.desk.venues = [self.desk.live_venue, *self.desk.venues]
             for kind in ("dislocation", "triangular"):
                 if kind not in self.desk.kinds:
                     self.desk.kinds.append(kind)
@@ -171,18 +201,23 @@ class Engine:
                 "ok": True,
                 "execution": "paper",
                 "desk": self.desk_view(),
-                "note": "Paper trading. No real Coinbase orders.",
+                "note": "Paper trading. No real exchange orders.",
             }
         if self.config.env.demo_only:
             return {
                 "ok": False,
-                "error": "The demo scanner has no live Coinbase prices. Close it and use start-live.bat, then switch to Live.",
+                "error": "The demo scanner has no live prices. Close it and use start-live.bat, then switch to Live.",
             }
         if str(confirm or "") != self.config.live_confirm_phrase:
-            return {"ok": False, "error": "Confirm that you want real Coinbase orders."}
+            return {"ok": False, "error": "Confirm that you want real exchange orders."}
         from pulsearb.engine.live_ready import assess_live_ready
 
-        report = await assess_live_ready(self.config, killed=self.risk.killed, armed=False)
+        report = await assess_live_ready(
+            self.config,
+            killed=self.risk.killed,
+            armed=False,
+            venue=self.desk.live_venue,
+        )
         if not report.get("ready"):
             return {
                 "ok": False,
@@ -190,26 +225,37 @@ class Engine:
                 "ready": False,
             }
         if not self._ensure_live_router():
-            return {"ok": False, "error": "Coinbase key file is missing. Save keys\\coinbase.json, then Check again."}
+            return {
+                "ok": False,
+                "error": (
+                    f"No {self.desk.live_venue.title()} key file. "
+                    "Save keys\\coinbase.json or keys\\kraken.json, then Check again."
+                ),
+            }
         self.live_armed = True
         if isinstance(self.broker, LiveRouter):
             self.broker.armed = True
+            self.broker.live_venue = self.desk.live_venue
         self._apply_mode_settings()
         await self._refresh_cash()
         await self.broadcast()
+        venue_label = self.desk.live_venue.title()
         return {
             "ok": True,
             "execution": "live",
             "desk": self.desk_view(),
-            "note": "LIVE. Coinbase USD vs USDC dislocations and triangles. Each tap starts in USD and aims to finish in USD.",
+            "note": (
+                f"LIVE on {venue_label}. Same-exchange USD round-trips only. "
+                "Each tap starts in USD and aims to finish in USD. Cross-exchange gaps stay paper."
+            ),
         }
 
     async def _refresh_cash(self) -> None:
-        coinbase = getattr(self.broker, "coinbase", None)
-        if coinbase is None or not hasattr(coinbase, "refresh_balances"):
+        broker = self._broker_for_live() if isinstance(self.broker, LiveRouter) else None
+        if broker is None or not hasattr(broker, "refresh_balances"):
             return
         try:
-            await coinbase.refresh_balances()
+            await broker.refresh_balances()
             self._balances_at = time.time()
         except Exception:
             pass
@@ -229,8 +275,9 @@ class Engine:
                 "LIVE is still on. Kill switch paused new orders. Click Resume. You are not back on paper."
             )
         elif live:
+            venue_label = self.desk.live_venue.title()
             live_note = (
-                "LIVE Coinbase dislocations: USD vs USDC books, plus same-exchange triangles. "
+                f"LIVE on {venue_label}: USD vs USDC books and same-exchange triangles. "
                 "Each tap buys with USD and aims to finish back in USD. Not buy-and-hold. "
                 "Cross-venue (Coinbase vs Kraken) stays paper — that would mean holding coins to move them. "
                 "Each tap is your desk size. Session budget is the $25 cap."
@@ -280,7 +327,7 @@ class Engine:
 
     def _opp_view(self, opp: Opportunity) -> dict:
         data = opp.to_dict()
-        live_ok = coinbase_live_ok(opp)
+        live_ok = venue_live_ok(opp, self.desk.live_venue)
         paper_only = self.live_active() and not live_ok
         pending = (
             opp.executable
@@ -311,13 +358,19 @@ class Engine:
                 "budget": self.risk.live_budget_usdt or None,
                 "budget_left": left,
                 "taps_left": self.risk.taps_left(self.desk.notional),
+                "live_venues_ready": self.config.live_venue_names(),
             }
         )
         return data
 
     def apply_desk(self, payload: dict) -> dict:
+        previous_venue = self.desk.live_venue
         self.desk.live = self.live_active()
         self.desk.apply(payload)
+        if isinstance(self.broker, LiveRouter):
+            self.broker.live_venue = self.desk.live_venue
+        if self.live_active() and self.desk.live_venue != previous_venue:
+            self._ensure_live_router()
         return self.desk_view()
 
     async def invest(self, opportunity_id: str) -> dict:
@@ -330,10 +383,14 @@ class Engine:
             return {"ok": False, "error": "That pair is outside your price filter, or that coin/exchange is off."}
         if opportunity_id in self.invested:
             return {"ok": False, "error": "You already took this trade."}
-        if self.live_active() and not coinbase_live_ok(opp):
+        if self.live_active() and not venue_live_ok(opp, self.desk.live_venue):
+            venue_label = self.desk.live_venue.title()
             return {
                 "ok": False,
-                "error": "Live only takes Coinbase dislocations that buy with USD and sell back toward USD. Cross-exchange gaps stay paper.",
+                "error": (
+                    f"Live only takes {venue_label} round-trips that buy with USD and sell back toward USD. "
+                    "Cross-exchange gaps stay paper."
+                ),
             }
         fills = await self._take(opp)
         await self.broadcast()
@@ -514,18 +571,22 @@ class Engine:
                         max_quote_skew=max_skew,
                     )
                 )
-            dislocations = detect_quote_dislocations(
-                self.book,
-                venue="coinbase",
-                min_edge_bps=min_alert,
-                fee_map=fee_map,
-                extra_slippage_bps=extra,
-                notional=notional,
-                min_executable_edge_bps=min_exec,
-                max_raw_edge_bps=max_raw,
-                max_quote_age=stale,
-                max_quote_skew=max_skew,
-            )
+            dislocations: list[Opportunity] = []
+            for venue in ("coinbase", "kraken"):
+                dislocations.extend(
+                    detect_quote_dislocations(
+                        self.book,
+                        venue=venue,
+                        min_edge_bps=min_alert,
+                        fee_map=fee_map,
+                        extra_slippage_bps=extra,
+                        notional=notional,
+                        min_executable_edge_bps=min_exec,
+                        max_raw_edge_bps=max_raw,
+                        max_quote_age=stale,
+                        max_quote_skew=max_skew,
+                    )
+                )
             # Demo quotes use real venue names, so the venue-scoped scan above is enough.
             current = [*cross, *auto, *triangles, *dislocations]
             for opp in current:
@@ -538,17 +599,19 @@ class Engine:
                     self.by_id[opp.id] = opp
                 self.opportunities.appendleft(opp)
                 self.stats.opportunities += 1
-            if (
-                self.desk.auto_invest
-                and not self.desk.live
-                and not self.live_active()
-                and not self.risk.killed
-                and self.risk.allow(self.desk.notional).allowed
-            ):
+            in_window = (not self.desk.schedule_enabled) or window_open(
+                self.desk.schedule_start, self.desk.schedule_stop
+            )
+            want_auto = bool(self.desk.auto_invest) and not self.risk.killed and in_window
+            if self.live_active() or self.desk.live:
+                want_auto = want_auto and self.desk.schedule_enabled and in_window
+            if want_auto and self.risk.allow(self.desk.notional).allowed:
                 candidates = [
                     opp
                     for opp in current
-                    if opp.executable and self.desk.matches(opp, self.book)
+                    if opp.executable
+                    and self.desk.matches(opp, self.book)
+                    and (not self.live_active() or venue_live_ok(opp, self.desk.live_venue))
                 ]
                 if candidates:
                     best = max(candidates, key=lambda item: item.net_edge_bps)
@@ -565,12 +628,12 @@ class Engine:
 
 
 async def run_engine(engine: Engine) -> None:
-    coinbase = getattr(engine.broker, "coinbase", None)
-    if coinbase is not None and hasattr(coinbase, "refresh_balances"):
-        balances = await coinbase.refresh_balances()
+    broker = engine._broker_for_live() if isinstance(engine.broker, LiveRouter) else None
+    if broker is not None and hasattr(broker, "refresh_balances"):
+        balances = await broker.refresh_balances()
         engine._balances_at = time.time()
         shown = ", ".join(
             f"{asset} {amount:.6g}" for asset, amount in list(balances.items())[:8]
         ) or "(empty)"
-        print(f"{PRODUCT} Coinbase account: {shown}")
+        print(f"{PRODUCT} {engine.desk.live_venue} account: {shown}")
     await asyncio.gather(engine.run_feeds(), engine.run_scanner())

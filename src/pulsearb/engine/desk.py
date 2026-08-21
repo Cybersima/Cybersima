@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from pulsearb.engine.book import MarketBook
+from pulsearb.engine.schedule import format_hhmm, window_open
 from pulsearb.models import Opportunity, OpportunityKind, Quote
 from pulsearb.symbols import split_pair
 
@@ -28,10 +29,11 @@ VENUES = ["coinbase", "kraken", "gemini", "bitstamp"]
 KINDS = ["cross_venue", "dislocation", "triangular"]
 KIND_LABELS = {
     "cross_venue": "Price gaps",
-    "dislocation": "Coinbase dislocations",
+    "dislocation": "USD vs USDC dislocations",
     "triangular": "Same-exchange triangles",
     "alert": "Watch only",
 }
+LIVE_VENUES = ["coinbase", "kraken"]
 VENUE_LABELS = {
     "coinbase": "Coinbase",
     "kraken": "Kraken",
@@ -81,6 +83,10 @@ class TradeDesk:
     live_max: float = 25.0
     min_notional: float = 1.0
     live: bool = False
+    live_venue: str = "coinbase"
+    schedule_enabled: bool = False
+    schedule_start: str = "22:00"
+    schedule_stop: str = "06:00"
     price_mode: str = "any"
     price_limit: float = 5.0
     min_price_limit: float = 0.01
@@ -123,7 +129,17 @@ class TradeDesk:
             self.notional = self.clamp_notional(payload.get("notional"))
         if "auto_invest" in payload:
             self.auto_invest = bool(payload.get("auto_invest"))
-        if self.live:
+        if "live_venue" in payload:
+            wanted = str(payload.get("live_venue") or "").strip().lower()
+            if wanted in LIVE_VENUES:
+                self.live_venue = wanted
+        if "schedule_enabled" in payload:
+            self.schedule_enabled = bool(payload.get("schedule_enabled"))
+        if "schedule_start" in payload:
+            self.schedule_start = format_hhmm(str(payload.get("schedule_start") or ""), "22:00")
+        if "schedule_stop" in payload:
+            self.schedule_stop = format_hhmm(str(payload.get("schedule_stop") or ""), "06:00")
+        if self.live and not self.schedule_enabled:
             self.auto_invest = False
         if "all_assets" in payload:
             self.all_assets = bool(payload.get("all_assets"))
@@ -203,17 +219,33 @@ class TradeDesk:
             return True
         return bool(coins & wanted)
 
+    def schedule_active(self) -> bool:
+        if not self.schedule_enabled:
+            return True
+        return window_open(self.schedule_start, self.schedule_stop)
+
+    def auto_allowed(self) -> bool:
+        if not self.live:
+            return True
+        return bool(self.schedule_enabled)
+
     def to_dict(self) -> dict:
         return {
             "notional": self.notional,
             "auto_invest": self.auto_invest,
-            "auto_allowed": not self.live,
+            "auto_allowed": self.auto_allowed(),
             "all_assets": self.all_assets,
             "assets": list(self.assets),
             "venues": list(self.venues),
             "kinds": list(self.kinds),
             "cap": self.cap,
             "live": self.live,
+            "live_venue": self.live_venue,
+            "live_venue_choices": [{"id": item, "label": VENUE_LABELS[item]} for item in LIVE_VENUES],
+            "schedule_enabled": self.schedule_enabled,
+            "schedule_start": self.schedule_start,
+            "schedule_stop": self.schedule_stop,
+            "schedule_active": self.schedule_active(),
             "min_notional": self.min_notional,
             "presets": self.presets(),
             "asset_choices": list(POPULAR_ASSETS),

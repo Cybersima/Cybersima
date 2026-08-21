@@ -87,6 +87,17 @@ def test_auto_forced_off_when_live() -> None:
     assert desk.to_dict()["auto_allowed"] is False
 
 
+def test_live_auto_allowed_with_time_window() -> None:
+    desk = TradeDesk(live=True, live_max=25)
+    desk.apply({"schedule_enabled": True, "schedule_start": "22:00", "schedule_stop": "06:00", "auto_invest": True})
+    assert desk.schedule_enabled is True
+    assert desk.auto_invest is True
+    assert desk.to_dict()["auto_allowed"] is True
+    assert desk.to_dict()["schedule_start"] == "22:00"
+    desk.apply({"live_venue": "kraken"})
+    assert desk.live_venue == "kraken"
+
+
 def test_auto_allowed_when_paper() -> None:
     desk = TradeDesk(live=False)
     desk.apply({"auto_invest": True})

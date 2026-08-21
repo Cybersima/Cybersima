@@ -7,16 +7,16 @@ unset PYTHONPATH || true
 
 echo
 echo "CyberSym SecureTrade — LIVE TRADING"
-echo "This sends REAL Coinbase market orders with your money."
+echo "This sends REAL market orders with your money (Coinbase or Kraken)."
 echo "Each tap is \$1-\$25 (default \$5). Session budget \$25."
-echo "Auto stays OFF. Every live order is a tap."
-echo "Cross-venue (Coinbase vs Kraken/Gemini/Bitstamp) stays PAPER."
+echo "Live Auto only runs inside the time window you set on the dashboard."
+echo "Cross-venue (Coinbase vs Kraken) stays PAPER."
 echo "Close this window or use Kill switch to stop."
 echo
 
-if [[ ! -f keys/coinbase.json ]]; then
-  echo "Missing keys/coinbase.json"
-  echo "Read LIVE.txt, then put the Coinbase API JSON in the keys folder."
+if [[ ! -f keys/coinbase.json && ! -f keys/kraken.json ]]; then
+  echo "Missing keys/coinbase.json and keys/kraken.json"
+  echo "Read LIVE.txt. Save the key file for the exchange you will use."
   echo "Then run ./check-live.sh before this file."
   exit 1
 fi

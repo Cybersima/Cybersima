@@ -278,44 +278,59 @@ class LiveBinanceBroker(Broker):
 
 
 class LiveRouter(Broker):
-    """Send live orders only when every executable leg is on one armed venue."""
+    """Send live orders only when every executable leg is on the armed live venue."""
 
     PAPER_CROSS_NOTE = (
         "That gap is two exchanges. Live cannot move coins between them, "
-        "so it would mean holding. Live taps only Coinbase triangles that buy and sell back to USD."
+        "so it would mean holding. Live taps only one exchange at a time, "
+        "buying with USD and selling back toward USD."
     )
 
     def __init__(
         self,
         paper_fallback: PaperBroker,
         coinbase: Broker | None = None,
+        kraken: Broker | None = None,
         binance: Broker | None = None,
         *,
         armed: bool = True,
+        live_venue: str = "coinbase",
     ) -> None:
         self.paper_fallback = paper_fallback
         self.coinbase = coinbase
+        self.kraken = kraken
         self.binance = binance
         self.armed = armed
+        self.live_venue = str(live_venue or "coinbase").strip().lower()
         self.fills: list[Fill] = []
 
     @property
     def paper(self) -> bool:
         return not self.armed
 
+    def _broker(self, venue: str) -> Broker | None:
+        if venue == "coinbase":
+            return self.coinbase
+        if venue == "kraken":
+            return self.kraken
+        if venue == "binance":
+            return self.binance
+        return None
+
     @property
     def live_pnl(self) -> float:
         total = 0.0
-        if self.coinbase is not None:
-            total += float(getattr(self.coinbase, "pnl", 0.0))
-        if self.binance is not None:
-            total += float(getattr(self.binance, "pnl", 0.0))
+        for name in ("coinbase", "kraken", "binance"):
+            broker = self._broker(name)
+            if broker is not None:
+                total += float(getattr(broker, "pnl", 0.0))
         return total
 
     @property
     def balances(self) -> dict[str, float]:
-        if self.coinbase is not None:
-            return dict(getattr(self.coinbase, "balances", {}) or {})
+        broker = self._broker(self.live_venue) or self.coinbase or self.kraken
+        if broker is not None:
+            return dict(getattr(broker, "balances", {}) or {})
         return {}
 
     @property
@@ -323,6 +338,8 @@ class LiveRouter(Broker):
         names: list[str] = []
         if self.coinbase is not None:
             names.append("coinbase")
+        if self.kraken is not None:
+            names.append("kraken")
         if self.binance is not None:
             names.append("binance")
         return names
@@ -333,10 +350,10 @@ class LiveRouter(Broker):
             self.fills.extend(fills)
             return fills
         venues = {leg.venue for leg in opportunity.legs}
-        if venues == {"coinbase"} and self.coinbase is not None:
-            fills = await self.coinbase.execute(opportunity)
-        elif venues == {"binance"} and self.binance is not None:
-            fills = await self.binance.execute(opportunity)
+        wanted = self.live_venue
+        broker = self._broker(wanted)
+        if venues == {wanted} and broker is not None:
+            fills = await broker.execute(opportunity)
         else:
             fills = [
                 Fill(

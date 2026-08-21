@@ -8,7 +8,7 @@ unset PYTHONPATH || true
 echo
 echo "CyberSym SecureTrade — live ready check"
 echo "This does NOT send orders."
-echo "It checks keys/coinbase.json and whether Coinbase will accept the key."
+echo "It checks keys/coinbase.json or keys/kraken.json and whether that exchange will accept the key."
 echo
 
 if [[ ! -d .venv ]]; then

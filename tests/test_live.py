@@ -530,3 +530,86 @@ async def test_live_invest_rejects_cross_venue(tmp_path, monkeypatch) -> None:
     assert result["ok"] is False
     assert "coinbase" in result["error"].lower()
 
+
+def _kraken_secret() -> str:
+    return base64.b64encode(b"kraken-secret-bytes-32!!!!!!!!").decode()
+
+
+def _kraken_tri(*, notional: float = 10) -> Opportunity:
+    return Opportunity(
+        kind=OpportunityKind.TRIANGULAR,
+        edge_bps=40,
+        net_edge_bps=28,
+        notional=notional,
+        legs=[
+            Leg("buy", "kraken", "XBTUSD", 97000, True),
+            Leg("buy", "kraken", "ETHXBT", 0.019, True),
+            Leg("sell", "kraken", "ETHUSD", 2000, True),
+        ],
+        summary="USD → BTC → ETH → USD on kraken",
+        executable=True,
+        ts=0,
+        id="live-kraken-1",
+    )
+
+
+@pytest.mark.asyncio
+async def test_kraken_round_trip_uses_usd(tmp_path) -> None:
+    from pulsearb.engine.kraken_live import LiveKrakenBroker
+
+    secret = _kraken_secret()
+    orders: dict[str, dict] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("/Balance"):
+            return httpx.Response(200, json={"error": [], "result": {"ZUSD": "80.00"}})
+        if path.endswith("/AddOrder"):
+            oid = f"TX-{len(orders) + 1}"
+            orders[oid] = {"path": path}
+            return httpx.Response(200, json={"error": [], "result": {"txid": [oid]}})
+        if path.endswith("/QueryOrders"):
+            oid = list(orders)[-1]
+            prices = {"TX-1": ("0.00010309", "97000"), "TX-2": ("0.005425", "0.019"), "TX-3": ("0.005425", "2000")}
+            vol, px = prices.get(oid, ("0.0001", "97000"))
+            return httpx.Response(200, json={"error": [], "result": {oid: {"vol_exec": vol, "avg_price": px}}})
+        return httpx.Response(200, json={"error": ["unknown"], "result": {}})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.kraken.com")
+    risk = RiskManager(cooldown_seconds=0, max_notional_usdt=25)
+    paper = PaperBroker(risk)
+    broker = LiveKrakenBroker(risk, "kraken-key", secret, paper, client=client)
+    fills = await broker.execute(_kraken_tri(notional=10))
+    await client.aclose()
+    assert any(row.status == "filled" and row.side == "buy" for row in fills)
+    assert all(row.venue == "kraken" for row in fills if row.status == "filled")
+    assert risk.killed is False
+
+
+def test_load_kraken_json_file(tmp_path) -> None:
+    from pulsearb.engine.keys import load_kraken_credentials
+
+    path = tmp_path / "kraken.json"
+    path.write_text(json.dumps({"key": "abc", "secret": _kraken_secret()}), encoding="utf-8")
+    creds = load_kraken_credentials(cwd=tmp_path, json_path=path)
+    assert creds is not None
+    assert creds[0] == "abc"
+
+
+def test_live_notional_caps_when_kraken_armed(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "keys").mkdir()
+    (tmp_path / "keys" / "kraken.json").write_text(
+        json.dumps({"key": "abc", "secret": _kraken_secret()}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PULSEARB_EXECUTION_MODE", "live")
+    monkeypatch.setenv("PULSEARB_LIVE_CONFIRM", "I_UNDERSTAND_THE_RISK")
+    config = AppConfig()
+    assert config.live_enabled() is True
+    assert config.live_venue_names() == ["kraken"]
+    engine = Engine(config)
+    assert isinstance(engine.broker, LiveRouter)
+    assert engine.broker.kraken is not None
+    assert engine.desk.live_venue == "kraken"
+

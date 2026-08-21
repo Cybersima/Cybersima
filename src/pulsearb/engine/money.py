@@ -39,11 +39,12 @@ def cash_pnl(fills: list[Fill]) -> float:
     return delta
 
 
-def coinbase_live_ok(opportunity: Opportunity) -> bool:
-    """True when every leg is Coinbase and the tap starts by buying with USD/USDC."""
-    if not opportunity.executable or not opportunity.legs:
+def venue_live_ok(opportunity: Opportunity, venue: str) -> bool:
+    """True when every leg is on that venue and the tap starts by buying with USD."""
+    wanted = str(venue or "").strip().lower()
+    if not wanted or not opportunity.executable or not opportunity.legs:
         return False
-    if any(leg.venue != "coinbase" or not leg.executable for leg in opportunity.legs):
+    if any(leg.venue != wanted or not leg.executable for leg in opportunity.legs):
         return False
     first = opportunity.legs[0]
     if first.action != "buy":
@@ -53,3 +54,8 @@ def coinbase_live_ok(opportunity: Opportunity) -> bool:
     except ValueError:
         return False
     return quote == "USD"
+
+
+def coinbase_live_ok(opportunity: Opportunity) -> bool:
+    """True when every leg is Coinbase and the tap starts by buying with USD."""
+    return venue_live_ok(opportunity, "coinbase")

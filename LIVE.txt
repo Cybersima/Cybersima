@@ -1,69 +1,77 @@
-CyberSym SecureTrade — going live (real Coinbase orders)
-========================================================
+CyberSym SecureTrade — going live (real orders)
+================================================
 
 Paper trading and live market data are already on.
-This add-on sends REAL Coinbase market orders with YOUR money.
+This add-on sends REAL market orders with YOUR money on the
+exchange you pick: Coinbase or Kraken. You do not need both.
 
 Paper and live are on the SAME dashboard. Start with paper
-(start-live.bat). When the Ready check is green, switch Paper → Live.
+(start-live.bat). Pick Live on: Coinbase or Kraken. When the
+Ready check is green, switch Paper → Live.
 You can switch back to Paper any time without closing the app.
 GO-LIVE.bat still starts already live if you want that.
 
 What goes live
 --------------
-• Coinbase dislocations: the same coin on Coinbase’s USD book vs USDC book
-  (buy the cheap one, sell the rich one, convert leftover USDC back to USD).
-• Coinbase-only triangles: BUY, then SELL, aiming to finish back in USD.
-• Each tap is $1–$25 (default $5). Buttons: $1 $2 $3 $4 $5 …
-• Session budget: $25 total live size this run (five $5 taps, or
-  twenty-five $1 taps, etc.). Coins priced under $1 still buy a fraction.
-• Every live order is a tap. Auto-invest stays off while live.
+• Same-exchange USD round-trips on the venue you picked:
+  USD vs USDC dislocations (buy cheap, sell rich, convert leftover
+  USDC back to USD) and same-exchange triangles.
+• Each tap starts in USD and aims to finish in USD.
+• Each tap is $1–$25 (default $5). Session budget: $25 this run.
 • P&L is from actual fill prices, not the estimated edge.
+
+Auto window
+-----------
+• Paper Auto can run any time, or only between the times you set
+  (example: 10:00 PM to 6:00 AM — overnight wraps midnight).
+• Times use THIS computer’s clock.
+• While live, Auto stays off unless you turn on “Only between”
+  and set a start and stop. Then Auto can fire inside that window
+  on the live venue only. Kill switch still pauses new orders.
 
 What stays off live (would mean holding)
 ----------------------------------------
 • Buy Coinbase / sell Kraken (or Gemini / Bitstamp).
   You cannot instantly move coins between exchanges. Paper can fake
   that round-trip; live cannot without parking coins on both books.
+• Gemini and Bitstamp stay paper (live is Coinbase or Kraken).
 
 You can lose money. Fees and slippage eat most retail gaps.
 This is not a profit guarantee.
 
-Setup (once)
-------------
-1. Create a Coinbase Advanced Trade / Coinbase App API key (this is
-   YOUR Coinbase account, not a CyberSym login):
+Setup (once) — Coinbase
+-----------------------
+1. Create a Coinbase Advanced Trade / Coinbase App API key:
      https://portal.cdp.coinbase.com/projects/api-keys
-   Sign in with the same Coinbase account that holds your USD.
-   Click Create API key.
-   Nickname: anything, e.g. SecureTrade.
    Permissions: View + Trade. Do NOT enable Transfer / Send / Withdraw.
    Signature algorithm: ECDSA (not Ed25519).
-   Coinbase no longer auto-downloads the file. In the popup, click
-   Download API key. The secret is shown only once.
+   Download API key and save as keys\coinbase.json
 
-2. Rename that download to coinbase.json and put it here
-   (same folder as start.bat):
-     keys\coinbase.json
+Setup (once) — Kraken
+---------------------
+1. Create a Kraken API key:
+     https://www.kraken.com/u/security/api
+   Permissions: Query Funds + Create & Modify Orders.
+   Do NOT enable Withdraw.
+   Save as keys\kraken.json:
+     {"key":"YOUR_API_KEY","secret":"YOUR_PRIVATE_KEY"}
 
-3. Leave USD in Coinbase (at least the $25 session cap). You do not need
-   to hold BTC/ETH for sell legs. Each tap spends USD, then sells back
-   toward USD. It will not sell coins you already had.
+2. Leave USD on that exchange (at least the $25 session cap). You do
+   not need to hold BTC/ETH for sell legs. Each tap spends USD, then
+   sells back toward USD. It will not sell coins you already had.
 
-4. Stop the demo window first (close the black window).
+3. Stop the demo window first (close the black window).
 
-5. Check first (does not send orders):
+4. Check first (does not send orders):
    Windows:  double-click CHECK-LIVE.bat
    Mac:      double-click Check-Live.command
    Linux:    ./check-live.sh
 
-6. When the check says Ready:
+5. When the check says Ready:
    Windows:  start-live.bat, then switch to Live on the dashboard
              (or double-click GO-LIVE.bat to start already live)
    Mac:      start.command for paper, or Go-Live.command
    Linux:    ./start.sh for paper, or ./go-live.sh
-
-GO-LIVE runs the same check again and will refuse to start if it fails.
 
 You confirm Live on the dashboard (or GO-LIVE.bat). The dashboard shows a red
 LIVE banner, your balances, and the $25 cap. Switch back to Paper any time.
@@ -79,8 +87,9 @@ the key must be a Coinbase App / Advanced Trade Secret API key
 A cloud-only CDP key will not work. Download a new JSON and replace
 keys\coinbase.json, then run CHECK-LIVE.bat again.
 
-If Coinbase auth fails, the app will not start live. Fix the JSON
-and try again. Never paste keys into the dashboard or email.
+If Coinbase auth fails, the app will not start live on Coinbase. Fix the JSON
+and try again — or pick Kraken if that is the account you have.
+Never paste keys into the dashboard or email.
 
 If CHECK-LIVE says the key cannot sign (cryptography / openssl):
 close other SecureTrade windows, double-click INSTALL.bat, then

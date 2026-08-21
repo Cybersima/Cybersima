@@ -355,7 +355,30 @@ label, .tag {
   border-color: var(--cyan);
   font-weight: 600;
 }
-.hint { color: var(--muted); font-size: 12px; margin: 10px 0 0; line-height: 1.45; }
+.schedule-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  align-items: flex-end;
+}
+.time-label {
+  margin: 0;
+  letter-spacing: 0.08em;
+}
+.time-label input[type="time"] {
+  display: block;
+  margin-top: 6px;
+  background: var(--input);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: Rajdhani, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+.live-venue-picks { margin-top: 12px; }
 
 .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
 .kpis article {

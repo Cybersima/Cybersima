@@ -80,6 +80,16 @@ let desk = {
     { id: "triangular", label: "Same-exchange triangles" },
   ],
   live: false,
+  live_venue: "coinbase",
+  live_venue_choices: [
+    { id: "coinbase", label: "Coinbase" },
+    { id: "kraken", label: "Kraken" },
+  ],
+  live_venues_ready: [],
+  schedule_enabled: false,
+  schedule_start: "22:00",
+  schedule_stop: "06:00",
+  schedule_active: true,
   auto_allowed: true,
   budget: null,
   budget_left: null,
@@ -155,6 +165,10 @@ function persistDeskLocal() {
         assets: desk.assets,
         venues: desk.venues,
         kinds: desk.kinds,
+        live_venue: desk.live_venue,
+        schedule_enabled: desk.schedule_enabled,
+        schedule_start: desk.schedule_start,
+        schedule_stop: desk.schedule_stop,
         price_mode: desk.price_mode || "any",
         price_limit: desk.price_limit ?? 5,
       })
@@ -384,8 +398,8 @@ function paintExecToggle() {
   if (execLive) execLive.classList.toggle("on", live);
   if (ledeEl) {
     ledeEl.textContent = live
-      ? "Live: Coinbase dislocations (USD vs USDC) and Coinbase triangles. Each tap buys with USD and aims to finish back in USD."
-      : "Paper first. Switch to Live for real Coinbase dislocation taps. Cross-exchange gaps stay paper.";
+      ? `Live on ${liveVenueLabel()}: USD round-trips. Each tap buys with USD and aims to finish back in USD.`
+      : "Paper first. Switch to Live for real Coinbase or Kraken taps. Cross-exchange gaps stay paper.";
   }
 }
 
@@ -411,7 +425,7 @@ async function setExecution(mode) {
     paintLiveReady();
     paintSecurity();
     render();
-    showToast(data.note || (mode === "live" ? "Live Coinbase is on." : "Back on paper."));
+    showToast(data.note || (mode === "live" ? `Live ${liveVenueLabel()} is on.` : "Back on paper."));
   } catch (err) {
     showToast(String(err.message || err));
     paintExecToggle();
@@ -425,6 +439,12 @@ function chip(label, on, onClick) {
   btn.textContent = label;
   btn.addEventListener("click", onClick);
   return btn;
+}
+
+function liveVenueLabel() {
+  const id = desk.live_venue || "coinbase";
+  const row = (desk.live_venue_choices || []).find((item) => item.id === id);
+  return row ? row.label : id;
 }
 
 function paintDesk() {
@@ -449,14 +469,63 @@ function paintDesk() {
   modePick.classList.toggle("on", !desk.auto_invest);
   modeAuto.classList.toggle("on", desk.auto_invest);
   modeAuto.disabled = !autoAllowed;
-  modeAuto.title = autoAllowed ? "" : "Auto stays off while live Coinbase orders are armed.";
+  modeAuto.title = autoAllowed
+    ? ""
+    : "While live, turn on Only between (a start and stop time) before Auto can run.";
   amountHint.textContent = desk.live
-    ? `This tap: $${fmt(desk.notional, 0)}. Session budget $${fmt(desk.budget || desk.cap, 0)} · $${fmt(desk.budget_left ?? desk.cap, 2)} left (${desk.taps_left ?? "?"} more taps). Coins under $1 still buy a fraction.`
+    ? `This tap: $${fmt(desk.notional, 0)} on ${liveVenueLabel()}. Session budget $${fmt(desk.budget || desk.cap, 0)} · $${fmt(desk.budget_left ?? desk.cap, 2)} left (${desk.taps_left ?? "?"} more taps). Coins under $1 still buy a fraction.`
     : "Each tap is this size. $1–$5 is typical. Paper until you go live. Coins under $1 still buy a fraction.";
   if (modeHint) {
     modeHint.textContent = autoAllowed
       ? "Picking is safer. Auto uses your amount on matching trades."
-      : "Live mode: Auto stays off. Each tap is a Coinbase dislocation or triangle that starts in USD and aims to finish in USD. Cross-venue gaps stay paper.";
+      : "Live: Auto stays off unless you set an Auto window (for example 10:00 PM to 6:00 AM). Cross-venue gaps stay paper.";
+  }
+  const schedOff = document.getElementById("sched-off");
+  const schedOn = document.getElementById("sched-on");
+  const schedStart = document.getElementById("sched-start");
+  const schedStop = document.getElementById("sched-stop");
+  const schedHint = document.getElementById("sched-hint");
+  const windowOn = Boolean(desk.schedule_enabled);
+  if (schedOff) schedOff.classList.toggle("on", !windowOn);
+  if (schedOn) schedOn.classList.toggle("on", windowOn);
+  if (schedStart && document.activeElement !== schedStart) schedStart.value = desk.schedule_start || "22:00";
+  if (schedStop && document.activeElement !== schedStop) schedStop.value = desk.schedule_stop || "06:00";
+  if (schedHint) {
+    if (windowOn) {
+      const open = desk.schedule_active !== false;
+      schedHint.textContent = open
+        ? `Auto window is on (${desk.schedule_start}–${desk.schedule_stop}, this computer’s clock). Auto can fire until ${desk.schedule_stop}.`
+        : `Auto is waiting until ${desk.schedule_start} (this computer’s clock). It will stop at ${desk.schedule_stop}. Overnight windows wrap midnight.`;
+    } else if (desk.live) {
+      schedHint.textContent =
+        "While live, Auto only runs if you turn on Only between. Example: 10:00 PM to 6:00 AM. Times use this computer’s clock.";
+    } else {
+      schedHint.textContent =
+        "Times use this computer’s clock. Example: 10:00 PM to 6:00 AM overnight. Optional on paper; required for live Auto.";
+    }
+  }
+  const liveVenueChips = document.getElementById("live-venue-chips");
+  if (liveVenueChips) {
+    const choices = desk.live_venue_choices || [
+      { id: "coinbase", label: "Coinbase" },
+      { id: "kraken", label: "Kraken" },
+    ];
+    const ready = desk.live_venues_ready || [];
+    liveVenueChips.replaceChildren(
+      ...choices.map((row) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = row.label;
+        btn.classList.toggle("on", (desk.live_venue || "coinbase") === row.id);
+        const hasKeys = !ready.length || ready.includes(row.id);
+        btn.title = hasKeys ? "" : `Save keys\\${row.id}.json first.`;
+        btn.addEventListener("click", () => {
+          saveDesk({ live_venue: row.id });
+          paintLiveReady();
+        });
+        return btn;
+      })
+    );
   }
 
   const priceMode = desk.price_mode || "any";
@@ -722,13 +791,13 @@ function render() {
           if (desk.live) {
             const note = document.createElement("div");
             note.className = "hint";
-            note.textContent = "Live Coinbase: buys with USD, then sells back toward USD.";
+            note.textContent = `Live ${liveVenueLabel()}: buys with USD, then sells back toward USD.`;
             li.append(note);
           }
         } else if (row.paper_only) {
           const note = document.createElement("div");
           note.className = "hint";
-          note.textContent = "Paper only while Live is on — this gap needs two exchanges. Live stays on Coinbase round-trips.";
+          note.textContent = `Paper only while Live is on — this gap is not a ${liveVenueLabel()} USD round-trip.`;
           li.append(note);
         } else if (row.pending && desk.auto_invest) {
           const note = document.createElement("div");
@@ -879,12 +948,20 @@ killBtn.addEventListener("click", async () => {
 modePick.addEventListener("click", () => saveDesk({ auto_invest: false }));
 modeAuto.addEventListener("click", () => {
   if (desk.auto_allowed === false) {
-    showToast("Auto stays off while live Coinbase orders are armed.");
+    showToast("While live, turn on Only between (start and stop times) before Auto can run.");
     return;
   }
   saveDesk({ auto_invest: true });
 });
 amountInput.addEventListener("change", () => saveDesk({ notional: Number(amountInput.value) }));
+const schedOffBtn = document.getElementById("sched-off");
+const schedOnBtn = document.getElementById("sched-on");
+const schedStartInput = document.getElementById("sched-start");
+const schedStopInput = document.getElementById("sched-stop");
+if (schedOffBtn) schedOffBtn.addEventListener("click", () => saveDesk({ schedule_enabled: false, auto_invest: desk.live ? false : desk.auto_invest }));
+if (schedOnBtn) schedOnBtn.addEventListener("click", () => saveDesk({ schedule_enabled: true }));
+if (schedStartInput) schedStartInput.addEventListener("change", () => saveDesk({ schedule_start: schedStartInput.value }));
+if (schedStopInput) schedStopInput.addEventListener("change", () => saveDesk({ schedule_stop: schedStopInput.value }));
 if (priceAny) priceAny.addEventListener("click", () => saveDesk({ price_mode: "any" }));
 if (priceUnder) priceUnder.addEventListener("click", () => saveDesk({ price_mode: "under" }));
 if (priceOver) priceOver.addEventListener("click", () => saveDesk({ price_mode: "over" }));
@@ -1003,7 +1080,7 @@ async function paintSecurity() {
     const bits = [
       data.network === "lan" ? "On your Wi-Fi · PIN required" : "This computer only",
       data.execution === "live" ? `LIVE · cap $${fmt(data.live_cap, 0)}` : "Paper trading",
-      data.keys_file ? "Coinbase key file on this PC" : "No Coinbase key file",
+      data.keys_file ? "Key file on this PC" : "No Coinbase or Kraken key file",
       data.killed && data.execution === "live"
         ? "Kill switch paused new orders — still LIVE"
         : data.killed
@@ -1020,7 +1097,7 @@ async function paintSecurity() {
 async function paintLiveReady() {
   if (!liveReadyEl || !liveReadyList) return;
   if (liveReadyRefresh) liveReadyRefresh.disabled = true;
-  if (liveReadyStatus) liveReadyStatus.textContent = "Checking Coinbase keys and cash…";
+  if (liveReadyStatus) liveReadyStatus.textContent = `Checking ${liveVenueLabel()} keys and cash…`;
   try {
     const res = await fetch("/api/live-ready");
     const data = await res.json();

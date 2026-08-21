@@ -60,15 +60,18 @@ Live market data (still paper trading):
    Windows:  start-live.bat
    Mac/Linux: ./start.sh --live
 
-Real Coinbase orders (your money):
+Real Coinbase or Kraken orders (your money):
    Read LIVE.txt first.
-   Create the key at https://portal.cdp.coinbase.com/projects/api-keys
-   Download API key, save as keys\coinbase.json
+   Coinbase: keys\coinbase.json from https://portal.cdp.coinbase.com/projects/api-keys
+   Kraken:   keys\kraken.json  {"key":"...","secret":"..."} from Kraken API settings
+   You only need the exchange you will trade on.
    Windows:  CHECK-LIVE.bat, then start-live.bat. Practice on Paper.
-             Switch to Live on the dashboard when you are ready.
+             Pick Live on: Coinbase or Kraken. Switch to Live when ready.
+             Optional Auto window: Only between 10:00 PM and 6:00 AM
+             (this computer’s clock). While live, Auto needs that window.
              GO-LIVE.bat still starts already live if you prefer.
-   Default: $5 per tap, $25 session budget. Live takes Coinbase USD vs USDC
-   dislocations and Coinbase triangles, then sells back toward USD.
-   Cross-venue two-exchange gaps stay paper. Auto stays off while live.
+   Default: $5 per tap, $25 session budget. Live takes USD vs USDC
+   dislocations and same-exchange triangles, then sells back toward USD.
+   Cross-venue two-exchange gaps stay paper.
 
 © CyberSym. All rights reserved.

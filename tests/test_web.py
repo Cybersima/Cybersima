@@ -56,7 +56,10 @@ def test_dashboard_and_kill_switch() -> None:
     assert 'id="exec-paper"' in page.text
     assert 'id="exec-live"' in page.text
     assert "Paper or live" in page.text
-    assert "Ready for live Coinbase" in page.text
+    assert "Ready for live trading" in page.text
+    assert 'id="live-venue-chips"' in page.text
+    assert 'id="sched-start"' in page.text
+    assert "Only between" in page.text
     assert "logo.png" in page.text
     assert 'id="theme-dark"' in page.text
     assert 'id="theme-light"' in page.text
@@ -73,7 +76,7 @@ def test_dashboard_and_kill_switch() -> None:
     assert "auto_allowed" in js.text
     assert "emptyOppsMessage" in js.text
     assert "three Coinbase fees" in js.text
-    assert "Coinbase dislocations" in page.text
+    assert "USD vs USDC dislocations" in page.text
     assert "tradeCard" in js.text
     assert "cash-usd" in js.text
     assert "cybersym-theme" in page.text

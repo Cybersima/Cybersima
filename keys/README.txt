@@ -1,11 +1,18 @@
-Drop your Coinbase Advanced Trade API JSON here as:
+Drop your exchange API file here. You only need the venue you will trade live on.
 
+Coinbase (Advanced Trade Secret API key):
     coinbase.json
-
-Create the key here (sign in with your Coinbase account):
-    https://portal.cdp.coinbase.com/projects/api-keys
+Create at: https://portal.cdp.coinbase.com/projects/api-keys
 View + Trade only — no Transfer. Signature: ECDSA.
 In the popup click Download API key, then rename the file coinbase.json.
-See LIVE.txt. Run CHECK-LIVE.bat (does not send orders) before GO-LIVE.bat.
+
+Kraken:
+    kraken.json
+Create at: https://www.kraken.com/u/security/api
+JSON shape: {"key":"...","secret":"..."}
+Permissions: Query Funds + Create & Modify Orders. Do NOT enable Withdraw.
+
+You do not need both. Pick Coinbase or Kraken on the dashboard.
+See LIVE.txt. Run CHECK-LIVE.bat (does not send orders) before going live.
 
 This folder is for keys on YOUR computer. Do not zip or email these files.

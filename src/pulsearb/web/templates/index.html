@@ -37,7 +37,7 @@
         <div class="brand-copy">
           <p class="company">{{ company }}</p>
           <h1>{{ product_short }}</h1>
-          <p class="lede" id="lede">{% if execution.startswith('live') %}Live: Coinbase dislocations (USD vs USDC) and Coinbase triangles. Each tap buys with USD and aims to finish back in USD.{% else %}Paper first. Switch to Live for real Coinbase dislocation taps. Cross-exchange gaps stay paper.{% endif %}</p>
+          <p class="lede" id="lede">{% if execution.startswith('live') %}Live: same-exchange USD round-trips on Coinbase or Kraken. Each tap buys with USD and aims to finish back in USD.{% else %}Paper first. Switch to Live for real Coinbase or Kraken taps. Cross-exchange gaps stay paper.{% endif %}</p>
         </div>
       </div>
       <div class="mast-meta">
@@ -71,7 +71,7 @@
 
     <section class="cash-bar" id="cash-bar" aria-label="Buying power">
       <article>
-        <label>Coinbase cash</label>
+        <label>Cash on live venue</label>
         <strong id="cash-usd">—</strong>
       </article>
       <article>
@@ -88,7 +88,7 @@
       </article>
     </section>
 
-    <section class="live-ready" id="live-ready" aria-label="Ready for live Coinbase">
+    <section class="live-ready" id="live-ready" aria-label="Ready for live trading">
       <div class="live-ready-head">
         <label>Paper or live</label>
         <div class="live-ready-actions">
@@ -99,9 +99,14 @@
           <button type="button" id="live-ready-refresh">Check again</button>
         </div>
       </div>
-      <p class="hint" id="live-ready-status">Checking Coinbase keys and cash…</p>
+      <p class="hint" id="live-ready-status">Checking keys and cash…</p>
+      <div class="live-venue-picks">
+        <label>Live on</label>
+        <div class="segmented" role="group" aria-label="Live exchange" id="live-venue-chips"></div>
+        <p class="hint">Use the exchange where you have an account. You do not need both. Gemini and Bitstamp stay paper.</p>
+      </div>
       <div class="live-confirm" id="live-confirm" hidden>
-        <p>This spends real USD on Coinbase. Each tap buys and sells and aims to finish back in dollars. Not buy-and-hold.</p>
+        <p>This spends real USD on the exchange you picked. Each tap buys and sells and aims to finish back in dollars. Not buy-and-hold. Cross-exchange gaps stay paper.</p>
         <div class="live-confirm-actions">
           <button type="button" id="live-confirm-go">I understand — go live</button>
           <button type="button" id="live-confirm-cancel">Stay on paper</button>
@@ -139,6 +144,20 @@
           <button type="button" id="mode-auto">Invest automatically</button>
         </div>
         <p class="hint" id="mode-hint">Picking is safer. Auto uses your amount on matching trades.</p>
+        <label class="sub-label">Auto window</label>
+        <div class="segmented" role="group" aria-label="Auto window">
+          <button type="button" id="sched-off" class="on">Any time</button>
+          <button type="button" id="sched-on">Only between</button>
+        </div>
+        <div class="schedule-row" id="schedule-times">
+          <label class="time-label">Start
+            <input id="sched-start" type="time" value="22:00" />
+          </label>
+          <label class="time-label">Stop
+            <input id="sched-stop" type="time" value="06:00" />
+          </label>
+        </div>
+        <p class="hint" id="sched-hint">Times use this computer’s clock. Example: 10:00 PM to 6:00 AM overnight. While live, Auto only runs if this window is on.</p>
       </div>
       <div class="desk-block">
         <label>Coins I want</label>
@@ -151,7 +170,7 @@
       <div class="desk-block">
         <label>Trade style</label>
         <div class="chips" id="kind-chips"></div>
-        <p class="hint">Live takes Coinbase dislocations (USD vs USDC books) and Coinbase triangles, then sells back toward USD. Price gaps vs Kraken stay paper — live cannot move a coin between exchanges.</p>
+        <p class="hint">Live takes USD vs USDC dislocations and same-exchange triangles on the exchange you picked, then sells back toward USD. Price gaps vs another exchange stay paper — live cannot move a coin between Coinbase and Kraken.</p>
       </div>
     </section>
 

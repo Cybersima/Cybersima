@@ -24,12 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--live-trading",
         action="store_true",
-        help="Send real Coinbase orders. Requires keys/coinbase.json and PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK",
+        help="Send real Coinbase or Kraken orders. Requires keys/coinbase.json or keys/kraken.json and PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK",
     )
     parser.add_argument(
         "--check-live",
         action="store_true",
-        help="Check Coinbase keys and cash. Does not send orders or start the dashboard.",
+        help="Check Coinbase or Kraken keys and cash. Does not send orders or start the dashboard.",
     )
     parser.add_argument("--binance", action="store_true", help="Also enable Binance (not available to US residents)")
     parser.add_argument("--open-browser", action="store_true", help="Open the dashboard in a browser")
@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.live_trading and not config.live_enabled():
         raise SystemExit(
             "Live trading is not armed.\n"
-            "1. Save the Coinbase API JSON as keys/coinbase.json (see LIVE.txt)\n"
+            "1. Save keys/coinbase.json or keys/kraken.json (see LIVE.txt)\n"
             "2. Set PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK\n"
             "Or double-click GO-LIVE.bat"
         )

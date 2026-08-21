@@ -8,20 +8,21 @@ set PYTHONPATH=
 
 echo.
 echo  CyberSym SecureTrade — LIVE TRADING
-echo  This sends REAL Coinbase market orders with your money.
+echo  This sends REAL market orders with your money (Coinbase or Kraken).
 echo  Each tap is $1-$25 (default $5). Session budget $25.
-echo  Auto stays OFF. Every live order is a tap.
-echo  Cross-venue (Coinbase vs Kraken/Gemini/Bitstamp) stays PAPER.
+echo  Live Auto only runs inside the time window you set on the dashboard.
+echo  Cross-venue (Coinbase vs Kraken) stays PAPER.
 echo  Close this window or use Kill switch to stop.
 echo.
-if not exist "keys\coinbase.json" (
-  echo Missing keys\coinbase.json
-  echo Read LIVE.txt, then put the Coinbase API JSON in the keys folder.
+if exist "keys\coinbase.json" goto havekeys
+if exist "keys\kraken.json" goto havekeys
+  echo Missing keys\coinbase.json and keys\kraken.json
+  echo Read LIVE.txt. Save the key file for the exchange you will use.
   echo Then run CHECK-LIVE.bat before this file.
   echo.
   pause
   exit /b 1
-)
+:havekeys
 
 call "%~dp0scripts\setup-venv.bat"
 if errorlevel 1 (
@@ -42,7 +43,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo Ready check passed. Next step starts REAL Coinbase orders.
+echo Ready check passed. Next step starts REAL orders on Coinbase or Kraken.
 echo Press Ctrl+C to cancel, or
 pause
 

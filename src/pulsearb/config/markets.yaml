@@ -92,6 +92,11 @@ kraken:
     - BTC-EUR
     - ETH-EUR
     - EUR-USD
+    - USDC-USD
+    - BTC-USDC
+    - ETH-USDC
+    - SOL-USDC
+    - LTC-USDC
 
 gemini:
   enabled: true

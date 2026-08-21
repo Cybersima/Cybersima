@@ -38,6 +38,9 @@ class EnvSettings(BaseSettings):
     coinbase_api_key: str = Field(default="", alias="COINBASE_API_KEY")
     coinbase_api_secret: str = Field(default="", alias="COINBASE_API_SECRET")
     coinbase_api_json: str = Field(default="", alias="COINBASE_API_JSON")
+    kraken_api_key: str = Field(default="", alias="KRAKEN_API_KEY")
+    kraken_api_secret: str = Field(default="", alias="KRAKEN_API_SECRET")
+    kraken_api_json: str = Field(default="", alias="KRAKEN_API_JSON")
 
 
 class AppConfig:
@@ -97,6 +100,16 @@ class AppConfig:
             api_secret=self.env.coinbase_api_secret,
         )
 
+    def kraken_credentials(self) -> tuple[str, str] | None:
+        from pulsearb.engine.keys import load_kraken_credentials
+
+        return load_kraken_credentials(
+            cwd=Path.cwd(),
+            json_path=self.env.kraken_api_json or None,
+            api_key=self.env.kraken_api_key,
+            api_secret=self.env.kraken_api_secret,
+        )
+
     def binance_live_ready(self) -> bool:
         return bool(
             self.venue_enabled("binance")
@@ -109,7 +122,11 @@ class AppConfig:
             return False
         if self.env.live_confirm != self.live_confirm_phrase:
             return False
-        return self.coinbase_credentials() is not None or self.binance_live_ready()
+        return (
+            self.coinbase_credentials() is not None
+            or self.kraken_credentials() is not None
+            or self.binance_live_ready()
+        )
 
     def live_notional(self) -> float:
         paper = float(self.risk.get("max_notional_usdt", 250))
@@ -122,6 +139,8 @@ class AppConfig:
         names: list[str] = []
         if self.coinbase_credentials() is not None:
             names.append("coinbase")
+        if self.kraken_credentials() is not None:
+            names.append("kraken")
         if self.binance_live_ready():
             names.append("binance")
         return names

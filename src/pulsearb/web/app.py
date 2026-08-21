@@ -127,13 +127,18 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     async def live_ready() -> dict:
         from pulsearb.engine.live_ready import assess_live_ready
 
-        return await assess_live_ready(engine.config, killed=engine.risk.killed, armed=engine.live_active())
+        return await assess_live_ready(
+            engine.config,
+            killed=engine.risk.killed,
+            armed=engine.live_active(),
+            venue=engine.desk.live_venue,
+        )
 
     @app.get("/api/security")
     async def security() -> dict:
         host = engine.config.host
         local = host in {"127.0.0.1", "localhost", "::1"}
-        keys = (Path.cwd() / "keys" / "coinbase.json").is_file()
+        keys = (Path.cwd() / "keys" / "coinbase.json").is_file() or (Path.cwd() / "keys" / "kraken.json").is_file()
         return {
             "ok": True,
             "lock": "on",
@@ -147,7 +152,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
             "live_cap": engine.config.live_notional() if engine.live_active() else engine.desk.notional,
             "keys_file": keys,
             "killed": engine.risk.killed,
-            "note": "API keys stay in keys\\coinbase.json on this PC. Never paste them into the dashboard.",
+            "note": "API keys stay in keys\\coinbase.json or keys\\kraken.json on this PC. Never paste them into the dashboard.",
         }
 
     @app.get("/api/snapshot")

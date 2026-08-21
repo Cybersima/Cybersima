@@ -139,6 +139,20 @@ def test_live_engine_rejects_auto(tmp_path, monkeypatch) -> None:
     assert engine.desk.auto_invest is False
 
 
+def test_live_engine_allows_auto_inside_window(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_keys(tmp_path)
+    monkeypatch.setenv("PULSEARB_EXECUTION_MODE", "live")
+    monkeypatch.setenv("PULSEARB_LIVE_CONFIRM", "I_UNDERSTAND_THE_RISK")
+    engine = Engine(AppConfig())
+    desk = engine.apply_desk(
+        {"schedule_enabled": True, "schedule_start": "00:00", "schedule_stop": "23:59", "auto_invest": True}
+    )
+    assert desk["auto_allowed"] is True
+    assert desk["auto_invest"] is True
+    assert desk["schedule_enabled"] is True
+
+
 @pytest.mark.asyncio
 async def test_live_ready_killed_while_armed_says_still_live(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
