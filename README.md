@@ -52,6 +52,22 @@ Final Commit is an advisory/measurement gate. `CANCEL` never enters Paper Lab.
 | **Assist** | Finds opportunities; you approve |
 | **Auto** | Executes only inside customer-defined limits |
 
+## Download
+
+Get the installer zip (Windows, Mac, Linux):
+
+```bash
+python -m securetrade package
+```
+
+That writes `dist/CyberSym-SecureTrade-2.1.0.zip`. Unzip it, then:
+
+- **Windows:** double-click `start.bat`
+- **macOS:** double-click `start.command`
+- **Linux:** `./install.sh` then `./start.sh`
+
+A running command center also serves the same file at [http://127.0.0.1:8000/download](http://127.0.0.1:8000/download). GitHub Releases attach the zip when you push a `v*` tag.
+
 ## Install
 
 **Desktop (Windows / macOS / Linux)**

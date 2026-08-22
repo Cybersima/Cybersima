@@ -1,0 +1,18 @@
+CyberSym SecureTrade 2 — Terms of use
+=====================================
+
+© CyberSym. All rights reserved. A CyberSym product.
+
+This software is licensed, not sold. You may install it on computers
+you own or control for your own trading research and paper trading.
+
+You may not redistribute the product, remove branding, or present it
+as a profit guarantee. Public market data (including Yahoo Finance)
+is delayed and incomplete. Past paper results do not predict future
+results. You are responsible for compliance with your local laws and
+broker rules.
+
+Live trading, if you later unlock it, can lose money. CyberSym is not
+a broker, adviser, or exchange.
+
+Contact: the vendor of record on your invoice or license.

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -87,6 +87,25 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     @app.get("/setup", response_class=HTMLResponse)
     async def setup(request: Request) -> HTMLResponse:
         return page(request)
+
+    @app.get("/download", response_class=HTMLResponse)
+    async def download_page(request: Request) -> HTMLResponse:
+        return page(request, "download.html")
+
+    @app.get("/api/downloads")
+    async def downloads() -> dict:
+        from securetrade.packager import package_info
+
+        return package_info()
+
+    @app.get("/download/zip")
+    async def download_zip() -> FileResponse:
+        from securetrade.packager import build_zip, default_zip_path, zip_name
+
+        path = default_zip_path()
+        if not path.exists():
+            path = build_zip(path)
+        return FileResponse(path, filename=zip_name(), media_type="application/zip")
 
     @app.get("/api/health")
     async def health() -> dict:

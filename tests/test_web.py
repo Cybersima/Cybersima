@@ -15,6 +15,13 @@ def test_dashboard_and_kill_switch() -> None:
     assert "Guardian" in page.text
     assert "Forex Desk" in page.text
     assert "30s" in page.text
+    assert "/download" in page.text
+    download = client.get("/download")
+    assert download.status_code == 200
+    assert "Download for Windows" in download.text
+    listed = client.get("/api/downloads").json()
+    assert listed["filename"].endswith(".zip")
+    assert listed["version"]
     fx = client.get("/api/forex").json()
     assert fx["poll_seconds"] == 3.0
     assert "1d" in fx["timeframes"]
