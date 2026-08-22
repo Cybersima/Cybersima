@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Download {{ product }} — {{ company }}</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="top">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 40 44" aria-hidden="true">
+          <path class="shield" d="M20 2 L36 8 V22 C36 32 28 40 20 42 C12 40 4 32 4 22 V8 Z"/>
+          <text x="20" y="27" text-anchor="middle">CS</text>
+        </svg>
+        <div>
+          <p class="company">{{ company }}</p>
+          <h1>SECURETRADE <span class="ver">2</span></h1>
+          <p class="tag">{{ tagline }}</p>
+        </div>
+      </div>
+      <a class="tabs-link" href="/">Back to command center</a>
+    </header>
+
+    <section class="view on">
+      <div class="hero-card">
+        <p class="kicker">DOWNLOAD</p>
+        <h2 class="dl-title">{{ product }} {{ version }}</h2>
+        <p class="hint">Unzip. Double-click. The Forex Desk and Guardian open in your browser. Paper trading is the default.</p>
+        <div class="dl-actions">
+          <a id="get-zip" class="dl-btn" href="/download/zip" download="CyberSym-SecureTrade-2.1.0.zip">Download for Windows, Mac &amp; Linux</a>
+          <p class="hint" id="dl-meta">Preparing installer…</p>
+          <p class="hint" id="dl-error" hidden></p>
+        </div>
+      </div>
+
+      <div class="split">
+        <article class="panel">
+          <header><h2>What you get</h2></header>
+          <ul class="why">
+            <li>SecureTrade Desktop command center + Forex Desk</li>
+            <li>30s–1d scanner, BUY/SELL entries, stop/target exits</li>
+            <li>Yahoo Finance tape every 3 seconds</li>
+            <li>Guardian, Paper Lab, kill switch, decision journal</li>
+            <li>start.bat / start.command / start.sh one-click launchers</li>
+            <li>Docker 24/7 engine for a VPS</li>
+          </ul>
+        </article>
+        <article class="panel">
+          <header><h2>Install</h2></header>
+          <ol class="tape">
+            <li><b>Windows</b> — unzip, double-click <code>start.bat</code></li>
+            <li><b>macOS</b> — unzip, double-click <code>start.command</code></li>
+            <li><b>Linux</b> — <code>./install.sh</code> then <code>./start.sh</code></li>
+            <li>Open <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a></li>
+          </ol>
+          <p class="hint">Requires Python 3.11+. Live trading stays locked until safety checks pass. Yahoo is delayed retail data. Not a profit guarantee.</p>
+        </article>
+      </div>
+    </section>
+  </div>
+  <footer class="sig">
+    <strong>{{ product }}</strong>
+    <span>{{ signature }} · v{{ version }} · {{ copyright }}</span>
+  </footer>
+  <script>
+    const btn = document.getElementById("get-zip");
+    const meta = document.getElementById("dl-meta");
+    const err = document.getElementById("dl-error");
+    fetch("/api/downloads").then((r) => r.json()).then((d) => {
+      const mb = d.bytes ? (d.bytes / 1048576).toFixed(2) + " MB" : "ready";
+      meta.textContent = d.filename + " · " + mb + (d.sha256 ? " · SHA-256 " + d.sha256.slice(0, 12) + "…" : "");
+      const href = d.static_url || d.download_url || "/download/zip";
+      btn.href = href;
+      btn.setAttribute("download", d.filename);
+    }).catch(() => {});
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      err.hidden = true;
+      meta.textContent = "Starting download…";
+      try {
+        const res = await fetch(btn.href, { headers: { Accept: "application/zip" } });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const blob = await res.blob();
+        if (blob.size < 1000) throw new Error("empty installer");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = btn.getAttribute("download") || "CyberSym-SecureTrade.zip";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        meta.textContent = "Download started — check your Downloads folder.";
+      } catch (ex) {
+        err.hidden = false;
+        err.textContent = "Download failed. Try again or use python -m securetrade package.";
+        window.location.href = "/download/zip";
+      }
+    });
+  </script>
+</body>
+</html>

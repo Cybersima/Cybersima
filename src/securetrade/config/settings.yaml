@@ -10,7 +10,14 @@ kraken_poll_seconds: 1.0
 gemini_poll_seconds: 1.0
 bitstamp_poll_seconds: 1.0
 binance_rest_poll_seconds: 1.0
-yahoo_poll_seconds: 2.0
+yahoo_poll_seconds: 3.0
+
+forex:
+  enabled: true
+  min_confluence: 3
+  max_open: 6
+  cooldown_seconds: 45
+  min_edge_bps: 8.0
 
 fees:
   coinbase_taker_bps: 50.0
@@ -50,12 +57,27 @@ capital:
     - USDT
     - USDC
     - EUR
+    - GBP
+    - JPY
+    - AUD
+    - CAD
+    - CHF
+    - NZD
+    - CNH
+    - SEK
+    - NOK
+    - MXN
+    - ZAR
+    - TRY
+    - XAU
+    - XAG
   allowed_exchanges:
     - coinbase
     - kraken
     - gemini
     - bitstamp
     - simulator
+    - yahoo
   min_net_edge_bps: 8.0
 
 guardian:

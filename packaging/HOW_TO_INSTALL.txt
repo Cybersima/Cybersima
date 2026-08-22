@@ -1,0 +1,41 @@
+CyberSym SecureTrade 2 — install in two minutes
+================================================
+
+Python 3.11, 3.12, 3.13, or official 3.14.7 is fine:
+  https://www.python.org/downloads/windows/
+
+On Windows, tick “Add python.exe to PATH”.
+Use C:\Python314\python.exe — not python3.14t.exe (free-threaded).
+The t-build crashes with “No module named encodings”.
+
+If start.bat already failed once, delete the .venv folder in this
+directory, install Python 3.12, and double-click start.bat again.
+
+Windows
+  1. Unzip this folder
+  2. Double-click start.bat
+  3. The command center opens at http://127.0.0.1:8000
+
+macOS
+  1. Unzip this folder
+  2. Double-click start.command
+     (first time: right-click → Open, if Gatekeeper asks)
+  3. Open http://127.0.0.1:8000
+
+Linux
+  1. Unzip this folder
+  2. ./install.sh
+  3. ./start.sh
+  4. Open http://127.0.0.1:8000
+
+iPad / phone on the same Wi-Fi
+  Open http://<this-computer>:8000 and add it to the Home Screen.
+
+24/7 engine (recommended beyond a demo)
+  docker compose up --build
+  Leave that host running. Closing the laptop should not stop a live engine.
+
+Paper trading is the default. Live trading stays locked until
+connectivity, encrypted keys, risk limits, and safety checks pass.
+
+Yahoo Finance is delayed retail data. This is not a profit guarantee.

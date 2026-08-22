@@ -190,7 +190,7 @@ binance:
 
 yahoo:
   enabled: true
-  poll_seconds: 2.0
+  poll_seconds: 3.0
   symbols:
     - ticker: EURUSD=X
       canonical: EUR-USD
@@ -228,6 +228,39 @@ yahoo:
     - ticker: AUDJPY=X
       canonical: AUD-JPY
       asset_class: fx
+    - ticker: EURAUD=X
+      canonical: EUR-AUD
+      asset_class: fx
+    - ticker: EURCAD=X
+      canonical: EUR-CAD
+      asset_class: fx
+    - ticker: GBPAUD=X
+      canonical: GBP-AUD
+      asset_class: fx
+    - ticker: GBPCHF=X
+      canonical: GBP-CHF
+      asset_class: fx
+    - ticker: AUDNZD=X
+      canonical: AUD-NZD
+      asset_class: fx
+    - ticker: NZDJPY=X
+      canonical: NZD-JPY
+      asset_class: fx
+    - ticker: CADJPY=X
+      canonical: CAD-JPY
+      asset_class: fx
+    - ticker: CHFJPY=X
+      canonical: CHF-JPY
+      asset_class: fx
+    - ticker: EURNZD=X
+      canonical: EUR-NZD
+      asset_class: fx
+    - ticker: GBPCAD=X
+      canonical: GBP-CAD
+      asset_class: fx
+    - ticker: AUDCAD=X
+      canonical: AUD-CAD
+      asset_class: fx
     - ticker: USDCNH=X
       canonical: USD-CNH
       asset_class: fx
@@ -239,6 +272,15 @@ yahoo:
       asset_class: fx
     - ticker: USDMXN=X
       canonical: USD-MXN
+      asset_class: fx
+    - ticker: USDZAR=X
+      canonical: USD-ZAR
+      asset_class: fx
+    - ticker: USDTRY=X
+      canonical: USD-TRY
+      asset_class: fx
+    - ticker: EURSEK=X
+      canonical: EUR-SEK
       asset_class: fx
     - ticker: BTC-USD
       canonical: BTC-USD

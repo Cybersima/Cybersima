@@ -18,4 +18,6 @@ logs/
 .coverage
 htmlcov/
 *.zip
+!releases/*.zip
+!src/securetrade/web/static/downloads/*.zip
 threats.db

@@ -4,7 +4,9 @@
 
 SecureTrade 2 is a packaged product, not a folder of scripts. You install it, launch the command center, and a separate 24/7 engine keeps running even if the laptop sleeps.
 
-Paper trading is the default. Live trading cannot be turned on until exchange connectivity, security configuration, risk limits, and safety checks pass.
+The **Forex Desk** scans majors and crosses on a 3-second Yahoo Finance tape. It times BUY (rising) and SELL (falling) entries across 30-second, 1/2/3/4/5-minute, 1-hour, and 1-day frames, then exits on target, stop, time, or a fast-frame reversal. Cross-venue crypto gaps still run in the same engine.
+
+Paper trading is the default. Live trading cannot be turned on until exchange connectivity, security configuration, risk limits, and safety checks pass. Yahoo prints are delayed retail data — useful for pattern timing, not a prime-broker pipe.
 
 ## What you get
 
@@ -14,6 +16,7 @@ CyberSym SecureTrade 2
 ├── Setup Wizard
 ├── Exchange Connector Manager
 ├── Market Scanner
+├── Forex Desk (30s–1d · Yahoo every 3s)
 ├── Security & Fraud Engine
 ├── Arbitrage Engine
 ├── CyberSym Guardian™
@@ -49,6 +52,24 @@ Final Commit is an advisory/measurement gate. `CANCEL` never enters Paper Lab.
 | **Assist** | Finds opportunities; you approve |
 | **Auto** | Executes only inside customer-defined limits |
 
+## Download
+
+Get the installer zip (Windows, Mac, Linux):
+
+```bash
+python -m securetrade package
+```
+
+That writes `dist/CyberSym-SecureTrade-2.1.0.zip`. Unzip it, then:
+
+- **Windows:** install regular Python 3.12 from python.org (not `python3.14t`), delete any leftover `.venv`, then double-click `start.bat`
+- **macOS:** double-click `start.command`
+- **Linux:** `./install.sh` then `./start.sh`
+
+A running command center also serves the same file at [http://127.0.0.1:8000/download](http://127.0.0.1:8000/download) — the button saves `CyberSym-SecureTrade-2.1.0.zip` to your Downloads folder (it does not open a web page).
+
+The zip is also in the repo at [`releases/CyberSym-SecureTrade-2.1.0.zip`](releases/CyberSym-SecureTrade-2.1.0.zip). GitHub Actions attach it to `v*` releases.
+
 ## Install
 
 **Desktop (Windows / macOS / Linux)**
@@ -80,7 +101,7 @@ Point the command center at the engine URL. Closing the laptop will not stop Doc
 - Signed-update channel hook (`/api/updates`)
 - Immutable-style decision journal
 
-This is not a profit guarantee. Public APIs are not an HFT pipe. Yahoo is delayed. US default venues are Coinbase, Kraken, Gemini, and Bitstamp.
+This is not a profit guarantee. Public APIs are not an HFT pipe. Yahoo is delayed. A price dislocation is a *candidate*, not a filled profit. US default venues are Coinbase, Kraken, Gemini, and Bitstamp.
 
 ## Editions
 

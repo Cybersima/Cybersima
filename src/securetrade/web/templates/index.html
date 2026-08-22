@@ -28,11 +28,13 @@
       </div>
       <nav class="tabs" aria-label="Command center">
         <button data-view="home" class="on">Home</button>
+        <button data-view="forex">Forex Desk</button>
         <button data-view="markets">Markets</button>
         <button data-view="guardian">Guardian</button>
         <button data-view="journal">Journal</button>
         <button data-view="academy">Academy</button>
         <button data-view="setup">Setup</button>
+        <a class="tabs-link" href="/download">Download</a>
       </nav>
       <div class="clock" id="clock">--:--:--</div>
       <button id="kill" class="kill" type="button">Emergency Stop</button>
@@ -82,6 +84,36 @@
       </div>
     </section>
 
+    <section class="view" id="view-forex">
+      <div class="hero-card forex-hero">
+        <p class="kicker">FOREX DESK</p>
+        <div class="status-grid">
+          <div><span>YAHOO TAPE</span><strong id="fx-feed">every 3s</strong></div>
+          <div><span>PAIRS LIVE</span><strong id="fx-pairs">0</strong></div>
+          <div><span>OPEN TRADES</span><strong id="fx-open">0</strong></div>
+          <div><span>WIN RATE</span><strong id="fx-win">—</strong></div>
+        </div>
+        <p class="hint fx-hint">30s · 1m · 2m · 3m · 4m · 5m · 1h · 1d — buy rising markets, sell falling markets, exit before the tape flips. Paper is default. Yahoo is delayed retail data.</p>
+      </div>
+      <div class="split fx-split">
+        <article class="panel">
+          <header>
+            <h2>Multi-timeframe scanner</h2>
+            <input id="fx-filter" type="search" placeholder="Filter EUR, JPY, GBP…" />
+          </header>
+          <div id="fx-board" class="fx-board"></div>
+        </article>
+        <aside class="panel">
+          <header><h2>Open positions · entry / exit</h2></header>
+          <ol id="fx-positions" class="tape"></ol>
+          <header><h2>Signals</h2></header>
+          <ol id="fx-signals" class="tape"></ol>
+          <header><h2>Exits</h2></header>
+          <ol id="fx-exits" class="tape"></ol>
+        </aside>
+      </div>
+    </section>
+
     <section class="view" id="view-markets">
       <div class="panel">
         <header>
@@ -125,6 +157,7 @@
         <header><h2>Setup Wizard</h2></header>
         <ol id="wizard" class="lessons"></ol>
         <button id="finish-wizard" type="button">Finish first-run setup</button>
+        <p class="hint">Need the installer? <a href="/download">Download CyberSym SecureTrade</a> for Windows, Mac, and Linux.</p>
         <p class="hint">Paper is the default. Live trading stays locked until connectivity, security, risk limits, and safety checks pass.</p>
         <pre id="live-gates" class="gates"></pre>
       </article>

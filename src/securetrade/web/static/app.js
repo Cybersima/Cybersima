@@ -55,6 +55,48 @@ function render(snap) {
   $("pending").innerHTML = (snap.pending || []).map((o) => `<li>${o.pair || o.id} <button data-approve="${o.id}">Approve</button></li>`).join("");
   $("journal").innerHTML = (snap.journal || []).map((e) => `<li><b>${e.decision}</b> ${e.action} · ${e.opportunity_id}</li>`).join("");
   $("live-gates").textContent = JSON.stringify(snap.live_prerequisites || {}, null, 2);
+  renderForex(snap.forex || {});
+}
+
+function sparkline(values) {
+  if (!values || values.length < 2) return "";
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const w = 88;
+  const h = 28;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * w;
+    const y = h - ((v - min) / span) * (h - 4) - 2;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const up = values[values.length - 1] >= values[0];
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline fill="none" stroke="${up ? "#3dd68c" : "#ff6b6b"}" stroke-width="1.6" points="${pts.join(" ")}"/></svg>`;
+}
+
+function renderForex(fx) {
+  if (!$("fx-board")) return;
+  const stats = fx.stats || {};
+  $("fx-feed").textContent = `every ${Number(fx.poll_seconds || 3)}s`;
+  $("fx-pairs").textContent = stats.pairs || 0;
+  $("fx-open").textContent = stats.open || 0;
+  $("fx-win").textContent = stats.win_rate != null ? Number(stats.win_rate).toFixed(1) + "%" : "—";
+  const needle = ($("fx-filter").value || "").toLowerCase();
+  $("fx-board").innerHTML = (fx.pairs || [])
+    .filter((p) => `${p.pair} ${p.canonical} ${p.signal}`.toLowerCase().includes(needle))
+    .map((p) => {
+      const tfs = (p.timeframes || []).map((tf) => `<span class="fx-tf ${tf.bias}">${tf.timeframe} ${tf.bias === "up" ? "↑" : tf.bias === "down" ? "↓" : "·"}</span>`).join("");
+      const cls = (p.signal || "HOLD").toLowerCase();
+      const chg = Number(p.change_bps || 0);
+      return `<div class="fx-row"><div class="fx-row-top"><b class="fx-pair">${p.pair}</b><span class="fx-last">${Number(p.last).toPrecision(7)}</span>${sparkline(p.spark)}</div><div class="fx-tfs">${tfs}</div><div class="fx-meta"><span class="badge ${cls}">${p.signal}</span><span>${chg >= 0 ? "+" : ""}${chg.toFixed(1)} bps · confluence ${p.confluence || 0}/8</span></div></div>`;
+    })
+    .join("");
+  $("fx-positions").innerHTML = (fx.positions || []).map((p) => {
+    const pnl = Number(p.unrealized_pnl || 0);
+    return `<li class="${pnl >= 0 ? "captured" : "reversed"}"><b>${(p.side || "").toUpperCase()} ${String(p.pair || "").replace("-", "/")}</b> ${p.timeframe} · entry ${Number(p.entry || 0).toPrecision(6)} · last ${Number(p.last_price || 0).toPrecision(6)} · ${money(pnl)}<div>stop ${Number(p.stop || 0).toPrecision(6)} · target ${Number(p.target || 0).toPrecision(6)} · ${p.pattern || ""}</div></li>`;
+  }).join("") || "<li>No open forex trades</li>";
+  $("fx-signals").innerHTML = (fx.signals || []).map((s) => `<li><b class="${s.side === "buy" ? "captured" : "reversed"}">${(s.side || "").toUpperCase()} ${s.pair}</b> ${s.timeframe} · ${s.pattern} · ${Number(s.edge_bps || 0).toFixed(1)} bps</li>`).join("") || "<li>Waiting for confluence</li>";
+  $("fx-exits").innerHTML = (fx.exits || []).map((e) => `<li class="${(e.outcome || "").toLowerCase()}"><b>${e.outcome}</b> ${e.pair} ${e.reason} · ${money(e.pnl)}</li>`).join("");
 }
 
 document.querySelectorAll(".tabs button").forEach((btn) => {
@@ -84,6 +126,7 @@ $("best-details").onclick = () => {
 $("close-modal").onclick = () => $("modal").classList.add("hidden");
 
 $("filter").addEventListener("input", () => {});
+$("fx-filter").addEventListener("input", () => {});
 
 document.addEventListener("click", async (ev) => {
   const id = ev.target.dataset?.approve;

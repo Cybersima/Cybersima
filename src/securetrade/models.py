@@ -19,6 +19,8 @@ class OpportunityKind(str, Enum):
     CROSS_VENUE = "cross_venue"
     TRIANGULAR = "triangular"
     ALERT = "alert"
+    FOREX_DIRECTIONAL = "forex_directional"
+    FOREX_ARBITRAGE = "forex_arbitrage"
 
 
 class ExecutionMode(str, Enum):
@@ -139,6 +141,14 @@ class Opportunity:
     why_blocked: list[str] = field(default_factory=list)
     guardian_allowed: bool = True
     regime: str = MarketRegime.NORMAL.value
+    side: str = ""
+    timeframe: str = ""
+    entry_price: float = 0.0
+    stop_price: float = 0.0
+    target_price: float = 0.0
+    pattern: str = ""
+    confluence: int = 0
+    timeframes_aligned: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -166,6 +176,14 @@ class Opportunity:
             "why_blocked": list(self.why_blocked),
             "guardian_allowed": self.guardian_allowed,
             "regime": self.regime,
+            "side": self.side,
+            "timeframe": self.timeframe,
+            "entry_price": self.entry_price,
+            "stop_price": self.stop_price,
+            "target_price": self.target_price,
+            "pattern": self.pattern,
+            "confluence": self.confluence,
+            "timeframes_aligned": list(self.timeframes_aligned),
         }
 
     def with_updates(self, **kwargs: Any) -> Opportunity:
@@ -304,6 +322,14 @@ class PaperPosition:
     actual_net_edge_bps: float = 0.0
     trust_score: int = 0
     notes: list[str] = field(default_factory=list)
+    side: str = ""
+    entry_price: float = 0.0
+    stop_price: float = 0.0
+    target_price: float = 0.0
+    timeframe: str = ""
+    asset_class: str = ""
+    timeout_seconds: float | None = None
+    last_price: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

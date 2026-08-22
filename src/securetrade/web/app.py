@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -88,6 +88,41 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     async def setup(request: Request) -> HTMLResponse:
         return page(request)
 
+    @app.get("/download", response_class=HTMLResponse)
+    async def download_page(request: Request) -> HTMLResponse:
+        return page(request, "download.html")
+
+    @app.get("/api/downloads")
+    async def downloads() -> dict:
+        from securetrade.packager import package_info
+
+        return package_info()
+
+    def _installer_response() -> Response:
+        from securetrade.packager import ensure_installer, zip_name
+
+        path = ensure_installer()
+        if not path.exists():
+            return Response("Installer is not available.", status_code=404, media_type="text/plain")
+        return FileResponse(
+            path,
+            filename=zip_name(),
+            media_type="application/zip",
+            content_disposition_type="attachment",
+        )
+
+    @app.api_route("/download/zip", methods=["GET", "HEAD"])
+    async def download_zip() -> Response:
+        return _installer_response()
+
+    @app.api_route("/download/file/{filename}", methods=["GET", "HEAD"])
+    async def download_named_zip(filename: str) -> Response:
+        from securetrade.packager import zip_name
+
+        if filename != zip_name():
+            return Response("Unknown installer.", status_code=404, media_type="text/plain")
+        return _installer_response()
+
     @app.get("/api/health")
     async def health() -> dict:
         return {
@@ -101,6 +136,11 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     @app.get("/api/snapshot")
     async def snapshot() -> dict:
         return engine.snapshot()
+
+    @app.get("/api/forex")
+    async def forex_desk() -> dict:
+        snap = engine.snapshot()
+        return snap.get("forex") or {}
 
     @app.get("/api/recovery-commit")
     async def recovery_commit() -> dict:
@@ -138,7 +178,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
 
     @app.post("/api/kill")
     async def kill() -> dict:
-        engine.risk.kill(KillSource.CUSTOMER)
+        engine.emergency_stop(KillSource.CUSTOMER)
         await engine.broadcast()
         return {"killed": True, "source": engine.risk.kill_source}
 

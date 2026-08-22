@@ -1,5 +1,15 @@
 # Packaging notes — CyberSym SecureTrade 2
 
+The Python project is the product. Customers download one zip and double-click a launcher.
+
+```bash
+python -m securetrade package
+# -> dist/CyberSym-SecureTrade-<version>.zip
+# -> dist/CyberSym-SecureTrade-<version>.zip.sha256
+```
+
+`start.bat` / `start.command` / `start.sh` are the customer entry points. GitHub Actions (`.github/workflows/package.yml`) builds the zip on every PR and attaches it to `v*` releases.
+
 The Python project is the product. Installers wrap the same entry point: `securetrade`.
 
 ## Windows (.exe / .msi)

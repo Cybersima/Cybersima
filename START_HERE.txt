@@ -3,10 +3,15 @@ CyberSym SecureTrade 2
 
 Installable command center + 24/7 engine. Paper trading is the default.
 
-1. Double-click start.bat (Windows) or start.command (Mac), or run ./start.sh (Linux)
-2. Open http://127.0.0.1:8000 on this computer or your iPad
-3. Complete the Setup Wizard (Learn mode, simulated money)
-4. Guardian sits above the profit engine and can block unsafe trades
+1. If you received the installer zip, unzip it first. Read HOW_TO_INSTALL.txt
+2. Windows: Python 3.14.7 is OK if it is python.exe (not python3.14t).
+   Delete any leftover .venv folder, then double-click start.bat
+   Mac: double-click start.command   Linux: ./start.sh
+3. Open http://127.0.0.1:8000 on this computer or your iPad
+   Download page (share this with customers): http://127.0.0.1:8000/download
+4. Complete the Setup Wizard (Learn mode, simulated money)
+5. Open Forex Desk — majors/crosses on a 3-second Yahoo tape, 30s–1d frames
+6. Guardian sits above the profit engine and can block unsafe trades
 
 Keep the engine window (or Docker container) running. Closing the laptop
 should not be how you stop a live engine — deploy docker compose on a VPS

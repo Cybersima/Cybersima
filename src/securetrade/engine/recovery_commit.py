@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 
 from securetrade.engine.simulate import SimulationResult
+from securetrade.engine.forex import is_forex_kind
 from securetrade.models import CommitDecision, HandoffState, OperatingMode, Opportunity, RecoveryCommitRecord
 
 
@@ -27,12 +28,16 @@ class RecoveryCommit:
         commit_edge = simulation.expected_net_edge_bps
         retention = 0.0 if detected_edge_bps == 0 else max(0.0, commit_edge / detected_edge_bps)
         atomic = opportunity.executable and simulation.viable and len(opportunity.legs) >= 2
+        forex = is_forex_kind(opportunity.kind)
+        age_limit = 12_000 if forex else 2500
+        book_limit = 15_000 if forex else 4000
+        skew_limit = 6_000 if forex else 800
         decision = CommitDecision.COMMIT
         note = "Eligible for original Paper Lab path"
         if not simulation.viable or commit_edge <= 0:
             decision = CommitDecision.CANCEL
             note = "Edge collapsed or book not fillable — never enters Paper Lab"
-        elif confirmation_age_ms > 2500 or book_age_ms > 4000 or latency_skew_ms > 800:
+        elif confirmation_age_ms > age_limit or book_age_ms > book_limit or latency_skew_ms > skew_limit:
             decision = CommitDecision.CANCEL
             note = "Freshness/latency failed Final Commit"
         elif retention < 0.55 or opportunity.execution_confidence < 0.55:

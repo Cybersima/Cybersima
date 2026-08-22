@@ -18,7 +18,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="securetrade",
         description=f"{PRODUCT}: security-first trading intelligence. Command center + 24/7 engine. Paper by default.",
     )
-    parser.add_argument("command", nargs="?", default="desktop", choices=["desktop", "engine", "wizard", "doctor"])
+    parser.add_argument("command", nargs="?", default="desktop", choices=["desktop", "engine", "wizard", "doctor", "package"])
     parser.add_argument("--host", help="Bind host (default 0.0.0.0 for LAN / iPad)")
     parser.add_argument("--port", type=int, help="API / dashboard port (default 8000)")
     parser.add_argument("--demo", action="store_true", help="Offline simulator only — no live APIs")
@@ -46,6 +46,15 @@ def _config(args: argparse.Namespace) -> AppConfig:
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    if args.command == "package":
+        from securetrade.packager import build_zip, package_info
+
+        path = build_zip()
+        info = package_info(path)
+        print(path)
+        print("sha256", info["sha256"])
+        print("bytes", info["bytes"])
+        return
     config = _config(args)
     if args.command == "doctor":
         from securetrade.updates import check_for_updates

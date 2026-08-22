@@ -56,6 +56,26 @@ LESSONS: list[dict[str, str]] = [
         "title": "CyberSym Trust Score",
         "body": "Every idea gets a 0–100 score: venue reliability, asset reputation, liquidity, book quality, volatility, data consistency, abnormal behavior, security indicators, and execution risk. 92/100 — Low Risk is more useful than a bare BUY.",
     },
+    {
+        "id": "forex-desk",
+        "title": "Forex Desk",
+        "body": "The Forex Desk watches majors and crosses on a 3-second Yahoo Finance tape. It is a scanner and paper-execution engine, not a promise that every dislocation is free money. Yahoo quotes are delayed retail prints.",
+    },
+    {
+        "id": "forex-timeframes",
+        "title": "Multi-timeframe forex",
+        "body": "SecureTrade builds 30-second, 1/2/3/4/5-minute, 1-hour, and 1-day candles from the live tape. Fast frames time the entry. Slow frames decide whether the market is rising or falling. A trade needs several frames pointing the same way.",
+    },
+    {
+        "id": "forex-entries",
+        "title": "When the bot enters",
+        "body": "A BUY needs rising-market confluence (EMA cross, RSI recovery, breakout, or momentum). A SELL needs the inverse. Guardian, capital limits, and Final Commit still sit above the signal. No confluence, no trade.",
+    },
+    {
+        "id": "forex-exits",
+        "title": "When the bot exits",
+        "body": "Each entry carries a stop, a target, and a time stop sized to the signal timeframe. The desk also trails winners and flattens on a fast-timeframe reversal so it can leave before the tape flips. Emergency Stop flattens open forex paper trades.",
+    },
 ]
 
 

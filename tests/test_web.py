@@ -13,6 +13,30 @@ def test_dashboard_and_kill_switch() -> None:
     assert "CyberSym SecureTrade" in page.text
     assert "A CyberSym product" in page.text
     assert "Guardian" in page.text
+    assert "Forex Desk" in page.text
+    assert "30s" in page.text
+    assert "/download" in page.text
+    download = client.get("/download")
+    assert download.status_code == 200
+    assert "Download for Windows" in download.text
+    listed = client.get("/api/downloads").json()
+    assert listed["filename"].endswith(".zip")
+    assert listed["version"]
+    head = client.head("/download/zip")
+    assert head.status_code == 200
+    zipped = client.get("/download/zip")
+    assert zipped.status_code == 200
+    assert zipped.content[:2] == b"PK"
+    assert "attachment" in zipped.headers.get("content-disposition", "")
+    named = client.get("/download/file/" + listed["filename"])
+    assert named.status_code == 200
+    assert named.content[:2] == b"PK"
+    static = client.get("/static/downloads/" + listed["filename"])
+    assert static.status_code == 200
+    assert static.content[:2] == b"PK"
+    fx = client.get("/api/forex").json()
+    assert fx["poll_seconds"] == 3.0
+    assert "1d" in fx["timeframes"]
     health = client.get("/api/health").json()
     assert health["ok"] is True
     assert health["killed"] is False
