@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from pulsearb.engine.money import cash_pnl, taker_bps
+from pulsearb.engine.money import cash_pnl, route_fee_bps
 from pulsearb.models import Fill, Opportunity
 
 TAKEN_EXECUTION = {"paper", "live", "blocked"}
@@ -79,7 +79,7 @@ def _route(opportunity: Opportunity) -> str:
 
 
 def _fee_bps(opportunity: Opportunity, fee_map: dict[str, float]) -> float:
-    return sum(taker_bps(fee_map, leg.venue, leg.symbol) for leg in opportunity.legs)
+    return route_fee_bps(fee_map, opportunity.legs)
 
 
 def build_report_row(

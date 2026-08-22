@@ -35,3 +35,5 @@ def test_kraken_universe_includes_live_fx_triangle() -> None:
     triangles = discover_triangles(symbols)
     assert ("EUR", "GBP", "USD") in triangles or ("EUR", "USD", "GBP") in triangles
     assert config.fee_map()["kraken_fx"] == 20.0
+    assert config.fee_map()["kraken_maker"] == 16.0
+    assert config.maker_exits() is True

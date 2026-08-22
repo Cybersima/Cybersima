@@ -12,9 +12,12 @@ yahoo_poll_seconds: 2.0
 
 fees:
   coinbase_taker_bps: 50.0
+  coinbase_maker_bps: 40.0
   coinbase_stable_taker_bps: 1.0
   kraken_taker_bps: 26.0
+  kraken_maker_bps: 16.0
   kraken_fx_taker_bps: 20.0
+  kraken_fx_maker_bps: 16.0
   gemini_taker_bps: 40.0
   bitstamp_taker_bps: 40.0
   binance_taker_bps: 10.0
@@ -41,6 +44,8 @@ risk:
 execution:
   mode: paper
   live_confirm_phrase: I_UNDERSTAND_THE_RISK
+  maker_exits: true
+  maker_wait_seconds: 8
 
 simulator:
   enabled: false

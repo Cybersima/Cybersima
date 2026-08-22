@@ -6,7 +6,7 @@ import time
 from collections import defaultdict
 
 from pulsearb.engine.book import MarketBook
-from pulsearb.engine.money import taker_bps
+from pulsearb.engine.money import route_fee_bps
 from pulsearb.models import Leg, Opportunity, OpportunityKind, Quote
 from pulsearb.symbols import comparison_key, split_pair
 
@@ -200,10 +200,11 @@ def detect_triangles(
     max_raw_edge_bps: float = 300.0,
     max_quote_age: float = 8.0,
     max_quote_skew: float = 1.5,
+    maker_bps: float | None = None,
 ) -> list[Opportunity]:
     found: list[Opportunity] = []
     now = time.time()
-    fee = 3 * taker_bps + extra_slippage_bps
+    sell_fee = taker_bps if maker_bps is None else float(maker_bps)
     min_exec = min_edge_bps if min_executable_edge_bps is None else min_executable_edge_bps
     for a, b, c in triangles:
         for start, x, y in (
@@ -235,14 +236,7 @@ def detect_triangles(
             raw_bps = (amount - 1.0) * 10_000
             if raw_bps > max_raw_edge_bps:
                 continue
-            net = raw_bps - fee
-            if net < min_edge_bps:
-                continue
             fresh = _quotes_aligned(used, now, max_age=max_quote_age, max_skew=max_quote_skew)
-            summary = (
-                f"{start} → {x} → {y} → {start} on {used[-1].venue}  "
-                f"{amount:.6f} per 1 {start}  net {net:.1f} bps"
-            )
             legs = []
             cursor = 1.0
             for src, dst, _ratio in prices:
@@ -263,6 +257,16 @@ def detect_triangles(
                 cursor = nxt if nxt is not None else cursor
             if not legs or legs[0].action != "buy":
                 continue
+            fee = extra_slippage_bps
+            for leg in legs:
+                fee += sell_fee if leg.action == "sell" else taker_bps
+            net = raw_bps - fee
+            if net < min_edge_bps:
+                continue
+            summary = (
+                f"{start} → {x} → {y} → {start} on {used[-1].venue}  "
+                f"{amount:.6f} per 1 {start}  net {net:.1f} bps"
+            )
             found.append(
                 Opportunity(
                     kind=OpportunityKind.TRIANGULAR,
@@ -363,7 +367,7 @@ def detect_quote_dislocations(
                 ]
             if not legs or legs[0].action != "buy":
                 continue
-            fees = sum(taker_bps(fee_map, venue, leg.symbol) for leg in legs) + extra_slippage_bps
+            fees = route_fee_bps(fee_map, legs) + extra_slippage_bps
             net = raw_bps - fees
             if net < min_edge_bps:
                 continue

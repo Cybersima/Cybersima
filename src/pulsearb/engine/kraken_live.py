@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import math
 import time
 from typing import Any
@@ -93,7 +94,11 @@ def _floor_qty(qty: float, digits: int = 8) -> float:
 
 
 class LiveKrakenBroker(Broker):
-    """Places Kraken market orders. Same-venue USD-start round-trips only."""
+    """Places Kraken orders. Same-venue USD-start round-trips only.
+
+    Buys are market. Sells (and flatten) post a maker limit, then market
+    whatever is unfilled when the wait expires so leftover coins do not sit.
+    """
 
     def __init__(
         self,
@@ -103,6 +108,9 @@ class LiveKrakenBroker(Broker):
         paper_fallback: PaperBroker,
         rest_url: str = "https://api.kraken.com",
         client: httpx.AsyncClient | None = None,
+        *,
+        maker_exits: bool = True,
+        maker_wait_seconds: float = 8.0,
     ) -> None:
         self.risk = risk
         self.api_key = api_key
@@ -115,6 +123,8 @@ class LiveKrakenBroker(Broker):
         self.status = "idle"
         self._client = client
         self._nonce = int(time.time() * 1000)
+        self.maker_exits = bool(maker_exits)
+        self.maker_wait_seconds = max(0.0, float(maker_wait_seconds))
 
     @property
     def paper(self) -> bool:
@@ -336,7 +346,12 @@ class LiveKrakenBroker(Broker):
                         )
                     )
                     break
-                fill = await self._place_order(client, opportunity, sized)
+                fill = await self._place_order(
+                    client,
+                    opportunity,
+                    sized,
+                    maker=self.maker_exits and sized["action"] == "sell",
+                )
                 fills.append(fill)
                 if fill.status != "filled" or fill.qty <= 0:
                     break
@@ -386,7 +401,115 @@ class LiveKrakenBroker(Broker):
                 return True
         return False
 
+    def _fmt_price(self, price: float) -> str:
+        if price <= 0:
+            return "0"
+        return f"{price:.8f}".rstrip("0").rstrip(".") or "0"
+
     async def _place_order(
+        self,
+        client: httpx.AsyncClient,
+        opportunity: Opportunity,
+        body: dict[str, Any],
+        *,
+        maker: bool = False,
+    ) -> Fill:
+        if maker and float(body.get("price") or 0.0) > 0:
+            fill = await self._place_maker_then_market(client, opportunity, body)
+            if fill is not None:
+                return fill
+        return await self._place_market(client, opportunity, body)
+
+    async def _place_maker_then_market(
+        self,
+        client: httpx.AsyncClient,
+        opportunity: Opportunity,
+        body: dict[str, Any],
+    ) -> Fill | None:
+        fallback_price = float(body.get("price") or 0.0)
+        # Post above the bid so post-only rests (selling at the bid would take).
+        limit_px = fallback_price * 1.0001
+        extra = {
+            "pair": str(body["pair"]),
+            "type": str(body["action"]),
+            "ordertype": "limit",
+            "price": self._fmt_price(limit_px),
+            "volume": str(body["volume"]),
+            "oflags": "post",
+        }
+        try:
+            result = await self._private(client, "AddOrder", extra)
+        except Exception as exc:
+            text = str(exc).lower()
+            if "post" in text or "would" in text:
+                market = await self._place_market(client, opportunity, body)
+                market.note = f"maker rejected · {market.note}"
+                return market
+            return self._error_fill(opportunity, body, fallback_price, explain_kraken_order_error(str(exc)))
+        txid = ""
+        ids = result.get("txid") or []
+        if isinstance(ids, list) and ids:
+            txid = str(ids[0])
+        if not txid:
+            market = await self._place_market(client, opportunity, body)
+            market.note = f"maker not accepted · {market.note}"
+            return market
+        qty, price, status = await self._wait_order(
+            client, txid, fallback_price, expected=float(body.get("volume") or 0.0)
+        )
+        leftover = max(0.0, float(body.get("volume") or 0.0) - qty)
+        if leftover > 1e-12 and status not in {"closed", "canceled", "expired"}:
+            try:
+                await self._private(client, "CancelOrder", {"txid": txid})
+            except Exception:
+                pass
+            qty, price, status = await self._lookup_order(client, txid, fallback_price)
+            leftover = max(0.0, float(body.get("volume") or 0.0) - qty)
+        note = f"maker {txid}"
+        if leftover > 1e-12 and qty > 0:
+            rest = dict(body)
+            rest["volume"] = self._fmt_size(leftover, self._pair(str(body["symbol"]))[0])
+            market = await self._place_market(client, opportunity, rest)
+            combined_qty = qty + (market.qty if market.status == "filled" else 0.0)
+            combined_px = fallback_price
+            if combined_qty > 0:
+                combined_px = (
+                    (qty * (price or fallback_price))
+                    + ((market.qty if market.status == "filled" else 0.0) * (market.price or fallback_price))
+                ) / combined_qty
+            return Fill(
+                venue="kraken",
+                symbol=str(body["symbol"]),
+                side=str(body["action"]),
+                qty=combined_qty,
+                price=combined_px,
+                notional=combined_qty * combined_px if combined_qty and combined_px else opportunity.notional,
+                ts=time.time(),
+                paper=False,
+                opportunity_id=opportunity.id,
+                status="filled" if combined_qty > 0 else "error",
+                note=f"{note} · leftover market · {market.note}",
+            )
+        if leftover > 1e-12 and qty <= 0:
+            market = await self._place_market(client, opportunity, body)
+            market.note = f"maker wait expired · {market.note}"
+            return market
+        ok = qty > 0
+        return Fill(
+            venue="kraken",
+            symbol=str(body["symbol"]),
+            side=str(body["action"]),
+            qty=qty,
+            price=price or fallback_price,
+            notional=qty * (price or fallback_price) if qty else opportunity.notional,
+            ts=time.time(),
+            paper=False,
+            opportunity_id=opportunity.id,
+            status="filled" if ok else "error",
+            note=note if ok else f"{note} returned no fill",
+        )
+
+    async def _place_market(
         self,
         client: httpx.AsyncClient,
         opportunity: Opportunity,
@@ -413,25 +536,13 @@ class LiveKrakenBroker(Broker):
             note = txid or str(result)[:240]
             ok = bool(txid)
             if txid:
-                qty, price = await self._lookup_fill(client, txid, fallback_price)
+                qty, price, _status = await self._lookup_order(client, txid, fallback_price)
                 note = f"order {txid}"
                 if qty <= 0:
                     ok = False
                     note = f"order {txid} returned no fill"
         except Exception as exc:
-            return Fill(
-                venue="kraken",
-                symbol=str(body["symbol"]),
-                side=str(body["action"]),
-                qty=0,
-                price=fallback_price,
-                notional=opportunity.notional,
-                ts=time.time(),
-                paper=False,
-                opportunity_id=opportunity.id,
-                status="error",
-                note=explain_kraken_order_error(str(exc)),
-            )
+            return self._error_fill(opportunity, body, fallback_price, explain_kraken_order_error(str(exc)))
         notional = qty * price if qty and price else opportunity.notional
         return Fill(
             venue="kraken",
@@ -446,6 +557,51 @@ class LiveKrakenBroker(Broker):
             status="filled" if ok else "error",
             note=note,
         )
+
+    def _error_fill(self, opportunity: Opportunity, body: dict[str, Any], fallback_price: float, note: str) -> Fill:
+        return Fill(
+            venue="kraken",
+            symbol=str(body["symbol"]),
+            side=str(body["action"]),
+            qty=0,
+            price=fallback_price,
+            notional=opportunity.notional,
+            ts=time.time(),
+            paper=False,
+            opportunity_id=opportunity.id,
+            status="error",
+            note=note,
+        )
+
+    async def _wait_order(
+        self,
+        client: httpx.AsyncClient,
+        txid: str,
+        fallback_price: float,
+        *,
+        expected: float,
+    ) -> tuple[float, float, str]:
+        deadline = time.time() + self.maker_wait_seconds
+        qty, price, status = await self._lookup_order(client, txid, fallback_price)
+        while time.time() < deadline:
+            if status in {"closed", "canceled", "expired"}:
+                break
+            if expected > 0 and qty + 1e-12 >= expected:
+                break
+            await asyncio.sleep(0.35)
+            qty, price, status = await self._lookup_order(client, txid, fallback_price)
+        return qty, price, status
+
+    async def _lookup_order(self, client: httpx.AsyncClient, txid: str, fallback_price: float) -> tuple[float, float, str]:
+        try:
+            result = await self._private(client, "QueryOrders", {"txid": txid})
+            row = result.get(txid) or (next(iter(result.values())) if result else {}) or {}
+            qty = float(row.get("vol_exec") or 0)
+            price = float(row.get("avg_price") or row.get("price") or 0) or fallback_price
+            status = str(row.get("status") or "")
+            return qty, price, status
+        except Exception:
+            return 0.0, fallback_price, ""
 
     async def _flatten_pocket(
         self,
@@ -470,7 +626,7 @@ class LiveKrakenBroker(Broker):
             body = self._size_leg(opportunity, "sell", symbol, px or 0.0, pocket, first_cash=False)
             if isinstance(body, str):
                 continue
-            fill = await self._place_order(client, opportunity, body)
+            fill = await self._place_order(client, opportunity, body, maker=self.maker_exits)
             fill.note = f"flatten to USD · {fill.note}".strip(" ·")
             out.append(fill)
             if fill.status == "filled" and fill.qty > 0:
@@ -478,13 +634,3 @@ class LiveKrakenBroker(Broker):
             else:
                 fill.note = f"could not sell leftover {asset} back to USD · {fill.note}"
         return out
-
-    async def _lookup_fill(self, client: httpx.AsyncClient, txid: str, fallback_price: float) -> tuple[float, float]:
-        try:
-            result = await self._private(client, "QueryOrders", {"txid": txid})
-            row = result.get(txid) or (next(iter(result.values())) if result else {}) or {}
-            qty = float(row.get("vol_exec") or row.get("vol") or 0)
-            price = float(row.get("avg_price") or row.get("price") or 0) or fallback_price
-            return qty, price
-        except Exception:
-            return 0.0, fallback_price

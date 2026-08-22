@@ -179,5 +179,17 @@ class AppConfig:
         for venue in (*SPOT_VENUES, "simulator", "yahoo"):
             mapping[venue] = float(fees.get(f"{venue}_taker_bps", fees.get("binance_taker_bps", 10)))
         mapping["coinbase_stable"] = float(fees.get("coinbase_stable_taker_bps", 1.0))
+        mapping["coinbase_maker"] = float(fees.get("coinbase_maker_bps", 40.0))
         mapping["kraken_fx"] = float(fees.get("kraken_fx_taker_bps", 20.0))
+        mapping["kraken_maker"] = float(fees.get("kraken_maker_bps", 16.0))
+        mapping["kraken_fx_maker"] = float(fees.get("kraken_fx_maker_bps", 16.0))
         return mapping
+
+    def maker_exits(self) -> bool:
+        return bool((self.settings.get("execution") or {}).get("maker_exits", True))
+
+    def maker_wait_seconds(self) -> float:
+        try:
+            return max(0.0, float((self.settings.get("execution") or {}).get("maker_wait_seconds", 8)))
+        except (TypeError, ValueError):
+            return 8.0

@@ -1,4 +1,5 @@
-from pulsearb.engine.money import taker_bps
+from pulsearb.engine.money import fee_bps, route_fee_bps, taker_bps
+from pulsearb.models import Leg
 from pulsearb.symbols import (
     canonical_from_pair,
     comparison_key,
@@ -39,10 +40,13 @@ def test_pair_asset_class_marks_fx() -> None:
 
 
 def test_kraken_fx_uses_fx_taker() -> None:
-    fees = {"kraken": 26.0, "kraken_fx": 20.0, "coinbase": 50.0, "coinbase_stable": 1.0}
+    fees = {"kraken": 26.0, "kraken_fx": 20.0, "kraken_maker": 16.0, "coinbase": 50.0, "coinbase_stable": 1.0}
     assert taker_bps(fees, "kraken", "EUR-USD") == 20.0
     assert taker_bps(fees, "kraken", "BTC-USD") == 26.0
     assert taker_bps(fees, "coinbase", "USDC-EUR") == 1.0
+    assert fee_bps(fees, "kraken", "BTC-USD", maker=True) == 16.0
+    legs = [Leg("buy", "kraken", "EUR-USD", 1.1, True), Leg("sell", "kraken", "GBP-USD", 1.2, True)]
+    assert route_fee_bps({"kraken": 26, "kraken_fx": 20, "kraken_maker": 16, "kraken_fx_maker": 16}, legs) == 36.0
 
 
 def test_usd_comparison_key_treats_usdt_as_usd() -> None:

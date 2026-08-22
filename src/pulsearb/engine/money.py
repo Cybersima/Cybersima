@@ -8,6 +8,10 @@ CONVERT_TO_USD = {"USDC", "USDT"}
 
 
 def taker_bps(fee_map: dict[str, float], venue: str, symbol: str) -> float:
+    return fee_bps(fee_map, venue, symbol, maker=False)
+
+
+def fee_bps(fee_map: dict[str, float], venue: str, symbol: str, *, maker: bool = False) -> float:
     try:
         base, quote = split_pair(symbol)
     except ValueError:
@@ -20,9 +24,34 @@ def taker_bps(fee_map: dict[str, float], venue: str, symbol: str) -> float:
         if venue == "coinbase":
             return float(fee_map.get("coinbase_stable", 1.0))
         if venue == "kraken":
+            if maker:
+                return float(fee_map.get("kraken_fx_maker", fee_map.get("kraken_maker", 16.0)))
             return float(fee_map.get("kraken_fx", 20.0))
         return float(fee_map.get(venue, 20.0))
+    if maker:
+        if venue == "kraken":
+            return float(fee_map.get("kraken_maker", 16.0))
+        if venue == "coinbase":
+            return float(fee_map.get("coinbase_maker", 40.0))
+        return float(fee_map.get(venue, 50.0))
     return float(fee_map.get(venue, 50.0))
+
+
+def venue_maker_bps(fee_map: dict[str, float], venue: str) -> float:
+    if venue == "kraken":
+        return float(fee_map.get("kraken_maker", 16.0))
+    if venue == "coinbase":
+        return float(fee_map.get("coinbase_maker", 40.0))
+    return float(fee_map.get(venue, 50.0))
+
+
+def route_fee_bps(fee_map: dict[str, float], legs: list) -> float:
+    """Sell legs use maker fees — matches live exits. Buys stay taker."""
+    total = 0.0
+    for leg in legs:
+        maker = str(getattr(leg, "action", "")).lower() == "sell"
+        total += fee_bps(fee_map, getattr(leg, "venue", ""), getattr(leg, "symbol", ""), maker=maker)
+    return total
 
 
 def cash_pnl(fills: list[Fill]) -> float:

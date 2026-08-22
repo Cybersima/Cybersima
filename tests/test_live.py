@@ -177,7 +177,9 @@ def _fill_from_order(body: dict) -> tuple[str, str]:
     }
     product = body["product_id"]
     side = body["side"]
-    ioc = body["order_configuration"]["market_market_ioc"]
+    ioc = body["order_configuration"].get("market_market_ioc") or body["order_configuration"].get(
+        "limit_limit_gtc"
+    ) or {}
     px = prices[product]
     if side == "BUY":
         qty = float(ioc["quote_size"]) / px
@@ -208,7 +210,7 @@ async def test_coinbase_round_trip_uses_usd_and_sells_back() -> None:
         if "historical" in path:
             oid = path.rstrip("/").split("/")[-1]
             qty, px = _fill_from_order(orders[oid])
-            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px}})
+            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px, "status": "FILLED"}})
         return httpx.Response(404, json={"message": path})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
@@ -255,7 +257,7 @@ async def test_coinbase_does_not_sell_coins_already_held() -> None:
         if "historical" in path:
             oid = path.rstrip("/").split("/")[-1]
             qty, px = _fill_from_order(orders[oid])
-            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px}})
+            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px, "status": "FILLED"}})
         return httpx.Response(404, json={"message": path})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
@@ -410,7 +412,7 @@ async def test_recovered_flatten_does_not_kill_or_disarm() -> None:
         if "historical" in path:
             oid = path.rstrip("/").split("/")[-1]
             qty, px = _fill_from_order(orders[oid])
-            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px}})
+            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px, "status": "FILLED"}})
         return httpx.Response(404, json={"message": path})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
@@ -447,7 +449,7 @@ async def test_stuck_leftover_still_kills() -> None:
         if "historical" in path:
             oid = path.rstrip("/").split("/")[-1]
             qty, px = _fill_from_order(orders[oid])
-            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px}})
+            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px, "status": "FILLED"}})
         return httpx.Response(404, json={"message": path})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
@@ -493,7 +495,7 @@ async def test_coinbase_dislocation_buys_usd_sells_usdc_flattens() -> None:
         if "historical" in path:
             oid = path.rstrip("/").split("/")[-1]
             qty, px = _fill_from_order(orders[oid])
-            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px}})
+            return httpx.Response(200, json={"order": {"filled_size": qty, "average_filled_price": px, "status": "FILLED"}})
         return httpx.Response(404, json={"message": path})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
@@ -560,35 +562,55 @@ def _kraken_tri(*, notional: float = 10) -> Opportunity:
 
 @pytest.mark.asyncio
 async def test_kraken_round_trip_uses_usd(tmp_path) -> None:
+    from urllib.parse import parse_qs
+
     from pulsearb.engine.kraken_live import LiveKrakenBroker
 
     secret = _kraken_secret()
     orders: dict[str, dict] = {}
+    posted: list[dict] = []
+
+    def _form(request: httpx.Request) -> dict[str, str]:
+        raw = request.content.decode() if request.content else ""
+        parsed = parse_qs(raw)
+        return {str(key): values[0] for key, values in parsed.items() if values}
 
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
+        form = _form(request)
         if path.endswith("/Balance"):
             return httpx.Response(200, json={"error": [], "result": {"ZUSD": "80.00"}})
         if path.endswith("/AddOrder"):
             oid = f"TX-{len(orders) + 1}"
-            orders[oid] = {"path": path}
+            orders[oid] = form
+            posted.append(form)
             return httpx.Response(200, json={"error": [], "result": {"txid": [oid]}})
+        if path.endswith("/CancelOrder"):
+            return httpx.Response(200, json={"error": [], "result": {"count": 1}})
         if path.endswith("/QueryOrders"):
-            oid = list(orders)[-1]
-            prices = {"TX-1": ("0.00010309", "97000"), "TX-2": ("0.005425", "0.019"), "TX-3": ("0.005425", "2000")}
-            vol, px = prices.get(oid, ("0.0001", "97000"))
-            return httpx.Response(200, json={"error": [], "result": {oid: {"vol_exec": vol, "avg_price": px}}})
+            oid = form.get("txid") or (list(orders)[-1] if orders else "")
+            row = orders.get(oid) or {}
+            vol = row.get("volume") or "0.0001"
+            px = {"TX-1": "97000", "TX-2": "0.019", "TX-3": "2000"}.get(oid, "97000")
+            return httpx.Response(
+                200,
+                json={"error": [], "result": {oid: {"vol_exec": vol, "avg_price": px, "status": "closed"}}},
+            )
         return httpx.Response(200, json={"error": ["unknown"], "result": {}})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.kraken.com")
     risk = RiskManager(cooldown_seconds=0, max_notional_usdt=25)
     paper = PaperBroker(risk)
-    broker = LiveKrakenBroker(risk, "kraken-key", secret, paper, client=client)
+    broker = LiveKrakenBroker(risk, "kraken-key", secret, paper, client=client, maker_wait_seconds=0.1)
     fills = await broker.execute(_kraken_tri(notional=10))
     await client.aclose()
     assert any(row.status == "filled" and row.side == "buy" for row in fills)
     assert all(row.venue == "kraken" for row in fills if row.status == "filled")
     assert risk.killed is False
+    sells = [row for row in posted if row.get("type") == "sell"]
+    assert sells
+    assert sells[0].get("ordertype") == "limit"
+    assert "post" in str(sells[0].get("oflags") or "")
 
 
 @pytest.mark.asyncio

@@ -19,6 +19,9 @@ What goes live
   FX (EUR-USD, GBP-USD, EUR-GBP) from Kraken’s own ticker.
 • Yahoo FX is delayed and watch-only. It is not a live feed.
   Coinbase does not list EUR-USD; it lists USDC-EUR / USDC-GBP.
+• Buys are market. Sells and flatten post a maker limit (Kraken ~16 bps,
+  Coinbase ~40 bps) then market whatever is unfilled after ~8 seconds.
+  That is the cost cut. It is not a profit guarantee.
 • Each tap starts in USD and aims to finish in USD.
 • Each tap is $1–$25 (default $5). Session budget: $25 this run.
 • P&L is from actual fill prices, not the estimated edge.

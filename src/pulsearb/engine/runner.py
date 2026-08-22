@@ -20,7 +20,7 @@ from pulsearb.engine.coinbase_live import LiveCoinbaseBroker
 from pulsearb.engine.desk import KIND_LABELS, TradeDesk
 from pulsearb.engine.kraken_live import LiveKrakenBroker
 from pulsearb.engine.live_ready import quote_cash, usd_spendable
-from pulsearb.engine.money import venue_live_ok
+from pulsearb.engine.money import venue_live_ok, venue_maker_bps
 from pulsearb.engine.report import ProfitLedger
 from pulsearb.engine.risk import RiskManager
 from pulsearb.engine.schedule import window_open
@@ -124,6 +124,8 @@ class Engine:
                 api_secret=secret,
                 paper_fallback=self.paper,
                 rest_url=str(coinbase_cfg.get("brokerage_url") or "https://api.coinbase.com"),
+                maker_exits=self.config.maker_exits(),
+                maker_wait_seconds=self.config.maker_wait_seconds(),
             )
         kraken_creds = self.config.kraken_credentials()
         if kraken_creds:
@@ -135,6 +137,8 @@ class Engine:
                 api_secret=secret,
                 paper_fallback=self.paper,
                 rest_url=str(kraken_cfg.get("rest_url") or "https://api.kraken.com"),
+                maker_exits=self.config.maker_exits(),
+                maker_wait_seconds=self.config.maker_wait_seconds(),
             )
         if self.config.binance_live_ready():
             binance = self.config.markets.get("binance") or {}
@@ -280,9 +284,10 @@ class Engine:
             venue_label = self.desk.live_venue.title()
             live_note = (
                 f"LIVE on {venue_label}: USD vs USDC books and same-exchange triangles. "
-                "Each tap buys with USD and aims to finish back in USD. Not buy-and-hold. "
-                "Cross-venue (Coinbase vs Kraken) stays paper — that would mean holding coins to move them. "
-                "Each tap is your desk size. Session budget is the $25 cap."
+                "Each tap buys with USD (market) and sells as a maker limit, then markets "
+                "anything still open after a few seconds so leftover coins do not sit. "
+                "Cross-venue (Coinbase vs Kraken) stays paper. Each tap is your desk size. "
+                "Session budget is the $25 cap."
             )
         else:
             live_note = ""
@@ -637,6 +642,7 @@ class Engine:
             triangles: list[Opportunity] = []
             for venue, tri in self.triangles_by_venue.items():
                 taker = fee_map.get(venue, 26)
+                maker = venue_maker_bps(fee_map, venue)
                 scan_venue = venue
                 triangles.extend(
                     detect_triangles(
@@ -651,6 +657,7 @@ class Engine:
                         max_raw_edge_bps=max_raw,
                         max_quote_age=stale,
                         max_quote_skew=max_skew,
+                        maker_bps=maker,
                     )
                 )
             dislocations: list[Opportunity] = []

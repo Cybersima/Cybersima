@@ -80,7 +80,7 @@ def test_filled_paper_row_extracts_venues_and_pnl() -> None:
     assert row["Sell Venue"] == "kraken"
     assert row["Raw Edge"] == 120
     assert row["Net Edge (bps)"] == 44
-    assert row["Fee (bps)"] == 76
+    assert row["Fee (bps)"] == 66
     assert row["Slippage (bps)"] == 2
     assert row["Expected P&L"] == 1.1
     assert row["Realized P&L"] == round(-0.002 * 97010, 6)

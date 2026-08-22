@@ -79,6 +79,7 @@ def test_dashboard_and_kill_switch() -> None:
     assert "three Coinbase fees" in js.text
     assert "USD vs USDC dislocations" in page.text
     assert "Kraken FX" in page.text
+    assert "maker" in page.text.lower()
     assert "Yahoo FX is delayed" in page.text
     assert "asset_class === \"fx\"" in js.text or 'asset_class === "fx"' in js.text
     assert "tradeCard" in js.text
