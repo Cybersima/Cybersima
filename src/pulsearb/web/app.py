@@ -191,6 +191,15 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
         result = await engine.invest(str(payload.get("id") or ""))
         return result
 
+    @app.post("/api/clear")
+    async def clear_boards(payload: dict | None = None) -> dict:
+        body = payload or {}
+        opportunities = True if "opportunities" not in body else bool(body.get("opportunities"))
+        fills = True if "fills" not in body else bool(body.get("fills"))
+        result = engine.clear_boards(opportunities=opportunities, fills=fills)
+        await engine.broadcast()
+        return result
+
     @app.get("/api/report")
     async def report_json() -> dict:
         return {

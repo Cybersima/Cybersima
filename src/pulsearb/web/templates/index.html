@@ -194,13 +194,19 @@
       </section>
       <aside class="side">
         <section class="panel">
-          <header><h2>Trades for you</h2></header>
+          <header>
+            <h2>Trades for you</h2>
+            <button type="button" class="clear-btn" id="clear-opps" title="Wipe this list. The next scan will fill it again.">Clear</button>
+          </header>
           <ol id="opps" class="tape"></ol>
         </section>
         <section class="panel">
           <header>
             <h2>Your trades</h2>
-            <span class="panel-meta" id="fills-meta"></span>
+            <div class="panel-tools">
+              <span class="panel-meta" id="fills-meta"></span>
+              <button type="button" class="clear-btn" id="clear-fills" title="Wipe this blotter and the export file. Export first if you want to keep overnight paper fills. New cards are marked PAPER or LIVE.">Clear</button>
+            </div>
           </header>
           <ol id="fills" class="tape"></ol>
         </section>

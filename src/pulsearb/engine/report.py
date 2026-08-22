@@ -192,6 +192,20 @@ class ProfitLedger:
         if self.csv_path:
             self.csv_path.parent.mkdir(parents=True, exist_ok=True)
 
+    def clear(self) -> None:
+        """Wipe taken rows so the next export matches an empty blotter."""
+        self.rows.clear()
+        self.total_rows = 0
+        self.taken_rows = 0
+        if not self.csv_path:
+            return
+        try:
+            with self.csv_path.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(REPORT_HEADERS)
+        except OSError:
+            pass
+
     def record(self, row: dict[str, Any]) -> None:
         if not is_taken_row(row):
             return

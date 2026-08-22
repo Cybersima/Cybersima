@@ -269,3 +269,39 @@ def test_cooldown_blocks_are_not_trades(tmp_path) -> None:
     filtered = filter_taken_csv_bytes(mixed.read_bytes()).decode("utf-8-sig")
     assert "cool-1" not in filtered
     assert "fill-1" in filtered
+
+
+def test_clear_rewrites_csv_to_headers_only(tmp_path) -> None:
+    path = tmp_path / "report.csv"
+    ledger = ProfitLedger(csv_path=path)
+    taken = build_report_row(
+        _opp(),
+        [
+            Fill(
+                venue="coinbase",
+                symbol="BTC-USD",
+                side="buy",
+                qty=0.001,
+                price=97010,
+                notional=250,
+                ts=1_700_000_001,
+                paper=True,
+                opportunity_id="gap-1",
+                status="filled",
+            )
+        ],
+        paper=True,
+        killed=False,
+        fee_map={"coinbase": 50, "kraken": 26},
+        slippage_bps=2,
+        closed_at=1_700_000_001.5,
+    )
+    ledger.record(taken)
+    assert ledger.taken_rows == 1
+    ledger.clear()
+    assert ledger.taken_rows == 0
+    assert ledger.as_dicts() == []
+    text = path.read_text(encoding="utf-8-sig")
+    assert "gap-1" not in text
+    assert text.strip().startswith("ID,")
+    assert "paper_fill" not in text

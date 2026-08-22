@@ -319,6 +319,37 @@ class Engine:
             "trades": group_trades(fill_list),
         }
 
+    def clear_boards(self, *, opportunities: bool = True, fills: bool = True) -> dict:
+        """Empty the on-screen tapes. Does not cancel live orders or move cash."""
+        if opportunities:
+            self.opportunities.clear()
+            self.seen.clear()
+            self.by_id.clear()
+            self.stats.opportunities = 0
+        if fills:
+            self.fills.clear()
+            self.invested.clear()
+            self.paper.fills.clear()
+            self.paper.pnl = 0.0
+            broker = self.broker
+            if getattr(broker, "fills", None) is not None and broker.fills is not self.paper.fills:
+                broker.fills.clear()
+            for name in ("coinbase", "kraken", "binance"):
+                inner = getattr(broker, name, None)
+                if inner is None:
+                    continue
+                fills_list = getattr(inner, "fills", None)
+                if fills_list is not None and fills_list is not self.paper.fills:
+                    fills_list.clear()
+                if hasattr(inner, "pnl"):
+                    inner.pnl = 0.0
+            self.report.clear()
+        return {
+            "ok": True,
+            "opportunities": bool(opportunities),
+            "fills": bool(fills),
+        }
+
     async def broadcast(self) -> None:
         data = self.snapshot()
         dead = []

@@ -117,6 +117,71 @@ def test_dashboard_and_kill_switch() -> None:
     assert live_try.json()["ok"] is False
 
 
+def test_clear_boards_wipes_tapes_independently() -> None:
+    client, engine, _, page = open_dashboard()
+    assert 'id="clear-opps"' in page.text
+    assert 'id="clear-fills"' in page.text
+    assert "PAPER or LIVE" in page.text
+    js = client.get("/static/app.js")
+    assert "/api/clear" in js.text
+    css = client.get("/static/app.css")
+    assert ".clear-btn" in css.text
+
+    from pulsearb.models import Fill, Leg, Opportunity, OpportunityKind
+
+    opp = Opportunity(
+        kind=OpportunityKind.TRIANGULAR,
+        edge_bps=40,
+        net_edge_bps=28,
+        notional=5,
+        legs=[
+            Leg("buy", "kraken", "XBTUSD", 97000, True),
+            Leg("sell", "kraken", "XBTUSDC", 98100, True),
+        ],
+        summary="test",
+        executable=True,
+        ts=0,
+        id="clear-1",
+    )
+    engine.opportunities.appendleft(opp)
+    engine.seen.add(opp.id)
+    engine.by_id[opp.id] = opp
+    engine.stats.opportunities = 1
+    engine.fills.appendleft(
+        Fill(
+            venue="kraken",
+            symbol="XBTUSD",
+            side="buy",
+            qty=0.001,
+            price=97000,
+            notional=5,
+            ts=1,
+            paper=True,
+            opportunity_id="clear-1",
+            status="filled",
+            note="paper fill",
+        )
+    )
+    engine.paper.pnl = 12.5
+    engine.invested.add("clear-1")
+
+    only_opps = client.post("/api/clear", json={"opportunities": True, "fills": False})
+    assert only_opps.json() == {"ok": True, "opportunities": True, "fills": False}
+    snap = client.get("/api/snapshot").json()
+    assert snap["opportunities"] == []
+    assert snap["fills"]
+    assert engine.paper.pnl == 12.5
+
+    wiped = client.post("/api/clear", json={"opportunities": False, "fills": True})
+    assert wiped.json() == {"ok": True, "opportunities": False, "fills": True}
+    snap = client.get("/api/snapshot").json()
+    assert snap["fills"] == []
+    assert snap["trades"] == []
+    assert engine.paper.pnl == 0
+    assert engine.invested == set()
+    assert engine.report.taken_rows == 0
+
+
 def test_dashboard_requires_lock_without_session() -> None:
     app = create_app(Engine(AppConfig()))
     client = TestClient(app, follow_redirects=False)

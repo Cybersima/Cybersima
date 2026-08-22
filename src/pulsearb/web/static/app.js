@@ -777,7 +777,9 @@ function render() {
         li.className = "opp-card";
         const kicker = document.createElement("div");
         kicker.className = "edge";
-        kicker.textContent = `${row.kind_label || row.kind} · ${fmt(row.net_edge_bps, 1)} bps net`;
+        kicker.textContent = `${row.kind_label || row.kind} · ${fmt(row.net_edge_bps, 1)} bps net · ${
+          desk.live && row.live_ok ? "LIVE" : row.paper_only ? "PAPER ONLY" : "PAPER"
+        }`;
         const body = document.createElement("div");
         body.textContent = friendlyOpp(row);
         const meta = document.createElement("div");
@@ -848,7 +850,7 @@ function render() {
   } else if (!fillRows.length) {
     const empty = document.createElement("li");
     empty.className = "empty";
-    empty.textContent = "No trades yet. When you tap a row, it shows here: opened, each leg, and closed back to USD.";
+    empty.textContent = "No trades yet. When you tap a row, it shows here marked PAPER or LIVE: opened, each leg, and closed back to USD.";
     fills.replaceChildren(empty);
   } else {
     fills.replaceChildren(
@@ -965,6 +967,44 @@ async function invest(id, btn) {
 }
 
 filter.addEventListener("input", render);
+
+async function clearBoards(which) {
+  const opportunities = which === "opps" || which === "both";
+  const fills = which === "fills" || which === "both";
+  try {
+    const res = await fetch("/api/clear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ opportunities, fills }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "Could not clear");
+    if (opportunities) {
+      snapshot.opportunities = [];
+      seenTradeKeys = new Set();
+    }
+    if (fills) {
+      snapshot.fills = [];
+      snapshot.trades = [];
+      seenFillKeys = new Set();
+    }
+    render();
+    showToast(
+      opportunities && fills
+        ? "Cleared both lists. New cards are marked PAPER or LIVE."
+        : opportunities
+          ? "Cleared Trades for you. The next scan will fill it again."
+          : "Cleared Your trades. Export first next time if you want to keep the old blotter."
+    );
+  } catch (err) {
+    showToast(String(err.message || err));
+  }
+}
+
+const clearOppsBtn = document.getElementById("clear-opps");
+const clearFillsBtn = document.getElementById("clear-fills");
+if (clearOppsBtn) clearOppsBtn.addEventListener("click", () => clearBoards("opps"));
+if (clearFillsBtn) clearFillsBtn.addEventListener("click", () => clearBoards("fills"));
 
 killBtn.addEventListener("click", async () => {
   const killed = Boolean(snapshot.stats && snapshot.stats.killed);
