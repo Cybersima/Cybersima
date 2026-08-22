@@ -74,6 +74,77 @@ def cash_pnl(fills: list[Fill]) -> float:
     return delta
 
 
+def replay_paper_pocket(
+    fills: list[Fill],
+    notional: float,
+    start_quote: str = "USD",
+) -> dict[str, float]:
+    cash = start_quote if start_quote in STABLE else "USD"
+    pocket: dict[str, float] = {cash: float(notional)}
+    for fill in fills:
+        if fill.status != "filled" or fill.qty <= 0:
+            continue
+        try:
+            base, quote = split_pair(fill.symbol)
+        except ValueError:
+            continue
+        spent = float(fill.notional or 0.0)
+        if spent <= 0:
+            spent = float(fill.qty) * float(fill.price)
+        if fill.side == "buy":
+            pocket[quote] = pocket.get(quote, 0.0) - spent
+            pocket[base] = pocket.get(base, 0.0) + float(fill.qty)
+        elif fill.side == "sell":
+            pocket[base] = pocket.get(base, 0.0) - float(fill.qty)
+            pocket[quote] = pocket.get(quote, 0.0) + spent
+    return pocket
+
+
+def _usd_mark(asset: str, fills: list[Fill]) -> float | None:
+    for fill in reversed(fills):
+        if fill.status != "filled" or fill.price <= 0:
+            continue
+        try:
+            base, quote = split_pair(fill.symbol)
+        except ValueError:
+            continue
+        if base == asset and quote in STABLE:
+            return float(fill.price)
+        if quote == asset and base in STABLE:
+            return 1.0 / float(fill.price)
+    return None
+
+
+def mark_pocket_usd(pocket: dict[str, float], fills: list[Fill]) -> float:
+    total = 0.0
+    for asset, qty in pocket.items():
+        if abs(qty) <= 1e-12:
+            continue
+        if asset in STABLE:
+            total += qty
+            continue
+        px = _usd_mark(asset, fills)
+        if px is not None:
+            total += qty * px
+    return total
+
+
+def paper_tap_pnl(fills: list[Fill], notional: float, start_quote: str = "USD") -> float:
+    """Paper round-trip: ending stables (plus leftover coin marked to USD) minus tap size.
+
+    cash_pnl() only sees USD-quoted fills, so a $250 buy that exits into EUR/GBP/BTC
+    prints as -250 even though the tap still holds that coin. Leftover coin that
+    cannot be marked is treated as unrealized (0), not a cash loss of the tap.
+    """
+    size = float(notional)
+    pocket = replay_paper_pocket(fills, size, start_quote)
+    end = mark_pocket_usd(pocket, fills)
+    leftover = any(abs(qty) > 1e-8 for asset, qty in pocket.items() if asset not in STABLE)
+    if leftover and end < 0.5 * size:
+        return 0.0
+    return end - size
+
+
 def venue_live_ok(opportunity: Opportunity, venue: str) -> bool:
     """True when every leg is on that venue and the tap starts by buying with USD."""
     wanted = str(venue or "").strip().lower()

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from pulsearb.engine.money import cash_pnl, route_fee_bps
+from pulsearb.engine.money import cash_pnl, paper_tap_pnl, route_fee_bps
 from pulsearb.models import Fill, Opportunity
 
 TAKEN_EXECUTION = {"paper", "live", "blocked"}
@@ -110,7 +110,7 @@ def build_report_row(
         guardian_status, guardian_detail = "pass", "ok"
     if filled:
         close_reason = "paper_fill" if paper else "live_fill"
-        realized = cash_pnl(fill_list)
+        realized = paper_tap_pnl(fill_list, opportunity.notional) if paper else cash_pnl(fill_list)
         fill_ratio = 1.0
         execution = "paper" if paper else "live"
     elif blocked:

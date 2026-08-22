@@ -7,10 +7,26 @@ from urllib.parse import urlencode
 
 import httpx
 
-from pulsearb.engine.money import CONVERT_TO_USD, STABLE, cash_pnl
+from pulsearb.engine.money import CONVERT_TO_USD, STABLE, paper_tap_pnl
 from pulsearb.engine.risk import RiskManager
 from pulsearb.models import Fill, Opportunity
 from pulsearb.symbols import split_pair
+
+
+def _usd_price_from_opportunity(opportunity: Opportunity, asset: str) -> float | None:
+    wanted = str(asset or "").upper()
+    for leg in opportunity.legs:
+        if not leg.price:
+            continue
+        try:
+            base, quote = split_pair(leg.symbol)
+        except ValueError:
+            continue
+        if base == wanted and quote in STABLE:
+            return float(leg.price)
+        if quote == wanted and base in STABLE:
+            return 1.0 / float(leg.price)
+    return None
 
 
 class Broker:
@@ -82,7 +98,7 @@ class PaperBroker(Broker):
         )
         if chained:
             fills = self._chain_fills(opportunity, now, start_quote=start_quote)
-            realized = cash_pnl(fills)
+            realized = paper_tap_pnl(fills, opportunity.notional, start_quote=start_quote or "USD")
         else:
             expected = opportunity.notional * (opportunity.net_edge_bps / 10_000)
             for leg in opportunity.legs:
@@ -196,6 +212,30 @@ class PaperBroker(Broker):
             )
             pocket[asset] = 0.0
             pocket["USD"] = pocket.get("USD", 0.0) + qty
+        for asset, qty in list(pocket.items()):
+            if asset in STABLE or qty <= 1e-8:
+                continue
+            px = _usd_price_from_opportunity(opportunity, asset)
+            if px is None or px <= 0:
+                continue
+            usd = qty * px
+            fills.append(
+                Fill(
+                    venue=opportunity.legs[-1].venue if opportunity.legs else "paper",
+                    symbol=f"{asset}-USD",
+                    side="sell",
+                    qty=qty,
+                    price=px,
+                    notional=usd,
+                    ts=now,
+                    paper=True,
+                    opportunity_id=opportunity.id,
+                    status="filled",
+                    note="paper mark leftover to USD",
+                )
+            )
+            pocket[asset] = 0.0
+            pocket["USD"] = pocket.get("USD", 0.0) + usd
         return fills
 
 

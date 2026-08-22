@@ -120,6 +120,29 @@ async def test_paper_usd_triangle_chains_cash_pnl() -> None:
     assert realized == pytest.approx(broker.pnl, abs=1e-9)
 
 
+@pytest.mark.asyncio
+async def test_paper_pnl_is_not_the_tap_size_when_exit_is_not_usd() -> None:
+    risk = RiskManager(max_notional_usdt=250, cooldown_seconds=0)
+    broker = PaperBroker(risk)
+    opp = Opportunity(
+        kind=OpportunityKind.TRIANGULAR,
+        edge_bps=40,
+        net_edge_bps=20,
+        notional=250,
+        legs=[
+            Leg("buy", "kraken", "EURUSD", 1.08, True),
+            Leg("sell", "kraken", "EURGBP", 0.85, True),
+        ],
+        summary="USD → EUR → GBP (no USD exit)",
+        executable=True,
+        ts=0,
+        id="fx-partial",
+    )
+    fills = await broker.execute(opp)
+    assert abs(broker.pnl) < 5
+    assert broker.pnl != pytest.approx(-250, abs=1)
+
+
 def test_live_budget_splits_across_taps() -> None:
     risk = RiskManager(max_notional_usdt=25, live_budget_usdt=25, cooldown_seconds=0, min_notional_usdt=1)
     assert risk.allow(1).allowed
