@@ -478,7 +478,9 @@ function paintDesk() {
     : "Each tap is this size. $1–$5 is typical. Paper until you go live. Coins under $1 still buy a fraction.";
   if (modeHint) {
     modeHint.textContent = autoAllowed
-      ? "Picking is safer. Auto uses your amount on matching trades."
+      ? (desk.live
+          ? "Picking is safer. Auto uses your amount on matching Coinbase or Kraken USD-start rows."
+          : "Picking is safer. Auto only takes Coinbase or Kraken same-exchange rows that buy with USD. Cross-venue stays click-to-paper.")
       : "Live: Auto stays off unless you set an Auto window (for example 10:00 PM to 6:00 AM). Cross-venue gaps stay paper.";
   }
   const schedOff = document.getElementById("sched-off");
@@ -794,11 +796,19 @@ function render() {
             note.className = "hint";
             note.textContent = `Live ${liveVenueLabel()}: buys with USD, then sells back toward USD.`;
             li.append(note);
+          } else if (row.paper_only) {
+            const note = document.createElement("div");
+            note.className = "hint";
+            note.textContent =
+              "Auto skips this. You can still paper-trade it. Auto only takes Coinbase or Kraken same-exchange rows that buy with USD.";
+            li.append(note);
           }
         } else if (row.paper_only) {
           const note = document.createElement("div");
           note.className = "hint";
-          note.textContent = `Paper only while Live is on — this gap is not a ${liveVenueLabel()} USD round-trip.`;
+          note.textContent = desk.live
+            ? `Paper only while Live is on — this gap is not a ${liveVenueLabel()} USD round-trip.`
+            : "Auto skips this. Click Invest to paper-trade it. Auto only takes Coinbase or Kraken same-exchange rows that buy with USD.";
           li.append(note);
         } else if (row.pending && desk.auto_invest) {
           const note = document.createElement("div");

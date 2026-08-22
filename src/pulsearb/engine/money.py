@@ -91,6 +91,23 @@ def venue_live_ok(opportunity: Opportunity, venue: str) -> bool:
     return quote == "USD"
 
 
+def auto_route_ok(opportunity: Opportunity, live_venue: str, *, live: bool) -> bool:
+    """Auto only takes same-exchange USD-start routes that live can send.
+
+    Cross-venue (Kraken vs Gemini, etc.) and USDC-first triangles stay
+    click-to-paper so they cannot starve the real taps.
+    """
+    if live:
+        return venue_live_ok(opportunity, live_venue)
+    venues = {leg.venue for leg in opportunity.legs}
+    if len(venues) != 1:
+        return False
+    only = next(iter(venues))
+    if only not in {"coinbase", "kraken"}:
+        return False
+    return venue_live_ok(opportunity, only)
+
+
 def coinbase_live_ok(opportunity: Opportunity) -> bool:
     """True when every leg is Coinbase and the tap starts by buying with USD."""
     return venue_live_ok(opportunity, "coinbase")

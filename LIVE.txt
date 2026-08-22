@@ -30,6 +30,9 @@ Auto window
 -----------
 • Paper Auto can run any time, or only between the times you set
   (example: 10:00 PM to 6:00 AM — overnight wraps midnight).
+• Paper Auto only takes Coinbase or Kraken same-exchange rows that
+  buy with USD. Cross-venue (Kraken vs Gemini) stays click-to-paper
+  so a fake two-exchange edge cannot starve the real taps.
 • Times use THIS computer’s clock.
 • While live, Auto stays off unless you turn on “Only between”
   and set a start and stop. Then Auto can fire inside that window

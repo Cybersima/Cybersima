@@ -26,7 +26,7 @@ fees:
   extra_slippage_bps: 2.0
 
 min_edge_bps: 8.0
-min_executable_edge_bps: 25.0
+min_executable_edge_bps: 15.0
 max_raw_edge_bps: 300.0
 max_quote_skew_seconds: 1.5
 

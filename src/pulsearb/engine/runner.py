@@ -20,7 +20,7 @@ from pulsearb.engine.coinbase_live import LiveCoinbaseBroker
 from pulsearb.engine.desk import KIND_LABELS, TradeDesk
 from pulsearb.engine.kraken_live import LiveKrakenBroker
 from pulsearb.engine.live_ready import quote_cash, usd_spendable
-from pulsearb.engine.money import venue_live_ok, venue_maker_bps
+from pulsearb.engine.money import auto_route_ok, venue_live_ok, venue_maker_bps
 from pulsearb.engine.report import ProfitLedger
 from pulsearb.engine.risk import RiskManager
 from pulsearb.engine.schedule import window_open
@@ -337,24 +337,25 @@ class Engine:
 
     def _opp_view(self, opp: Opportunity) -> dict:
         data = opp.to_dict()
-        live_ok = venue_live_ok(opp, self.desk.live_venue)
-        paper_only = self.live_active() and not live_ok
-        pending = (
+        live = self.live_active()
+        auto_ok = auto_route_ok(opp, self.desk.live_venue, live=live)
+        paper_only = bool(opp.executable) and not auto_ok
+        can_click = (
             opp.executable
             and opp.id not in self.invested
             and self.desk.matches(opp, self.book)
             and not self.risk.killed
-            and not paper_only
+            and (auto_ok if live else True)
         )
         data.update(
             {
                 "kind_label": KIND_LABELS.get(opp.kind.value, opp.kind.value),
                 "expected_pnl": round(self.desk.notional * opp.net_edge_bps / 10_000, 4),
                 "notional": self.desk.notional,
-                "pending": pending,
-                "investable": pending and not self.desk.auto_invest,
+                "pending": can_click and auto_ok,
+                "investable": can_click and not self.desk.auto_invest,
                 "chosen": self.desk.matches(opp, self.book),
-                "live_ok": live_ok,
+                "live_ok": auto_ok,
                 "paper_only": paper_only,
             }
         )
@@ -393,6 +394,11 @@ class Engine:
 
     def _idle_reason(self) -> str:
         if not self.live_active():
+            if self.desk.auto_invest and not self._auto_candidates(list(self.opportunities)):
+                return (
+                    "Auto only takes Coinbase or Kraken same-exchange rows that buy with USD. "
+                    "Cross-venue gaps (Kraken vs Gemini) stay click-to-paper so they cannot starve those taps."
+                )
             return ""
         venue = self.desk.live_venue.title()
         parts: list[str] = []
@@ -513,6 +519,16 @@ class Engine:
         await self._refresh_cash()
         return fills
 
+    def _auto_candidates(self, current: list[Opportunity]) -> list[Opportunity]:
+        live = self.live_active()
+        return [
+            opp
+            for opp in current
+            if opp.executable
+            and self.desk.matches(opp, self.book)
+            and auto_route_ok(opp, self.desk.live_venue, live=live)
+        ]
+
     def _demo_instruments(self) -> list[tuple[str, str, bool]]:
         rows: list[tuple[str, str, bool]] = []
         for venue in SPOT_VENUES:
@@ -610,7 +626,7 @@ class Engine:
         fee_map = self._fee_map
         extra = self._slippage
         min_alert = float(self.config.settings.get("min_edge_bps", 8))
-        min_exec = float(self.config.settings.get("min_executable_edge_bps", 25))
+        min_exec = float(self.config.settings.get("min_executable_edge_bps", 15))
         stale = float(self.config.risk.get("stale_quote_seconds", 8))
         max_raw = float(self.config.settings.get("max_raw_edge_bps", 300))
         max_skew = float(self.config.settings.get("max_quote_skew_seconds", 1.5))
@@ -695,13 +711,7 @@ class Engine:
             if self.live_active() or self.desk.live:
                 want_auto = want_auto and self.desk.schedule_enabled and in_window
             if want_auto and self.risk.allow(self.desk.notional).allowed:
-                candidates = [
-                    opp
-                    for opp in current
-                    if opp.executable
-                    and self.desk.matches(opp, self.book)
-                    and (not self.live_active() or venue_live_ok(opp, self.desk.live_venue))
-                ]
+                candidates = self._auto_candidates(current)
                 if candidates:
                     best = max(candidates, key=lambda item: item.net_edge_bps)
                     await self._take(best)
