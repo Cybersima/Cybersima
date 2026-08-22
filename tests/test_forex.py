@@ -42,6 +42,16 @@ def test_indicators_and_timeframes() -> None:
     assert desk.candles["EUR-USD"]["1m"][-1].close > desk.candles["EUR-USD"]["1m"][0].open
 
 
+def test_synthetic_seed_fills_hour_and_day() -> None:
+    desk = ForexDesk()
+    desk.seed_synthetic(["EUR-USD"])
+    biases = {row.timeframe: row for row in desk.biases("EUR-USD")}
+    assert biases["30s"].pattern != "warming up"
+    assert biases["1h"].pattern != "warming up"
+    assert biases["1d"].pattern != "warming up"
+    assert biases["1d"].bias in {"up", "down", "flat"}
+
+
 def test_buy_rising_and_sell_falling() -> None:
     now = 1_700_000_000.0
     book = MarketBook()

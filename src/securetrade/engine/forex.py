@@ -319,17 +319,28 @@ class ForexDesk:
         for pair in pairs:
             pair = pair.upper()
             price = FX_SEEDS.get(pair, self.last_price.get(pair, 1.0))
-            step = TIMEFRAME_SECONDS["30s"]
-            start = now - bars * step
             drift = 0.00004 if hash(pair) % 2 == 0 else -0.00004
-            current = price * (1.0 - drift * bars / 2)
-            for idx in range(bars):
-                ts = start + idx * step
-                wave = math.sin(idx / 18.0) * 0.00035
-                current = max(current * (1.0 + drift + wave), 1e-8)
-                self.ingest_tick(pair, ts, current)
+            points: list[tuple[float, float]] = []
+            # Older frames first in the list; ingest is chronological so 1h/1d get real EMA/RSI.
+            points.extend(self._series(price, now, count=80, step=TIMEFRAME_SECONDS["1d"], drift=drift * 8))
+            points.extend(self._series(price, now, count=120, step=TIMEFRAME_SECONDS["1h"], drift=drift * 3))
+            points.extend(self._series(price, now, count=bars, step=TIMEFRAME_SECONDS["30s"], drift=drift))
+            points.sort(key=lambda item: item[0])
+            for ts, value in points:
+                self.ingest_tick(pair, ts, value)
             self.ingest_tick(pair, now, price)
         self.seeded = True
+
+    def _series(self, price: float, now: float, count: int, step: int, drift: float) -> list[tuple[float, float]]:
+        current = price * (1.0 - drift * count / 2)
+        start = now - count * step
+        out: list[tuple[float, float]] = []
+        for idx in range(count):
+            ts = start + idx * step
+            wave = math.sin(idx / 18.0) * 0.00035
+            current = max(current * (1.0 + drift + wave), 1e-8)
+            out.append((ts, current))
+        return out
 
     def seed_from_closes(self, pair: str, closes: list[tuple[float, float]]) -> None:
         for ts, price in closes:
