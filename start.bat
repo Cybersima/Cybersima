@@ -10,11 +10,23 @@ set "PY_VER="
 set "PICK=%~dp0packaging\pick_python.py"
 set "TAG=%TEMP%\securetrade-python.txt"
 
+rem Official 3.14.7 lives at python.exe — never use python3.14t.exe
+call :probe_file "%LocalAppData%\Programs\Python\Python314\python.exe"
+if defined PY_EXE goto :have_python
+call :probe_file "C:\Python314\python.exe"
+if defined PY_EXE goto :have_python
+call :probe_file "%ProgramFiles%\Python314\python.exe"
+if defined PY_EXE goto :have_python
+call :probe_file "%ProgramFiles(x86)%\Python314\python.exe"
+if defined PY_EXE goto :have_python
+
 call :probe py -3.12
 if defined PY_EXE goto :have_python
 call :probe py -3.13
 if defined PY_EXE goto :have_python
 call :probe py -3.11
+if defined PY_EXE goto :have_python
+call :probe py -3.14-64
 if defined PY_EXE goto :have_python
 call :probe py -3.14
 if defined PY_EXE goto :have_python
@@ -26,16 +38,16 @@ call :probe python3
 if defined PY_EXE goto :have_python
 
 echo.
-echo SecureTrade needs the regular Python 3.11, 3.12, or 3.13 installer:
-echo   https://www.python.org/downloads/windows/
+echo Python 3.14.7 is fine IF it is the regular python.exe.
+echo SecureTrade cannot use the experimental free-threaded file
+echo   C:\Python314\python3.14t.exe
 echo.
-echo Your machine has a broken or experimental interpreter
-echo (python3.14t.exe / free-threaded). That build cannot create a
-echo virtual environment and crashes with "No module named encodings".
+echo Check which one you have:
+echo   C:\Python314\python.exe -c "import sys; print(sys.executable); print(sys.version)"
+echo That must print python.exe — not python3.14t.exe — and must not
+echo say "free-threading".
 echo.
-echo Install the standard Windows x64 Python, tick
-echo "Add python.exe to PATH", then run start.bat again.
-echo Delete the .venv folder in this directory if it already exists.
+echo Then delete the .venv folder in this directory and run start.bat again.
 pause
 exit /b 1
 
@@ -61,7 +73,7 @@ if not exist ".venv\Scripts\python.exe" (
   ".venv\Scripts\python.exe" -c "import encodings" >nul 2>&1
   if errorlevel 1 (
     echo The new .venv cannot import encodings. Deleting it.
-    echo Install regular Python 3.12 from python.org and retry.
+    echo Use C:\Python314\python.exe (3.14.7), not python3.14t.exe.
     rmdir /s /q ".venv" 2>nul
     pause
     exit /b 1
@@ -87,9 +99,14 @@ exit /b !ERR!
 :install_fail
 echo.
 echo Install failed. Delete the .venv folder and run start.bat again
-echo after installing Python 3.12 from python.org.
+echo after confirming C:\Python314\python.exe works (not python3.14t.exe).
 pause
 exit /b 1
+
+:probe_file
+if not exist "%~1" exit /b 1
+call :probe "%~1"
+exit /b %errorlevel%
 
 :probe
 set "CAND=%*"

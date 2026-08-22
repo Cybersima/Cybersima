@@ -1,12 +1,12 @@
 CyberSym SecureTrade 2 — install in two minutes
 ================================================
 
-You need regular Python 3.11, 3.12, or 3.13:
+Python 3.11, 3.12, 3.13, or official 3.14.7 is fine:
   https://www.python.org/downloads/windows/
 
 On Windows, tick “Add python.exe to PATH”.
-Do NOT install the experimental “free-threaded” build (python3.14t.exe).
-That build crashes with “No module named encodings”.
+Use C:\Python314\python.exe — not python3.14t.exe (free-threaded).
+The t-build crashes with “No module named encodings”.
 
 If start.bat already failed once, delete the .venv folder in this
 directory, install Python 3.12, and double-click start.bat again.
