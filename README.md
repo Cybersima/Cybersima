@@ -62,7 +62,7 @@ python -m securetrade package
 
 That writes `dist/CyberSym-SecureTrade-2.1.0.zip`. Unzip it, then:
 
-- **Windows:** double-click `start.bat`
+- **Windows:** install regular Python 3.12 from python.org (not `python3.14t`), delete any leftover `.venv`, then double-click `start.bat`
 - **macOS:** double-click `start.command`
 - **Linux:** `./install.sh` then `./start.sh`
 

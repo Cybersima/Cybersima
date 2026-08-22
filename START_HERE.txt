@@ -4,7 +4,9 @@ CyberSym SecureTrade 2
 Installable command center + 24/7 engine. Paper trading is the default.
 
 1. If you received the installer zip, unzip it first. Read HOW_TO_INSTALL.txt
-2. Double-click start.bat (Windows) or start.command (Mac), or run ./start.sh (Linux)
+2. Windows: install regular Python 3.12 from python.org (not python3.14t),
+   delete any leftover .venv folder, then double-click start.bat
+   Mac: double-click start.command   Linux: ./start.sh
 3. Open http://127.0.0.1:8000 on this computer or your iPad
    Download page (share this with customers): http://127.0.0.1:8000/download
 4. Complete the Setup Wizard (Learn mode, simulated money)
