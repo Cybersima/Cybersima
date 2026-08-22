@@ -6,7 +6,8 @@ Installable command center + 24/7 engine. Paper trading is the default.
 1. Double-click start.bat (Windows) or start.command (Mac), or run ./start.sh (Linux)
 2. Open http://127.0.0.1:8000 on this computer or your iPad
 3. Complete the Setup Wizard (Learn mode, simulated money)
-4. Guardian sits above the profit engine and can block unsafe trades
+4. Open Forex Desk — majors/crosses on a 3-second Yahoo tape, 30s–1d frames
+5. Guardian sits above the profit engine and can block unsafe trades
 
 Keep the engine window (or Docker container) running. Closing the laptop
 should not be how you stop a live engine — deploy docker compose on a VPS

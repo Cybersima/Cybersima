@@ -9,6 +9,7 @@ from securetrade.engine.arbitrage import detect_auto_cross, detect_cross_venue, 
 from securetrade.engine.book import MarketBook
 from securetrade.engine.broker import Broker, LiveBinanceBroker, PaperBroker
 from securetrade.engine.capital import CapitalProtection
+from securetrade.engine.forex import FX_SEEDS, ForexDesk, is_forex_kind
 from securetrade.engine.guardian import Guardian
 from securetrade.engine.health import HealthMonitor
 from securetrade.engine.paper_lab import PaperLab
@@ -81,6 +82,23 @@ class Engine:
         self.alerts: deque[dict] = deque(maxlen=50)
         self.pending: dict[str, Opportunity] = {}
         self.auto_trading = config.operating_mode is OperatingMode.AUTO
+        fx_cfg = config.forex
+        self.forex = ForexDesk(
+            min_confluence=int(fx_cfg.get("min_confluence", 3)),
+            notional=float(config.risk.get("max_notional_usdt", 250)),
+            max_open=int(fx_cfg.get("max_open", 6)),
+            cooldown_seconds=float(fx_cfg.get("cooldown_seconds", 45)),
+            min_edge_bps=float(fx_cfg.get("min_edge_bps", config.settings.get("min_edge_bps", 8))),
+            poll_seconds=config.yahoo_poll_seconds,
+        )
+        fx_pairs = [
+            row["canonical"]
+            for row in config.yahoo_symbols
+            if str(row.get("asset_class", "fx")) in {"fx", "metal"}
+        ]
+        if not fx_pairs:
+            fx_pairs = list(FX_SEEDS)
+        self.forex.seed_synthetic(fx_pairs)
         self.triangles_by_venue = {
             venue: discover_triangles(config.symbols(venue))
             for venue in SPOT_VENUES
@@ -93,6 +111,19 @@ class Engine:
         self.pipeline.mode = mode
         self.config.settings["operating_mode"] = mode.value
         self.auto_trading = mode is OperatingMode.AUTO
+
+    def flatten_forex(self) -> list:
+        closed = []
+        for item in self.forex.flatten(self.book):
+            if item.opportunity_id in self.paper_lab.open:
+                position = self.paper_lab.close(item.opportunity_id, item.outcome, item.pnl, item.reason)
+                self._apply_closed(position)
+                closed.append(position)
+        return closed
+
+    def emergency_stop(self, source: KillSource = KillSource.CUSTOMER) -> None:
+        self.risk.kill(source)
+        self.flatten_forex()
 
     def subscribe(self) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue(maxsize=8)
@@ -150,6 +181,7 @@ class Engine:
             "health": health.to_dict(),
             "pending": [o.to_dict() for o in self.pending.values()],
             "live_prerequisites": self.config.live_prerequisites(),
+            "forex": self.forex.to_snapshot(),
         }
 
     async def broadcast(self) -> None:
@@ -183,6 +215,20 @@ class Engine:
             rows.append(("yahoo", row["canonical"], False))
         return rows
 
+    async def _prime_forex_history(self) -> None:
+        if self.config.env.demo_only or self.config.env.pulse_demo_only:
+            return
+        if not self.config.venue_enabled("yahoo"):
+            return
+        try:
+            from securetrade.feeds.yahoo import load_recent_closes
+
+            history = await asyncio.to_thread(load_recent_closes, self.config.yahoo_symbols)
+            for pair, closes in history.items():
+                self.forex.seed_from_closes(pair, closes)
+        except Exception as exc:
+            self.stats.feed_status["yahoo-history"] = f"seed skipped: {exc}"[:80]
+
     async def run_feeds(self) -> None:
         tasks = []
         markets = self.config.markets
@@ -198,6 +244,7 @@ class Engine:
                     gap_every_seconds=float(sim.get("gap_every_seconds", 18)),
                 ).run(self.book, self.stats.feed_status)
             )
+        await self._prime_forex_history()
         if not demo_only:
             if self.config.venue_enabled("coinbase"):
                 cfg = markets["coinbase"]
@@ -253,7 +300,7 @@ class Engine:
                 tasks.append(
                     YahooFeed(
                         symbols=self.config.yahoo_symbols,
-                        poll_seconds=float(cfg.get("poll_seconds") or settings.get("yahoo_poll_seconds", 2.0)),
+                        poll_seconds=float(cfg.get("poll_seconds") or settings.get("yahoo_poll_seconds", 3.0)),
                     ).run(self.book, self.stats.feed_status)
                 )
         if not tasks:
@@ -316,6 +363,8 @@ class Engine:
                     force_pnl if force_pnl is not None else result.position.expected_pnl,
                 )
                 self._apply_closed(closed)
+            elif is_forex_kind(result.opportunity.kind):
+                self.forex.adopt(result.opportunity)
             else:
                 live_edge = result.opportunity.expected_net_edge_bps
                 closed = self.paper_lab.resolve_against_edge(result.opportunity.id, live_edge)
@@ -437,12 +486,35 @@ class Engine:
                         venue=venue,
                     )
                 )
-            fresh = [opp for opp in (*cross, *auto, *triangles) if opp.id not in self.seen]
+            forex_opps = []
+            if bool(self.config.forex.get("enabled", True)):
+                forex_opps = self.forex.scan(self.book)
+            fresh = [opp for opp in (*cross, *auto, *triangles, *forex_opps) if opp.id not in self.seen]
             for opp in fresh:
                 self.seen.add(opp.id)
                 if self.risk.killed:
                     continue
                 await self.ingest(opp)
+            for closed_fx in self.forex.mark(self.book):
+                if closed_fx.opportunity_id in self.paper_lab.open:
+                    closed = self.paper_lab.close(
+                        closed_fx.opportunity_id,
+                        closed_fx.outcome,
+                        closed_fx.pnl,
+                        closed_fx.reason,
+                    )
+                    self.pipeline.journal.record(
+                        action="forex_exit",
+                        opportunity_id=closed.opportunity_id,
+                        decision=closed.outcome,
+                        sources=["yahoo"],
+                        expected_profit=closed.expected_pnl,
+                        actual_result=closed.actual_pnl,
+                        risk_score=closed.trust_score,
+                        security_decision=closed.outcome,
+                        details={**closed.to_dict(), "reason": closed_fx.reason, "price": closed_fx.price},
+                    )
+                    self._apply_closed(closed)
             for expired in self.paper_lab.expire_open():
                 self._apply_closed(expired)
             report = self.health.report(

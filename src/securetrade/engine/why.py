@@ -13,6 +13,15 @@ def explain_trade(
     within_limits: bool,
 ) -> list[str]:
     lines: list[str] = []
+    if opportunity.confluence:
+        aligned = ", ".join(opportunity.timeframes_aligned) or opportunity.timeframe
+        lines.append(f"{opportunity.confluence} timeframes aligned {opportunity.side.upper() or 'IN'} ({aligned})")
+    if opportunity.pattern:
+        lines.append(f"Pattern: {opportunity.pattern}")
+    if opportunity.side and opportunity.entry_price:
+        lines.append(
+            f"{opportunity.side.upper()} entry {opportunity.entry_price:.6g} · stop {opportunity.stop_price:.6g} · target {opportunity.target_price:.6g}"
+        )
     if consensus.sources >= 2:
         lines.append("Multiple markets confirmed price")
     if simulation.viable and opportunity.liquidity_usd >= opportunity.notional:

@@ -33,6 +33,13 @@ class PaperLab:
         expected_net_edge_bps: float,
         trust_score: int,
         now: float | None = None,
+        timeout_seconds: float | None = None,
+        side: str = "",
+        entry_price: float = 0.0,
+        stop_price: float = 0.0,
+        target_price: float = 0.0,
+        timeframe: str = "",
+        asset_class: str = "",
     ) -> PaperPosition | None:
         if commit_kind == CommitDecision.CANCEL.value:
             return None
@@ -48,6 +55,14 @@ class PaperLab:
             opened_at=now,
             expected_net_edge_bps=expected_net_edge_bps,
             trust_score=trust_score,
+            side=side,
+            entry_price=entry_price,
+            stop_price=stop_price,
+            target_price=target_price,
+            timeframe=timeframe,
+            asset_class=asset_class,
+            timeout_seconds=timeout_seconds,
+            last_price=entry_price,
         )
         return self.admit(position)
 
@@ -72,7 +87,10 @@ class PaperLab:
         now = now or time.time()
         expired: list[PaperPosition] = []
         for oid, position in list(self.open.items()):
-            if now - position.opened_at >= self.timeout_seconds:
+            limit = self.timeout_seconds if position.timeout_seconds is None else position.timeout_seconds
+            if limit <= 0:
+                continue
+            if now - position.opened_at >= limit:
                 expired.append(self.close(oid, PaperOutcome.EXPIRED, 0.0, "timed out before capture"))
         return expired
 

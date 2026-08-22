@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from securetrade.engine.book import MarketBook
 from securetrade.engine.capital import CapitalProtection
 from securetrade.engine.consensus import PriceConsensus
+from securetrade.engine.forex import is_forex_kind
 from securetrade.engine.guardian import Guardian
 from securetrade.engine.paper_lab import PaperLab
 from securetrade.engine.quality import quality_score
@@ -159,6 +160,13 @@ class TradingPipeline:
             expected_net_edge_bps=record.commit_edge_bps,
             trust_score=trust.score,
             now=now,
+            timeout_seconds=0.0 if is_forex_kind(opportunity.kind) else None,
+            side=opportunity.side,
+            entry_price=opportunity.entry_price,
+            stop_price=opportunity.stop_price,
+            target_price=opportunity.target_price,
+            timeframe=opportunity.timeframe,
+            asset_class="fx" if is_forex_kind(opportunity.kind) else "",
         )
         return PipelineResult(opportunity, state.value, record, position, False, False)
 

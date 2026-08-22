@@ -22,4 +22,5 @@ STEPS = [
     {"id": "security", "title": "Security", "body": "Enable MFA/passkeys, encrypt credentials, and keep withdrawals disabled. Guardian will refuse live mode until these pass."},
     {"id": "risk", "title": "Capital protection", "body": "Set max trade size, daily loss, drawdown, allowed assets, and minimum net edge. The bot cannot override these."},
     {"id": "engine", "title": "Where the engine runs", "body": "Keep the engine on this computer, or deploy the Docker cloud/VPS image so trading continues when the laptop sleeps."},
+    {"id": "forex", "title": "Forex Desk", "body": "Yahoo Finance refreshes majors and crosses every 3 seconds. The desk times BUY/SELL entries across 30s–1d frames and exits on target, stop, time, or reversal. Paper is default."},
 ]

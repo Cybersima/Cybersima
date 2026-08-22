@@ -14,7 +14,7 @@ class YahooFeed(Feed):
 
     name = "yahoo"
 
-    def __init__(self, symbols: list[dict[str, str]], poll_seconds: float = 2.0) -> None:
+    def __init__(self, symbols: list[dict[str, str]], poll_seconds: float = 3.0) -> None:
         self.symbols = symbols
         self.poll_seconds = max(1.0, poll_seconds)
 
@@ -89,3 +89,38 @@ def _num(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def load_recent_closes(symbols: list[dict[str, str]], period: str = "5d", interval: str = "1m") -> dict[str, list[tuple[float, float]]]:
+    """Best-effort Yahoo history for 1m→higher timeframe seeding. Fail-soft."""
+    import yfinance as yf
+
+    out: dict[str, list[tuple[float, float]]] = {}
+    tickers = [row["ticker"] for row in symbols if row.get("asset_class") in {"fx", "metal", None, ""}]
+    if not tickers:
+        return out
+    batch = yf.download(
+        tickers=" ".join(tickers),
+        period=period,
+        interval=interval,
+        group_by="ticker",
+        progress=False,
+        threads=True,
+    )
+    for row in symbols:
+        ticker = row["ticker"]
+        pair = row["canonical"]
+        try:
+            frame = batch[ticker] if hasattr(batch, "columns") and ticker in getattr(batch, "columns", []) else batch
+            closes = frame["Close"].dropna()
+            points: list[tuple[float, float]] = []
+            for stamp, price in closes.items():
+                ts = stamp.timestamp() if hasattr(stamp, "timestamp") else float(stamp)
+                value = _num(price)
+                if value > 0:
+                    points.append((ts, value))
+            if points:
+                out[pair] = points[-400:]
+        except Exception:
+            continue
+    return out

@@ -61,10 +61,24 @@ SEED: dict[str, float] = {
     "GBP-JPY": 190.2,
     "EUR-CHF": 0.942,
     "AUD-JPY": 98.8,
+    "EUR-AUD": 1.639,
+    "EUR-CAD": 1.503,
+    "GBP-AUD": 1.926,
+    "GBP-CHF": 1.107,
+    "AUD-NZD": 1.107,
+    "NZD-JPY": 89.3,
+    "CAD-JPY": 107.7,
+    "CHF-JPY": 171.8,
+    "EUR-NZD": 1.814,
+    "GBP-CAD": 1.766,
+    "AUD-CAD": 0.917,
     "USD-CNH": 7.24,
     "USD-SEK": 10.55,
     "USD-NOK": 10.72,
     "USD-MXN": 18.45,
+    "USD-ZAR": 18.21,
+    "USD-TRY": 32.45,
+    "EUR-SEK": 11.45,
     "XAU-USD": 2685.0,
     "XAG-USD": 31.4,
     "WTI-USD": 78.2,
@@ -94,8 +108,10 @@ class SimulatorFeed(Feed):
         self.inject_gaps = inject_gaps
         self.gap_every_seconds = gap_every_seconds
         self._mids: dict[str, float] = {}
+        self._drift: dict[str, float] = {}
         for _venue, canon, _ok in instruments:
             self._mids[canon] = SEED.get(canon, 1.0)
+            self._drift[canon] = 0.00005 if hash(canon) % 2 == 0 else -0.00005
 
     async def run(self, book: MarketBook, status: dict[str, str]) -> None:
         status[self.name] = "live"
@@ -131,14 +147,28 @@ class SimulatorFeed(Feed):
                     bid=mid - spread / 2,
                     ask=mid + spread / 2,
                     ts=now,
-                    asset_class="fx" if venue == "yahoo" and not canon.split("-")[0] in {"BTC", "ETH", "SOL", "XRP"} else "crypto",
+                    asset_class=_asset_class(canon, venue),
                     executable=executable,
                 )
             )
 
     def _walk(self, key: str) -> float:
         mid = self._mids.get(key, 1.0)
-        shock = random.gauss(0, 0.00025)
+        drift = self._drift.get(key, 0.0)
+        if random.random() < 0.01:
+            self._drift[key] = -drift if drift else 0.00005
+        shock = random.gauss(drift, 0.00022)
         mid = max(mid * (1 + shock), 1e-12)
         self._mids[key] = mid
         return mid
+
+
+def _asset_class(canonical: str, venue: str) -> str:
+    base = canonical.split("-")[0]
+    if base in {"XAU", "XAG"}:
+        return "metal"
+    if base == "WTI":
+        return "energy"
+    if venue == "yahoo" and base not in {"BTC", "ETH", "SOL", "XRP"}:
+        return "fx"
+    return "crypto"

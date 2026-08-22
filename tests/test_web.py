@@ -13,6 +13,11 @@ def test_dashboard_and_kill_switch() -> None:
     assert "CyberSym SecureTrade" in page.text
     assert "A CyberSym product" in page.text
     assert "Guardian" in page.text
+    assert "Forex Desk" in page.text
+    assert "30s" in page.text
+    fx = client.get("/api/forex").json()
+    assert fx["poll_seconds"] == 3.0
+    assert "1d" in fx["timeframes"]
     health = client.get("/api/health").json()
     assert health["ok"] is True
     assert health["killed"] is False

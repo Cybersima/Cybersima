@@ -4,7 +4,9 @@
 
 SecureTrade 2 is a packaged product, not a folder of scripts. You install it, launch the command center, and a separate 24/7 engine keeps running even if the laptop sleeps.
 
-Paper trading is the default. Live trading cannot be turned on until exchange connectivity, security configuration, risk limits, and safety checks pass.
+The **Forex Desk** scans majors and crosses on a 3-second Yahoo Finance tape. It times BUY (rising) and SELL (falling) entries across 30-second, 1/2/3/4/5-minute, 1-hour, and 1-day frames, then exits on target, stop, time, or a fast-frame reversal. Cross-venue crypto gaps still run in the same engine.
+
+Paper trading is the default. Live trading cannot be turned on until exchange connectivity, security configuration, risk limits, and safety checks pass. Yahoo prints are delayed retail data — useful for pattern timing, not a prime-broker pipe.
 
 ## What you get
 
@@ -14,6 +16,7 @@ CyberSym SecureTrade 2
 ├── Setup Wizard
 ├── Exchange Connector Manager
 ├── Market Scanner
+├── Forex Desk (30s–1d · Yahoo every 3s)
 ├── Security & Fraud Engine
 ├── Arbitrage Engine
 ├── CyberSym Guardian™
@@ -80,7 +83,7 @@ Point the command center at the engine URL. Closing the laptop will not stop Doc
 - Signed-update channel hook (`/api/updates`)
 - Immutable-style decision journal
 
-This is not a profit guarantee. Public APIs are not an HFT pipe. Yahoo is delayed. US default venues are Coinbase, Kraken, Gemini, and Bitstamp.
+This is not a profit guarantee. Public APIs are not an HFT pipe. Yahoo is delayed. A price dislocation is a *candidate*, not a filled profit. US default venues are Coinbase, Kraken, Gemini, and Bitstamp.
 
 ## Editions
 

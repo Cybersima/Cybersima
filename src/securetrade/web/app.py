@@ -102,6 +102,11 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     async def snapshot() -> dict:
         return engine.snapshot()
 
+    @app.get("/api/forex")
+    async def forex_desk() -> dict:
+        snap = engine.snapshot()
+        return snap.get("forex") or {}
+
     @app.get("/api/recovery-commit")
     async def recovery_commit() -> dict:
         snap = engine.snapshot()
@@ -138,7 +143,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
 
     @app.post("/api/kill")
     async def kill() -> dict:
-        engine.risk.kill(KillSource.CUSTOMER)
+        engine.emergency_stop(KillSource.CUSTOMER)
         await engine.broadcast()
         return {"killed": True, "source": engine.risk.kill_source}
 

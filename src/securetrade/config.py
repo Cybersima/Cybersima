@@ -191,3 +191,14 @@ class AppConfig:
     @property
     def starting_equity(self) -> float:
         return float(self.settings.get("paper", {}).get("starting_equity", 25000))
+
+    @property
+    def forex(self) -> dict[str, Any]:
+        return dict(self.settings.get("forex") or {})
+
+    @property
+    def yahoo_poll_seconds(self) -> float:
+        yahoo = self.markets.get("yahoo") or {}
+        if yahoo.get("poll_seconds") is not None:
+            return float(yahoo.get("poll_seconds"))
+        return float(self.settings.get("yahoo_poll_seconds", 3.0))

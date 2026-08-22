@@ -73,7 +73,28 @@ dl > div { display: flex; justify-content: space-between; border-bottom: 1px sol
 .close { float: right; background: none; border: 0; color: var(--text); font-size: 22px; cursor: pointer; }
 .sig { padding: 12px 18px 24px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
 input[type=search] { background: #0c1118; border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 8px 10px; }
+.fx-hint { margin-top: 14px; }
+.fx-board { display: grid; gap: 8px; }
+.fx-row {
+  background: #0c1118; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+}
+.fx-row-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.fx-pair { letter-spacing: 0.08em; font-size: 15px; }
+.fx-last { font-variant-numeric: tabular-nums; color: var(--muted); }
+.fx-tfs { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 6px; }
+.fx-tf {
+  font-size: 11px; letter-spacing: 0.04em; padding: 3px 7px; border-radius: 999px; border: 1px solid var(--line);
+  color: var(--muted);
+}
+.fx-tf.up { color: var(--up); border-color: #1f4d38; background: #10261c; }
+.fx-tf.down { color: var(--down); border-color: #5c2428; background: #2a1416; }
+.fx-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; letter-spacing: 0.08em; }
+.badge.buy { color: var(--up); border: 1px solid #1f4d38; }
+.badge.sell { color: var(--down); border: 1px solid #5c2428; }
+.badge.hold { color: var(--muted); border: 1px solid var(--line); }
+.spark { width: 88px; height: 28px; display: block; }
 @media (max-width: 900px) {
-  .status-grid, .money-grid, .split { grid-template-columns: 1fr 1fr; }
+  .status-grid, .money-grid, .split, .fx-split { grid-template-columns: 1fr; }
   .tabs { width: 100%; overflow: auto; }
 }
