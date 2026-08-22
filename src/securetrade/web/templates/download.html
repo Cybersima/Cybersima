@@ -29,8 +29,9 @@
         <h2 class="dl-title">{{ product }} {{ version }}</h2>
         <p class="hint">Unzip. Double-click. The Forex Desk and Guardian open in your browser. Paper trading is the default.</p>
         <div class="dl-actions">
-          <a id="get-zip" class="dl-btn" href="/download/zip">Download for Windows, Mac &amp; Linux</a>
-          <p class="hint" id="dl-meta">Building package info…</p>
+          <a id="get-zip" class="dl-btn" href="/download/zip" download="CyberSym-SecureTrade-2.1.0.zip">Download for Windows, Mac &amp; Linux</a>
+          <p class="hint" id="dl-meta">Preparing installer…</p>
+          <p class="hint" id="dl-error" hidden></p>
         </div>
       </div>
 
@@ -64,11 +65,40 @@
     <span>{{ signature }} · v{{ version }} · {{ copyright }}</span>
   </footer>
   <script>
+    const btn = document.getElementById("get-zip");
+    const meta = document.getElementById("dl-meta");
+    const err = document.getElementById("dl-error");
     fetch("/api/downloads").then((r) => r.json()).then((d) => {
-      const el = document.getElementById("dl-meta");
-      const mb = d.bytes ? (d.bytes / 1048576).toFixed(2) + " MB" : "built on demand";
-      el.textContent = d.filename + " · " + mb + (d.sha256 ? " · SHA-256 " + d.sha256.slice(0, 12) + "…" : "");
+      const mb = d.bytes ? (d.bytes / 1048576).toFixed(2) + " MB" : "ready";
+      meta.textContent = d.filename + " · " + mb + (d.sha256 ? " · SHA-256 " + d.sha256.slice(0, 12) + "…" : "");
+      const href = d.static_url || d.download_url || "/download/zip";
+      btn.href = href;
+      btn.setAttribute("download", d.filename);
     }).catch(() => {});
+    btn.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      err.hidden = true;
+      meta.textContent = "Starting download…";
+      try {
+        const res = await fetch(btn.href, { headers: { Accept: "application/zip" } });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const blob = await res.blob();
+        if (blob.size < 1000) throw new Error("empty installer");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = btn.getAttribute("download") || "CyberSym-SecureTrade.zip";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        meta.textContent = "Download started — check your Downloads folder.";
+      } catch (ex) {
+        err.hidden = false;
+        err.textContent = "Download failed. Try again or use python -m securetrade package.";
+        window.location.href = "/download/zip";
+      }
+    });
   </script>
 </body>
 </html>

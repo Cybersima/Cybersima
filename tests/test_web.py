@@ -22,6 +22,16 @@ def test_dashboard_and_kill_switch() -> None:
     listed = client.get("/api/downloads").json()
     assert listed["filename"].endswith(".zip")
     assert listed["version"]
+    zipped = client.get("/download/zip")
+    assert zipped.status_code == 200
+    assert zipped.content[:2] == b"PK"
+    assert "attachment" in zipped.headers.get("content-disposition", "")
+    named = client.get("/download/file/" + listed["filename"])
+    assert named.status_code == 200
+    assert named.content[:2] == b"PK"
+    static = client.get("/static/downloads/" + listed["filename"])
+    assert static.status_code == 200
+    assert static.content[:2] == b"PK"
     fx = client.get("/api/forex").json()
     assert fx["poll_seconds"] == 3.0
     assert "1d" in fx["timeframes"]

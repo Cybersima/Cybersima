@@ -45,6 +45,7 @@ securetrade = [
     "config/*.yaml",
     "web/templates/*.html",
     "web/static/*",
+    "web/static/downloads/*",
 ]
 
 [tool.pytest.ini_options]

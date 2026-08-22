@@ -27,6 +27,15 @@ def test_customer_zip_contains_launchers_and_forex_desk(tmp_path) -> None:
         assert needed in names
 
 
+def test_ensure_installer_publishes_static_copy() -> None:
+    from securetrade.packager import ensure_installer, static_zip_path
+
+    ready = ensure_installer()
+    assert ready.exists()
+    assert ready.stat().st_size > 10_000
+    assert static_zip_path().exists()
+
+
 def test_cli_package_command_exists() -> None:
     parser = build_parser()
     args = parser.parse_args(["package"])

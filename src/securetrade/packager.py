@@ -51,6 +51,46 @@ def default_zip_path(root: Path | None = None, dest_dir: Path | None = None) -> 
     return dest / zip_name()
 
 
+def static_zip_path(root: Path | None = None) -> Path:
+    root = root or repo_root()
+    return root / "src" / "securetrade" / "web" / "static" / "downloads" / zip_name()
+
+
+def release_zip_path(root: Path | None = None) -> Path:
+    root = root or repo_root()
+    return root / "releases" / zip_name()
+
+
+def installer_candidates(root: Path | None = None) -> list[Path]:
+    root = root or repo_root()
+    return [static_zip_path(root), release_zip_path(root), default_zip_path(root)]
+
+
+def publish_installer(built: Path, root: Path | None = None) -> Path:
+    """Copy the customer zip next to the UI and into releases/ so links do not 404."""
+    root = root or repo_root()
+    for dest in (static_zip_path(root), release_zip_path(root)):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.resolve() != built.resolve():
+            dest.write_bytes(built.read_bytes())
+        sidecar = dest.with_suffix(".zip.sha256")
+        built_side = built.with_suffix(".zip.sha256")
+        if built_side.exists():
+            sidecar.write_text(built_side.read_text(encoding="utf-8"), encoding="utf-8")
+    return static_zip_path(root)
+
+
+def ensure_installer(root: Path | None = None) -> Path:
+    root = root or repo_root()
+    existing = next((path for path in installer_candidates(root) if path.exists() and path.stat().st_size > 1000), None)
+    if existing is None:
+        existing = build_zip(root=root)
+    static = static_zip_path(root)
+    if not static.exists() or static.stat().st_size < 1000:
+        publish_installer(existing, root=root)
+    return static if static.exists() else existing
+
+
 def iter_package_files(root: Path) -> list[tuple[Path, str]]:
     prefix = folder_name()
     rows: list[tuple[Path, str]] = []
@@ -92,6 +132,8 @@ def build_zip(dest: Path | None = None, root: Path | None = None) -> Path:
     checksum = sha256_file(out)
     sidecar = out.with_suffix(".zip.sha256")
     sidecar.write_text(f"{checksum}  {out.name}\n", encoding="utf-8")
+    if dest is None:
+        publish_installer(out, root=root)
     return out
 
 
@@ -104,16 +146,21 @@ def sha256_file(path: Path) -> str:
 
 
 def package_info(path: Path | None = None) -> dict[str, str | int | bool]:
-    zip_path = path or default_zip_path()
+    try:
+        zip_path = path or ensure_installer()
+    except FileNotFoundError:
+        zip_path = path or default_zip_path()
     exists = zip_path.exists()
+    name = zip_name()
     return {
         "product": PRODUCT,
         "product_short": PRODUCT_SHORT,
         "version": VERSION,
-        "filename": zip_path.name,
+        "filename": name,
         "path": str(zip_path),
         "available": exists,
         "bytes": zip_path.stat().st_size if exists else 0,
         "sha256": sha256_file(zip_path) if exists else "",
-        "download_url": "/download/zip",
+        "download_url": f"/download/file/{name}",
+        "static_url": f"/static/downloads/{name}",
     }

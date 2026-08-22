@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -98,14 +98,30 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
 
         return package_info()
 
-    @app.get("/download/zip")
-    async def download_zip() -> FileResponse:
-        from securetrade.packager import build_zip, default_zip_path, zip_name
+    def _installer_response() -> Response:
+        from securetrade.packager import ensure_installer, zip_name
 
-        path = default_zip_path()
+        path = ensure_installer()
         if not path.exists():
-            path = build_zip(path)
-        return FileResponse(path, filename=zip_name(), media_type="application/zip")
+            return Response("Installer is not available.", status_code=404, media_type="text/plain")
+        return FileResponse(
+            path,
+            filename=zip_name(),
+            media_type="application/zip",
+            content_disposition_type="attachment",
+        )
+
+    @app.get("/download/zip")
+    async def download_zip() -> Response:
+        return _installer_response()
+
+    @app.get("/download/file/{filename}")
+    async def download_named_zip(filename: str) -> Response:
+        from securetrade.packager import zip_name
+
+        if filename != zip_name():
+            return Response("Unknown installer.", status_code=404, media_type="text/plain")
+        return _installer_response()
 
     @app.get("/api/health")
     async def health() -> dict:

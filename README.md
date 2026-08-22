@@ -66,7 +66,9 @@ That writes `dist/CyberSym-SecureTrade-2.1.0.zip`. Unzip it, then:
 - **macOS:** double-click `start.command`
 - **Linux:** `./install.sh` then `./start.sh`
 
-A running command center also serves the same file at [http://127.0.0.1:8000/download](http://127.0.0.1:8000/download). GitHub Releases attach the zip when you push a `v*` tag.
+A running command center also serves the same file at [http://127.0.0.1:8000/download](http://127.0.0.1:8000/download) — the button saves `CyberSym-SecureTrade-2.1.0.zip` to your Downloads folder (it does not open a web page).
+
+The zip is also in the repo at [`releases/CyberSym-SecureTrade-2.1.0.zip`](releases/CyberSym-SecureTrade-2.1.0.zip). GitHub Actions attach it to `v*` releases.
 
 ## Install
 
