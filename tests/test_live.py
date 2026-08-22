@@ -464,6 +464,8 @@ def test_snapshot_shows_cash_and_trades_on_paper() -> None:
     engine.paper.fills = []
     snap = engine.snapshot()
     assert "cash_usd" in snap["stats"]
+    assert "usd_spendable" in snap["stats"]
+    assert snap["desk"]["idle_reason"] == ""
     assert "trades" in snap
     assert snap["stats"]["live_armed"] is False
     assert snap["stats"]["execution"] == "paper"
@@ -529,6 +531,9 @@ async def test_live_invest_rejects_cross_venue(tmp_path, monkeypatch) -> None:
     result = await engine.invest(opp.id)
     assert result["ok"] is False
     assert "coinbase" in result["error"].lower()
+    assert engine.last_block is not None
+    assert "coinbase" in engine.last_block["note"].lower()
+    assert "Last tap blocked" in engine._idle_reason()
 
 
 def _kraken_secret() -> str:
@@ -584,6 +589,42 @@ async def test_kraken_round_trip_uses_usd(tmp_path) -> None:
     assert any(row.status == "filled" and row.side == "buy" for row in fills)
     assert all(row.venue == "kraken" for row in fills if row.status == "filled")
     assert risk.killed is False
+
+
+@pytest.mark.asyncio
+async def test_kraken_blocks_btc_tap_below_pair_minimum() -> None:
+    from pulsearb.engine.kraken_live import LiveKrakenBroker
+
+    secret = _kraken_secret()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/Balance"):
+            return httpx.Response(200, json={"error": [], "result": {"ZUSD": "80.00"}})
+        return httpx.Response(200, json={"error": ["EOrder:Volume minimum not met"], "result": {}})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.kraken.com")
+    risk = RiskManager(cooldown_seconds=0, max_notional_usdt=25)
+    paper = PaperBroker(risk)
+    broker = LiveKrakenBroker(risk, "kraken-key", secret, paper, client=client)
+    opp = Opportunity(
+        kind=OpportunityKind.DISLOCATION,
+        edge_bps=80,
+        net_edge_bps=30,
+        notional=10,
+        legs=[
+            Leg("buy", "kraken", "XBTUSD", 115000, True),
+            Leg("sell", "kraken", "XBTUSDC", 115200, True),
+        ],
+        summary="BTC-USD vs BTC-USDC on kraken",
+        executable=True,
+        ts=0,
+        id="live-kraken-btc-min",
+    )
+    fills = await broker.execute(opp)
+    await client.aclose()
+    assert fills[0].status == "blocked"
+    assert "too small" in fills[0].note.lower()
+    assert "$11." in fills[0].note or "115" in fills[0].note
 
 
 def test_load_kraken_json_file(tmp_path) -> None:

@@ -76,9 +76,13 @@ Kraken does NOT download a file. You copy the two values it shows
    Kraken’s “Private Key” (long, often with + / =) goes in "secret".
    Keep it all on those two fields. Do not email this file.
 
-3. Leave USD on that exchange (at least the $25 session cap). You do
-   not need to hold BTC/ETH for sell legs. Each tap spends USD, then
-   sells back toward USD. It will not sell coins you already had.
+3. Leave USD (dollars), not only USDC, on that exchange — at least
+   the $25 session cap. CHECK-LIVE used to count USDC as cash and
+   then block the first tap. You do not need to hold BTC/ETH for
+   sell legs. Each tap spends USD, then sells back toward USD. It
+   will not sell coins you already had. A $10 tap does not create
+   an edge, and Kraken BTC often needs more than $10 to clear the
+   pair minimum.
 
 4. Stop the demo window first (close the black window).
 

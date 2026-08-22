@@ -83,6 +83,26 @@ async def test_live_ready_ping_and_cash(tmp_path, monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_live_ready_usdc_without_usd_fails(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    _write_keys(tmp_path)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"accounts": [{"currency": "USDC", "available_balance": {"value": "40.00"}}]},
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://api.coinbase.com")
+    report = await assess_live_ready(AppConfig(), cwd=tmp_path, client=client, ping=True)
+    await client.aclose()
+    assert report["ready"] is False
+    assert report["usd"] == 0
+    assert report["cash"] == 40
+    assert "not USDC" in _ids(report)["usd_cash"]["detail"]
+
+
+@pytest.mark.asyncio
 async def test_live_ready_short_cash(tmp_path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     _write_keys(tmp_path)

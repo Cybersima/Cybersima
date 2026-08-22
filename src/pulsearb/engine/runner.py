@@ -19,7 +19,7 @@ from pulsearb.engine.broker import Broker, LiveBinanceBroker, LiveRouter, PaperB
 from pulsearb.engine.coinbase_live import LiveCoinbaseBroker
 from pulsearb.engine.desk import KIND_LABELS, TradeDesk
 from pulsearb.engine.kraken_live import LiveKrakenBroker
-from pulsearb.engine.live_ready import quote_cash
+from pulsearb.engine.live_ready import quote_cash, usd_spendable
 from pulsearb.engine.money import venue_live_ok
 from pulsearb.engine.report import ProfitLedger
 from pulsearb.engine.risk import RiskManager
@@ -91,6 +91,7 @@ class Engine:
         }
         self._lock = asyncio.Lock()
         self._balances_at = 0.0
+        self.last_block: dict | None = None
 
     def subscribe(self) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue(maxsize=8)
@@ -268,6 +269,7 @@ class Engine:
         execution = f"live {venues}".strip() if live else "paper"
         balances = getattr(self.broker, "balances", {}) or {}
         cash_usd = quote_cash(balances)
+        usd_only = usd_spendable(balances)
         kill_paused = bool(self.risk.killed and live)
         fill_list = list(self.fills)[:80]
         if kill_paused:
@@ -299,8 +301,11 @@ class Engine:
                 "report_path": str(self.report.csv_path) if self.report.csv_path else "",
                 "balances": {str(k): round(float(v), 8) for k, v in balances.items() if float(v) > 0},
                 "cash_usd": round(cash_usd, 2),
+                "usd_spendable": round(usd_only, 2),
                 "live_note": live_note,
                 "live_notional": self.desk.notional,
+                "idle_reason": self._idle_reason(),
+                "last_block": self.last_block,
             },
             "desk": self.desk_view(),
             "quotes": [q.to_dict() for q in quotes if self.desk.quote_ok(q, self.book)],
@@ -359,9 +364,73 @@ class Engine:
                 "budget_left": left,
                 "taps_left": self.risk.taps_left(self.desk.notional),
                 "live_venues_ready": self.config.live_venue_names(),
+                "last_block": self.last_block,
+                "idle_reason": self._idle_reason(),
             }
         )
         return data
+
+    def _set_last_block(self, note: str, *, source: str) -> None:
+        text = str(note or "").strip()
+        if not text:
+            return
+        self.last_block = {"note": text, "source": source, "ts": time.time()}
+
+    def _live_rows(self) -> list[Opportunity]:
+        return [
+            opp
+            for opp in self.opportunities
+            if opp.executable
+            and venue_live_ok(opp, self.desk.live_venue)
+            and self.desk.matches(opp, self.book)
+            and opp.id not in self.invested
+        ]
+
+    def _idle_reason(self) -> str:
+        if not self.live_active():
+            return ""
+        venue = self.desk.live_venue.title()
+        parts: list[str] = []
+        if self.risk.killed:
+            return "Kill switch paused new orders. Click Resume. You are still LIVE."
+        bals = getattr(self.broker, "balances", {}) or {}
+        usd = usd_spendable(bals)
+        cash = quote_cash(bals)
+        if bals and usd + 1e-9 < self.desk.notional:
+            if cash + 1e-9 >= self.desk.notional:
+                parts.append(
+                    f"Live taps spend USD first. {venue} has ${usd:.2f} USD and "
+                    f"${cash:.2f} including USDC/USDT. Move at least ${self.desk.notional:.0f} into USD."
+                )
+            else:
+                parts.append(
+                    f"Not enough USD on {venue} for a ${self.desk.notional:.0f} tap (USD ${usd:.2f})."
+                )
+        live_rows = self._live_rows()
+        if self.desk.auto_invest:
+            if not self.desk.schedule_enabled:
+                parts.append("Auto is off while live unless you turn on Only between.")
+            elif not self.desk.schedule_active():
+                parts.append(f"Auto window is closed until {self.desk.schedule_start}.")
+            elif not live_rows:
+                parts.append(
+                    f"Auto is on. No executable {venue} USD-start row this scan. "
+                    f"Raising the tap to ${self.desk.notional:.0f} does not create a gap."
+                )
+            else:
+                decision = self.risk.allow(self.desk.notional)
+                if not decision.allowed:
+                    parts.append(f"Auto saw a {venue} row but did not send it: {decision.reason}.")
+        elif not live_rows:
+            parts.append(
+                f"No executable {venue} USD-start row right now. "
+                f"A ${self.desk.notional:.0f} tap still needs a real same-exchange gap after fees."
+            )
+        if self.last_block:
+            note = str(self.last_block.get("note") or "")
+            if note and note not in " ".join(parts):
+                parts.insert(0, f"Last tap blocked: {note}")
+        return " ".join(parts)
 
     def apply_desk(self, payload: dict) -> dict:
         previous_venue = self.desk.live_venue
@@ -376,26 +445,37 @@ class Engine:
     async def invest(self, opportunity_id: str) -> dict:
         opp = self.by_id.get(opportunity_id)
         if opp is None:
-            return {"ok": False, "error": "That trade is no longer on the board."}
+            error = "That trade is no longer on the board."
+            self._set_last_block(error, source="invest")
+            return {"ok": False, "error": error}
         if not opp.executable:
-            return {"ok": False, "error": "That row is watch-only (delayed data)."}
+            error = "That row is watch-only (delayed data)."
+            self._set_last_block(error, source="invest")
+            return {"ok": False, "error": error}
         if not self.desk.matches(opp, self.book):
-            return {"ok": False, "error": "That pair is outside your price filter, or that coin/exchange is off."}
+            error = "That pair is outside your price filter, or that coin/exchange is off."
+            self._set_last_block(error, source="invest")
+            return {"ok": False, "error": error}
         if opportunity_id in self.invested:
-            return {"ok": False, "error": "You already took this trade."}
+            error = "You already took this trade."
+            self._set_last_block(error, source="invest")
+            return {"ok": False, "error": error}
         if self.live_active() and not venue_live_ok(opp, self.desk.live_venue):
             venue_label = self.desk.live_venue.title()
+            error = (
+                f"Live only takes {venue_label} round-trips that buy with USD and sell back toward USD. "
+                "Cross-exchange gaps stay paper."
+            )
+            self._set_last_block(error, source="invest")
             return {
                 "ok": False,
-                "error": (
-                    f"Live only takes {venue_label} round-trips that buy with USD and sell back toward USD. "
-                    "Cross-exchange gaps stay paper."
-                ),
+                "error": error,
             }
         fills = await self._take(opp)
         await self.broadcast()
         if not any(item.status == "filled" for item in fills):
             note = next((item.note for item in fills if item.note), "Could not complete the buy and sell.")
+            self._set_last_block(note, source="broker")
             return {
                 "ok": False,
                 "error": note,
@@ -415,6 +495,8 @@ class Engine:
             self.fills.appendleft(fill)
             if fill.status == "blocked":
                 self.stats.live_blocked += 1
+                if fill.note:
+                    self._set_last_block(fill.note, source="auto" if self.desk.auto_invest else "broker")
         self.report.record_opportunity(
             opp,
             fills,

@@ -50,6 +50,7 @@ def test_dashboard_and_kill_switch() -> None:
     assert 'id="cash-bar"' in page.text
     assert "Your trades" in page.text
     assert 'id="live-banner"' in page.text
+    assert 'id="block-banner"' in page.text
     assert 'id="guard-banner"' in page.text
     assert 'id="live-ready"' in page.text
     assert 'id="live-ready-refresh"' in page.text
@@ -79,6 +80,8 @@ def test_dashboard_and_kill_switch() -> None:
     assert "USD vs USDC dislocations" in page.text
     assert "tradeCard" in js.text
     assert "cash-usd" in js.text
+    assert "idle_reason" in js.text
+    assert "usd_spendable" in js.text
     assert "cybersym-theme" in page.text
     assert "I’ll pick each trade" in page.text or "I'll pick each trade" in page.text
     assert 'id="invest-amount"' in page.text

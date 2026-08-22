@@ -72,8 +72,9 @@ Real Coinbase or Kraken orders (your money):
              Optional Auto window: Only between 10:00 PM and 6:00 AM
              (this computer’s clock). While live, Auto needs that window.
              GO-LIVE.bat still starts already live if you prefer.
-   Default: $5 per tap, $25 session budget. Live takes USD vs USDC
-   dislocations and same-exchange triangles, then sells back toward USD.
-   Cross-venue two-exchange gaps stay paper.
+   Default: $5 per tap, $25 session budget. Live starts with USD
+   (dollars), not USDC. USD vs USDC dislocations and same-exchange
+   triangles, then sells back toward USD. Raising the tap does not
+   create a gap. Cross-venue two-exchange gaps stay paper.
 
 © CyberSym. All rights reserved.

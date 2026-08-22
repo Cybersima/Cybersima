@@ -37,6 +37,51 @@ def from_kraken_asset(code: str) -> str:
     return normalize_asset(text)
 
 
+# Conservative Kraken market-order floors (base asset). BTC 0.0001 means a
+# $10 tap fails when BTC is above $100k.
+KRAKEN_MIN_BASE = {
+    "BTC": 0.0001,
+    "ETH": 0.002,
+    "SOL": 0.02,
+    "XRP": 5.0,
+    "LTC": 0.02,
+    "ADA": 10.0,
+    "DOGE": 50.0,
+    "LINK": 0.2,
+    "AVAX": 0.15,
+    "DOT": 0.6,
+    "UNI": 0.25,
+    "AAVE": 0.02,
+}
+
+
+def explain_kraken_order_error(err: str) -> str:
+    text = str(err)
+    lower = text.lower()
+    if "volume" in lower and ("minimum" in lower or "min" in lower):
+        return (
+            "Kraken rejected the size — this pair’s minimum is larger than the tap. "
+            "BTC often needs more than $10. Raise the tap or pick a cheaper coin."
+        )
+    if "insufficient" in lower or "funds" in lower:
+        return "Kraken said insufficient funds. Live starts with USD, not USDC."
+    if "invalid key" in lower or "invalid signature" in lower:
+        return (
+            "Kraken rejected the key. Recheck keys\\kraken.json "
+            "(API Key + Private Key, Query Funds + Create & Modify Orders)."
+        )
+    if "permission" in lower:
+        return "Kraken key is missing Create & Modify Orders."
+    return text[:240]
+
+
+def kraken_min_notional(base: str, price: float) -> float:
+    floor = float(KRAKEN_MIN_BASE.get(str(base or "").upper(), 0.0) or 0.0)
+    if floor <= 0 or price <= 0:
+        return 0.0
+    return floor * float(price)
+
+
 def _floor_qty(qty: float, digits: int = 8) -> float:
     if qty <= 0:
         return 0.0
@@ -202,6 +247,15 @@ class LiveKrakenBroker(Broker):
             if spend <= 0 or price <= 0:
                 return f"no {quote} from this tap to buy {symbol}"
             qty = spend / price
+            need = kraken_min_notional(base, price)
+            if need and spend + 1e-9 < need:
+                return (
+                    f"{symbol} needs about ${need:.2f} on Kraken "
+                    f"(min {KRAKEN_MIN_BASE.get(base, 0):g} {base}). "
+                    f"This ${spend:.0f} tap is too small — raise the tap or pick a cheaper coin."
+                )
+            if float(self._fmt_size(qty, base) or 0) <= 0:
+                return f"{symbol} size rounded to 0 at ${spend:.2f}"
             return {
                 "action": "buy",
                 "symbol": symbol,
@@ -373,7 +427,7 @@ class LiveKrakenBroker(Broker):
                 paper=False,
                 opportunity_id=opportunity.id,
                 status="error",
-                note=str(exc)[:240],
+                note=explain_kraken_order_error(str(exc)),
             )
         notional = qty * price if qty and price else opportunity.notional
         return Fill(

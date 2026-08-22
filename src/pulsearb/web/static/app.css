@@ -168,6 +168,18 @@ h1 {
   color: var(--down);
   background: var(--live-wash);
 }
+.block-banner {
+  display: none;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  border: 1px solid var(--gold);
+  color: var(--ink);
+  background: var(--cyan-dim);
+}
+.block-banner.show { display: block; }
 .toast {
   border: 1px solid var(--cyan);
   color: var(--ink);

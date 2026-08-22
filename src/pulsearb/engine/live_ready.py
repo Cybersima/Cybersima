@@ -64,6 +64,11 @@ def quote_cash(balances: dict[str, float]) -> float:
     return sum(float(balances.get(asset, 0) or 0) for asset in QUOTE_CASH)
 
 
+def usd_spendable(balances: dict[str, float]) -> float:
+    """USD only. USDC/USDT do not start a live tap."""
+    return float(balances.get("USD", 0) or 0)
+
+
 def explain_coinbase_error(err: str) -> str:
     text = str(err)
     lower = text.lower()
@@ -308,15 +313,32 @@ async def assess_live_ready(
             else:
                 checks.append(_check(ping_id, ping_label, ping_ok, ping_detail, required=ping))
                 cash = quote_cash(balances)
+                usd = usd_spendable(balances)
                 if ping and ping_ok:
+                    usd_ok = usd + 1e-9 >= 1.0
                     cash_ok = cash + 1e-9 >= cap
-                    cash_detail = (
-                        f"${cash:.2f} USD/USDC/USDT available. Session budget is ${cap:.0f}; each tap can be $1–${cap:.0f}."
-                        if cash_ok
-                        else f"Only ${cash:.2f} cash. Leave at least ${cap:.0f} USD in {venue_label}."
-                    )
+                    if not usd_ok:
+                        cash_detail = (
+                            f"${usd:.2f} USD and ${cash:.2f} USD+USDC+USDT. "
+                            f"A live tap starts by spending USD, not USDC. "
+                            f"Move at least $1 into USD on {venue_label}."
+                        )
+                    elif not cash_ok:
+                        cash_detail = f"Only ${cash:.2f} cash. Leave at least ${cap:.0f} USD in {venue_label}."
+                    else:
+                        cash_detail = (
+                            f"${usd:.2f} USD (${cash:.2f} including USDC/USDT). "
+                            f"Session budget is ${cap:.0f}; each tap can be $1–${cap:.0f}. "
+                            "Live first legs spend USD."
+                        )
                     checks.append(
-                        _check("usd_cash", f"At least ${cap:.0f} USD cash", cash_ok, cash_detail, required=ping)
+                        _check(
+                            "usd_cash",
+                            f"USD to start a tap (${cap:.0f} cash)",
+                            usd_ok and cash_ok,
+                            cash_detail,
+                            required=ping,
+                        )
                     )
                 elif ping:
                     checks.append(
@@ -335,6 +357,7 @@ async def assess_live_ready(
                     )
 
     cash = quote_cash(balances)
+    usd = usd_spendable(balances)
     checks.append(
         _check(
             "live_cap",
@@ -397,6 +420,7 @@ async def assess_live_ready(
         "armed": live_on,
         "cap": cap,
         "cash": round(cash, 4),
+        "usd": round(usd, 4),
         "balances": {str(key): round(float(value), 8) for key, value in balances.items() if float(value) > 0},
         "keys_path": str(path),
         "venue": wanted,

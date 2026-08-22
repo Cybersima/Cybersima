@@ -9,6 +9,7 @@ const feedBadge = document.getElementById("feed-badge");
 const execBadge = document.getElementById("exec-badge");
 const reportPath = document.getElementById("report-path");
 const liveBanner = document.getElementById("live-banner");
+const blockBanner = document.getElementById("block-banner");
 const pnlLabel = document.getElementById("kpi-pnl-label");
 const amountInput = document.getElementById("invest-amount");
 const presetsEl = document.getElementById("presets");
@@ -699,7 +700,7 @@ function emptyOppsMessage() {
   if (onlyDis) {
     return demo
       ? "Waiting for a Coinbase USD vs USDC dislocation. Demo injects one about every 18 seconds."
-      : "Watching Coinbase USD vs USDC books. A takeable live tap needs the gap to clear two Coinbase fees. Nothing is blocked; nothing has printed yet.";
+      : "Watching USD vs USDC books. A takeable live tap needs the gap to clear two venue fees. Raising the tap to $10 does not create that gap.";
   }
   return "No matching trades right now. Pick more coins, or wait for the next scan.";
 }
@@ -886,8 +887,23 @@ function render() {
   const cashSession = document.getElementById("cash-session");
   const cashTaps = document.getElementById("cash-taps");
   if (cashUsd) {
-    cashUsd.textContent =
-      s.cash_usd == null || s.cash_usd === "" ? "—" : `$${fmt(Number(s.cash_usd), 2)}`;
+    const usd = Number(s.usd_spendable);
+    const cash = Number(s.cash_usd);
+    if (s.usd_spendable == null && (s.cash_usd == null || s.cash_usd === "")) {
+      cashUsd.textContent = "—";
+    } else if (Number.isFinite(usd) && Number.isFinite(cash) && cash > usd + 0.009) {
+      cashUsd.textContent = `$${fmt(usd, 2)} USD ($${fmt(cash, 2)} incl. USDC/USDT)`;
+    } else if (Number.isFinite(usd)) {
+      cashUsd.textContent = `$${fmt(usd, 2)} USD`;
+    } else {
+      cashUsd.textContent = `$${fmt(cash, 2)}`;
+    }
+  }
+  if (blockBanner) {
+    const reason = s.idle_reason || (desk && desk.idle_reason) || "";
+    blockBanner.textContent = reason;
+    blockBanner.hidden = !reason;
+    blockBanner.classList.toggle("show", Boolean(reason));
   }
   if (cashTap) cashTap.textContent = `$${fmt(desk.notional, 0)}`;
   if (cashSession) {
