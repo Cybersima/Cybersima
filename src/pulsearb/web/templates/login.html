@@ -14,14 +14,14 @@
       } catch (err) {}
     })();
   </script>
-  <link rel="icon" href="/static/logo.png" />
+  <link rel="icon" href="{{ logo_src }}" />
   <link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
   <div class="app lock-app">
     <header class="masthead">
       <div class="brand">
-        <img class="logo" src="/static/logo.png" width="72" height="72" alt="{{ company }} crest" />
+        <img class="logo" src="{{ logo_src }}" width="72" height="72" alt="{{ company }} crest" />
         <div class="brand-copy">
           <p class="company">{{ company }}</p>
           <h1>{{ product_short }}</h1>

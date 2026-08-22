@@ -35,6 +35,7 @@ def test_dashboard_and_kill_switch() -> None:
     logo = client.get("/static/logo.png")
     assert logo.status_code == 200
     assert logo.headers["content-type"].startswith("image/")
+    assert "logo.png" in page.text or "/brand/logo" in page.text
     report = client.get("/api/report")
     assert report.status_code == 200
     assert report.json()["headers"][0] == "ID"
@@ -61,7 +62,7 @@ def test_dashboard_and_kill_switch() -> None:
     assert 'id="live-venue-chips"' in page.text
     assert 'id="sched-start"' in page.text
     assert "Only between" in page.text
-    assert "logo.png" in page.text
+    assert "/brand/logo" in page.text
     assert 'id="theme-dark"' in page.text
     assert 'id="theme-light"' in page.text
     assert 'id="sound-on"' in page.text
@@ -193,6 +194,7 @@ def test_dashboard_requires_lock_without_session() -> None:
     login = client.get("/login")
     assert login.status_code == 200
     assert "lock PIN" in login.text
+    assert "/brand/logo" in login.text
     bad = client.post("/api/unlock", json={"pin": "000000"})
     assert bad.json()["ok"] is False
     good = client.post("/api/unlock", json={"pin": app.state.guard.pin})
@@ -209,6 +211,13 @@ def test_dashboard_serves_dropped_branding_logo(tmp_path, monkeypatch) -> None:
     logo = client.get("/static/logo.png")
     assert logo.status_code == 200
     assert logo.content == payload
+    brand = client.get("/brand/logo")
+    assert brand.status_code == 200
+    assert brand.content == payload
+    assert "no-store" in brand.headers.get("cache-control", "")
+    page = client.get("/")
+    assert "/brand/logo?v=" in page.text
+
 
 
 def test_guard_pin_compare() -> None:

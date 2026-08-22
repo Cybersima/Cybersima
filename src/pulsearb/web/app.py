@@ -12,20 +12,28 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
 
-from pulsearb.branding import COMPANY, COPYRIGHT, PRODUCT, PRODUCT_SHORT, SIGNATURE, resolve_logo_path
+from pulsearb.branding import (
+    COMPANY,
+    COPYRIGHT,
+    PRODUCT,
+    PRODUCT_SHORT,
+    SIGNATURE,
+    logo_version,
+    resolve_logo_path,
+)
 from pulsearb.engine.report import REPORT_HEADERS
 from pulsearb.engine.runner import Engine, run_engine
 from pulsearb.web.guard import COOKIE, DashboardGuard
 
 WEB_DIR = Path(__file__).resolve().parent
-OPEN_PATHS = {"/login", "/api/unlock"}
+OPEN_PATHS = {"/login", "/api/unlock", "/brand/logo"}
 
 
 class GuardMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         guard: DashboardGuard = request.app.state.guard
         path = request.url.path
-        if path.startswith("/static/") or path in OPEN_PATHS:
+        if path.startswith("/static/") or path.startswith("/brand/") or path in OPEN_PATHS:
             return await call_next(request)
         token = request.query_params.get("unlock")
         if token and guard.token_ok(token):
@@ -63,8 +71,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     def _set_session(response: Response) -> None:
         response.set_cookie(COOKIE, app.state.guard.cookie, httponly=True, samesite="lax", path="/")
 
-    @app.get("/static/logo.png")
-    async def branded_logo() -> FileResponse:
+    def _logo_file() -> FileResponse:
         path = resolve_logo_path(WEB_DIR)
         suffix = path.suffix.lower()
         media = {
@@ -73,7 +80,28 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
             ".jpeg": "image/jpeg",
             ".webp": "image/webp",
         }.get(suffix, "image/png")
-        return FileResponse(path, media_type=media, headers={"Cache-Control": "no-store"})
+        return FileResponse(
+            path,
+            media_type=media,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+
+    def _logo_ctx() -> dict:
+        path = resolve_logo_path(WEB_DIR)
+        ver = logo_version(path)
+        return {"logo_src": f"/brand/logo?v={ver}"}
+
+    @app.get("/brand/logo")
+    async def brand_logo() -> FileResponse:
+        return _logo_file()
+
+    @app.get("/static/logo.png")
+    async def branded_logo() -> FileResponse:
+        return _logo_file()
 
     app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
 
@@ -86,6 +114,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
                 "company": COMPANY,
                 "product": PRODUCT,
                 "product_short": PRODUCT_SHORT,
+                **_logo_ctx(),
             },
         )
 
@@ -111,6 +140,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
                 "product_short": PRODUCT_SHORT,
                 "signature": SIGNATURE,
                 "copyright": COPYRIGHT,
+                **_logo_ctx(),
                 "execution": (
                     f"live {'+'.join(engine.config.live_venue_names())}".strip()
                     if engine.live_active()

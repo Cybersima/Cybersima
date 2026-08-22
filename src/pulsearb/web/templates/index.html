@@ -21,8 +21,8 @@
       }
     })();
   </script>
-  <link rel="icon" href="/static/logo.png" />
-  <link rel="apple-touch-icon" href="/static/logo.png" />
+  <link rel="icon" href="{{ logo_src }}" />
+  <link rel="apple-touch-icon" href="{{ logo_src }}" />
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,7 +33,7 @@
   <div class="app">
     <header class="masthead">
       <div class="brand">
-        <img class="logo" src="/static/logo.png" width="96" height="96" alt="{{ company }} crest" />
+        <img class="logo" src="{{ logo_src }}" width="96" height="96" alt="{{ company }} crest" />
         <div class="brand-copy">
           <p class="company">{{ company }}</p>
           <h1>{{ product_short }}</h1>
@@ -214,7 +214,7 @@
     </main>
 
     <footer class="sig">
-      <img class="sig-logo" src="/static/logo.png" width="40" height="40" alt="" />
+      <img class="sig-logo" src="{{ logo_src }}" width="40" height="40" alt="" />
       <div>
         <strong>{{ product }}</strong>
         <span>{{ signature }}</span>
