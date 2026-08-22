@@ -22,6 +22,8 @@ def test_dashboard_and_kill_switch() -> None:
     listed = client.get("/api/downloads").json()
     assert listed["filename"].endswith(".zip")
     assert listed["version"]
+    head = client.head("/download/zip")
+    assert head.status_code == 200
     zipped = client.get("/download/zip")
     assert zipped.status_code == 200
     assert zipped.content[:2] == b"PK"

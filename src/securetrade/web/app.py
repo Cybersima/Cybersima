@@ -111,11 +111,11 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
             content_disposition_type="attachment",
         )
 
-    @app.get("/download/zip")
+    @app.api_route("/download/zip", methods=["GET", "HEAD"])
     async def download_zip() -> Response:
         return _installer_response()
 
-    @app.get("/download/file/{filename}")
+    @app.api_route("/download/file/{filename}", methods=["GET", "HEAD"])
     async def download_named_zip(filename: str) -> Response:
         from securetrade.packager import zip_name
 
