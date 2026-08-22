@@ -8,10 +8,9 @@ This is a scanner with hard risk limits. Public APIs are not an HFT pipe. Yahoo 
 
 ## Download and install on your computer
 
-**Installer zip (click to download):**  
-https://github.com/Cybersima/Cybersima/raw/cursor/pulsearb-multimarket-scanner-c11f/releases/CyberSym-SecureTrade.zip
+**This zip is the installer.** Unzip it on your PC and run `INSTALL.bat`. You do not need GitHub.
 
-**Versions 1.4 and 1.5 are withdrawn.** They broke Windows Python (`No module named encodings`). This zip is the restored **v01.3** working build. Unzip into a new folder. Do not copy `.venv` from 1.4 or 1.5.
+**Versions 1.4 and 1.5 are withdrawn.** They broke Windows Python (`No module named encodings`). Unzip into a new folder. Do not copy `.venv` from 1.4 or 1.5.
 
 You need [Python 3.11+](https://www.python.org/downloads/). On Windows, tick **Add python.exe to PATH**.
 

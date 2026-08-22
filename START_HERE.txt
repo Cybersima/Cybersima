@@ -3,6 +3,8 @@ CyberSym SecureTrade — download and install
 
 A CyberSym product.
 
+You do not need GitHub. Unzip this folder, then INSTALL.bat.
+
 Versions 1.4 and 1.5 are withdrawn (Windows encodings crash).
 If several Pythons are installed, the app uses C:\Python314\python.exe first
 (not "py -3"). To force another, put one line in python-path.txt next to

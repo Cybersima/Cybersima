@@ -1,29 +1,27 @@
 Download CyberSym SecureTrade
 =============================
 
-Direct installer zip (unzip, then install):
+This zip is the installer. You do not need GitHub.
 
-https://github.com/Cybersima/Cybersima/raw/cursor/pulsearb-multimarket-scanner-c11f/releases/CyberSym-SecureTrade.zip
+Unzip into a NEW folder (not on top of 1.4 / 1.5). Then:
 
-Versions 1.4 and 1.5 are withdrawn. This zip is the restored v01.3
-If several Pythons are installed, the app uses C:\Python314\python.exe
-first, not "py -3". Optional: python-path.txt next to start.bat with one
-line = full path to python.exe. Unzip into a NEW folder.
+  Windows:  double-click INSTALL.bat, then start-live.bat
+  Mac:      double-click Install.command, then start.command
+  Linux:    ./install.sh && ./start.sh --live
 
 You need Python 3.11+ from https://www.python.org/downloads/
 Windows: tick "Add python.exe to PATH".
-
-Then:
-  Windows:  double-click INSTALL.bat, then start.bat
-  Mac:      double-click Install.command, then start.command
-  Linux:    ./install.sh && ./start.sh
+If several Pythons are installed, the app uses C:\Python314\python.exe
+first, not "py -3". Optional: python-path.txt next to start.bat with one
+line = full path to python.exe.
 
 Dashboard: http://127.0.0.1:8080
+start-live.bat = live prices, paper trades. Practice on Paper.
+GO-LIVE.bat still starts already live if you prefer.
 
 Profit report (Excel): data\CyberSym-SecureTrade-profit-report.csv
 Windows: double-click Open-Report.bat if the Export button does not download.
 
-Real Coinbase orders: read LIVE.txt, run CHECK-LIVE.bat, then GO-LIVE.bat
-(not start-live.bat — that is live prices with paper trades).
+Real Coinbase or Kraken orders: read LIVE.txt, then CHECK-LIVE.bat.
 
 © CyberSym. All rights reserved.

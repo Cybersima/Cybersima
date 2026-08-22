@@ -1,2 +1,2 @@
-# Direct download for CyberSym SecureTrade.
-# Get CyberSym-SecureTrade.zip from this folder on GitHub (Download / raw).
+This zip is the installer. Unzip it on your computer and run INSTALL.bat.
+You do not need GitHub to install or run SecureTrade.
