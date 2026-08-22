@@ -20,8 +20,10 @@ POPULAR_ASSETS = [
     "DOT",
     "UNI",
     "AAVE",
+    "EUR",
+    "GBP",
 ]
-QUOTE_SKIP = {"USD", "USDT", "USDC", "EUR", "GBP", "DAI"}
+QUOTE_SKIP = {"USD", "USDT", "USDC", "DAI"}
 USD_PRICE_QUOTES = ("USD", "USDT", "USDC", "FDUSD", "BUSD", "TUSD")
 PRICE_MODES = ("any", "under", "over")
 PRICE_PRESETS = [1, 2, 5, 10, 50, 100, 1000]
@@ -76,7 +78,7 @@ class TradeDesk:
     notional: float = 5.0
     auto_invest: bool = False
     all_assets: bool = False
-    assets: list[str] = field(default_factory=lambda: ["BTC", "ETH", "SOL", "XRP"])
+    assets: list[str] = field(default_factory=lambda: ["BTC", "ETH", "SOL", "XRP", "EUR", "GBP"])
     venues: list[str] = field(default_factory=lambda: list(VENUES))
     kinds: list[str] = field(default_factory=lambda: list(KINDS))
     max_notional: float = 250.0

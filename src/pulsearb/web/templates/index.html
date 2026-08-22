@@ -161,7 +161,7 @@
         <p class="hint" id="sched-hint">Times use this computer’s clock. Example: 10:00 PM to 6:00 AM overnight. While live, Auto only runs if this window is on.</p>
       </div>
       <div class="desk-block">
-        <label>Coins I want</label>
+        <label>Coins and FX I want</label>
         <div class="chips" id="asset-chips"></div>
       </div>
       <div class="desk-block">
@@ -171,7 +171,7 @@
       <div class="desk-block">
         <label>Trade style</label>
         <div class="chips" id="kind-chips"></div>
-        <p class="hint">Live takes USD vs USDC dislocations and same-exchange triangles on the exchange you picked, then sells back toward USD. Price gaps vs another exchange stay paper — live cannot move a coin between Coinbase and Kraken.</p>
+        <p class="hint">Live takes USD vs USDC dislocations and same-exchange triangles — including Kraken FX (EUR-USD, GBP-USD, EUR-GBP) — then sells back toward USD. Yahoo FX is delayed and watch-only. Price gaps vs another exchange stay paper.</p>
       </div>
     </section>
 
@@ -215,7 +215,7 @@
       </div>
       <p class="note" id="report-path"></p>
       <p class="note">
-        Public feeds are not an HFT pipe. Yahoo is delayed. US default venues are Coinbase, Kraken, Gemini, and Bitstamp.
+        Public feeds are not an HFT pipe. Yahoo FX is delayed and watch-only. Live FX uses Kraken’s own EUR/GBP books (same ticker as crypto). Coinbase has no EUR-USD pair — only USDC-EUR / USDC-GBP. Gemini and Bitstamp stay paper.
         This is a scanner, not a profit guarantee. {{ copyright }}
       </p>
     </footer>

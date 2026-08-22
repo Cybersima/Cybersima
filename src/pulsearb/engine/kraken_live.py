@@ -52,6 +52,9 @@ KRAKEN_MIN_BASE = {
     "DOT": 0.6,
     "UNI": 0.25,
     "AAVE": 0.02,
+    "EUR": 4.0,
+    "GBP": 4.0,
+    "AUD": 7.0,
 }
 
 

@@ -8,7 +8,7 @@ from pulsearb.engine.book import MarketBook
 from pulsearb.feeds.base import Feed
 from pulsearb.feeds.headers import HTTP_HEADERS
 from pulsearb.models import Quote
-from pulsearb.symbols import canonical_from_pair, normalize_asset, to_native_symbol
+from pulsearb.symbols import canonical_from_pair, normalize_asset, pair_asset_class, to_native_symbol
 
 
 class KrakenFeed(Feed):
@@ -81,7 +81,7 @@ class KrakenFeed(Feed):
                     bid=bid,
                     ask=ask,
                     ts=now,
-                    asset_class="crypto",
+                    asset_class=pair_asset_class(canon),
                     executable=True,
                 )
             )

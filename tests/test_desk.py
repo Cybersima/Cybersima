@@ -48,6 +48,8 @@ def test_desk_defaults_are_pick_mode_and_popular_coins() -> None:
     assert desk.auto_invest is False
     assert desk.notional == 5
     assert "BTC" in desk.assets
+    assert "EUR" in desk.assets
+    assert "GBP" in desk.assets
     assert desk.matches(_opp())
 
 

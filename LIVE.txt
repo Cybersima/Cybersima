@@ -15,7 +15,10 @@ What goes live
 --------------
 • Same-exchange USD round-trips on the venue you picked:
   USD vs USDC dislocations (buy cheap, sell rich, convert leftover
-  USDC back to USD) and same-exchange triangles.
+  USDC back to USD) and same-exchange triangles — including Kraken
+  FX (EUR-USD, GBP-USD, EUR-GBP) from Kraken’s own ticker.
+• Yahoo FX is delayed and watch-only. It is not a live feed.
+  Coinbase does not list EUR-USD; it lists USDC-EUR / USDC-GBP.
 • Each tap starts in USD and aims to finish in USD.
 • Each tap is $1–$25 (default $5). Session budget: $25 this run.
 • P&L is from actual fill prices, not the estimated edge.

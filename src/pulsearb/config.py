@@ -179,4 +179,5 @@ class AppConfig:
         for venue in (*SPOT_VENUES, "simulator", "yahoo"):
             mapping[venue] = float(fees.get(f"{venue}_taker_bps", fees.get("binance_taker_bps", 10)))
         mapping["coinbase_stable"] = float(fees.get("coinbase_stable_taker_bps", 1.0))
+        mapping["kraken_fx"] = float(fees.get("kraken_fx_taker_bps", 20.0))
         return mapping

@@ -9,7 +9,7 @@ from pulsearb.engine.book import MarketBook
 from pulsearb.feeds.base import Feed
 from pulsearb.feeds.headers import HTTP_HEADERS
 from pulsearb.models import Quote
-from pulsearb.symbols import canonical_from_pair, to_native_symbol
+from pulsearb.symbols import canonical_from_pair, pair_asset_class, to_native_symbol
 
 
 class GeminiFeed(Feed):
@@ -45,7 +45,7 @@ class GeminiFeed(Feed):
                                 bid=bid,
                                 ask=ask,
                                 ts=now,
-                                asset_class="crypto",
+                                asset_class=pair_asset_class(canon),
                                 executable=True,
                             )
                         )

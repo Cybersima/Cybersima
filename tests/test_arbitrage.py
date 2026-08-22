@@ -179,6 +179,31 @@ def test_coinbase_usd_vs_usdc_dislocation_is_live_route() -> None:
     assert any(leg.symbol == "BTC-USDC" and leg.action == "sell" for leg in best.legs)
 
 
+def test_kraken_fx_triangle_is_executable() -> None:
+    book = MarketBook()
+    book.update(make_quote("kraken", "EURUSD", 1.10, 1.1002, executable=True))
+    book.update(make_quote("kraken", "GBPUSD", 1.26, 1.2602, executable=True))
+    # Cheap EURGBP vs the USD legs so USD → EUR → GBP → USD can print after FX fees.
+    book.update(make_quote("kraken", "EURGBP", 0.8600, 0.8601, executable=True))
+    triangles = discover_triangles(["EUR-USD", "GBP-USD", "EUR-GBP"])
+    assert ("EUR", "GBP", "USD") in triangles or ("EUR", "USD", "GBP") in triangles
+    opps = detect_triangles(
+        book,
+        triangles,
+        min_edge_bps=8,
+        taker_bps=20,
+        extra_slippage_bps=2,
+        notional=10,
+        venue="kraken",
+        min_executable_edge_bps=25,
+    )
+    assert opps
+    best = max(opps, key=lambda item: item.net_edge_bps)
+    assert best.legs[0].action == "buy"
+    assert best.summary.startswith("USD →")
+    assert {leg.venue for leg in best.legs} == {"kraken"}
+
+
 def test_triangle_only_starts_in_cash_and_buys_first() -> None:
     book = MarketBook()
     book.update(make_quote("kraken", "XBTUSD", 100000, 100010))

@@ -753,7 +753,7 @@ function render() {
         const el = document.createElement("div");
         el.className = `cell ${dir}`;
         el.innerHTML = `
-        <div class="sym">${row.venue} · ${row.native_symbol}</div>
+        <div class="sym">${row.venue} · ${row.native_symbol}${row.asset_class === "fx" ? " · FX" : ""}</div>
         <div class="px ${dir}">${fmt(row.mid, 4)}</div>
         <div class="meta"><span>${fmt(row.bid, 4)} / ${fmt(row.ask, 4)}</span><span>${fmt(row.spread_bps, 1)} bps</span></div>
       `;

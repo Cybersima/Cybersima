@@ -24,3 +24,14 @@ def test_triangles_discovered_from_coinbase_universe() -> None:
     triangles = discover_triangles(config.symbols("coinbase"))
     assert len(triangles) >= 1
     assert ("BTC", "ETH", "USD") in triangles or ("BTC", "USD", "ETH") in triangles
+
+
+def test_kraken_universe_includes_live_fx_triangle() -> None:
+    config = AppConfig()
+    symbols = config.symbols("kraken")
+    assert "EUR-USD" in symbols
+    assert "GBP-USD" in symbols
+    assert "EUR-GBP" in symbols
+    triangles = discover_triangles(symbols)
+    assert ("EUR", "GBP", "USD") in triangles or ("EUR", "USD", "GBP") in triangles
+    assert config.fee_map()["kraken_fx"] == 20.0

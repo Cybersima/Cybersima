@@ -44,6 +44,26 @@ ASSET_ALIASES = {
 }
 
 USD_EQUIVALENTS_DEFAULT = {"USD", "USDT", "USDC", "FDUSD", "BUSD", "TUSD"}
+FIAT_ASSETS = {
+    "USD",
+    "EUR",
+    "GBP",
+    "JPY",
+    "AUD",
+    "CAD",
+    "CHF",
+    "NZD",
+    "SEK",
+    "NOK",
+    "MXN",
+    "CNH",
+    "DKK",
+    "SGD",
+    "HKD",
+    "PLN",
+    "ZAR",
+}
+FX_ASSETS = FIAT_ASSETS | {"USDC", "USDT", "DAI"}
 
 
 def normalize_asset(code: str) -> str:
@@ -84,6 +104,22 @@ def split_binance_symbol(symbol: str) -> tuple[str, str]:
 def canonical_from_pair(symbol: str) -> str:
     base, quote = split_pair(symbol)
     return f"{base}-{quote}"
+
+
+def pair_asset_class(symbol: str) -> str:
+    """fx when both sides are fiat or cash stables; metals/energy stay named."""
+    try:
+        base, quote = split_pair(symbol)
+    except ValueError:
+        return "crypto"
+    both = {base, quote}
+    if both <= FX_ASSETS:
+        return "fx"
+    if both & {"XAU", "XAG"}:
+        return "metal"
+    if "WTI" in both:
+        return "energy"
+    return "crypto"
 
 
 def canonical_from_binance(symbol: str) -> str:

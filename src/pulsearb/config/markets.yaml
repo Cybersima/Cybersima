@@ -47,8 +47,9 @@ coinbase:
     - SOL-BTC
     - BTC-EUR
     - ETH-EUR
-    - EUR-USD
     - USDC-USD
+    - USDC-EUR
+    - USDC-GBP
     - BTC-USDC
     - ETH-USDC
     - SOL-USDC
@@ -92,7 +93,17 @@ kraken:
     - BTC-EUR
     - ETH-EUR
     - EUR-USD
+    - GBP-USD
+    - AUD-USD
+    - USD-JPY
+    - USD-CAD
+    - USD-CHF
+    - EUR-GBP
+    - EUR-JPY
+    - EUR-CHF
     - USDC-USD
+    - USDC-EUR
+    - USDC-GBP
     - BTC-USDC
     - ETH-USDC
     - SOL-USDC

@@ -10,7 +10,7 @@ from pulsearb.models import Quote
 
 
 class YahooFeed(Feed):
-    """Polls Yahoo Finance. This is delayed retail data, not a 1ms venue."""
+    """Polls Yahoo Finance. Delayed retail data — watch only, never a live venue."""
 
     name = "yahoo"
 

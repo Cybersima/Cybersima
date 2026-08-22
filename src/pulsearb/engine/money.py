@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pulsearb.models import Fill, Opportunity
-from pulsearb.symbols import split_pair
+from pulsearb.symbols import pair_asset_class, split_pair
 
 STABLE = {"USD", "USDT", "USDC"}
 CONVERT_TO_USD = {"USDC", "USDT"}
@@ -16,6 +16,12 @@ def taker_bps(fee_map: dict[str, float], venue: str, symbol: str) -> float:
         if venue == "coinbase":
             return float(fee_map.get("coinbase_stable", 1.0))
         return 1.0
+    if pair_asset_class(symbol) == "fx":
+        if venue == "coinbase":
+            return float(fee_map.get("coinbase_stable", 1.0))
+        if venue == "kraken":
+            return float(fee_map.get("kraken_fx", 20.0))
+        return float(fee_map.get(venue, 20.0))
     return float(fee_map.get(venue, 50.0))
 
 
