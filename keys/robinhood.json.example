@@ -1,0 +1,4 @@
+{
+  "api_key": "PASTE_ROBINHOOD_API_KEY_HERE",
+  "private_key": "PASTE_YOUR_BASE64_ED25519_PRIVATE_KEY_HERE"
+}

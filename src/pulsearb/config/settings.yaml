@@ -23,6 +23,9 @@ fees:
   binance_taker_bps: 10.0
   simulator_taker_bps: 26.0
   yahoo_taker_bps: 0.0
+  oanda_taker_bps: 0.5
+  # Robinhood crypto fee tiers are typically ~0.85% retail, not Binance 10 bps.
+  robinhood_taker_bps: 85.0
   extra_slippage_bps: 2.0
 
 min_edge_bps: 8.0
@@ -32,7 +35,7 @@ max_quote_skew_seconds: 1.5
 
 risk:
   max_notional_usdt: 250
-  min_notional_usdt: 1
+  min_notional_usdt: 0.10
   live_max_notional_usdt: 25
   live_budget_usdt: 25
   max_open_orders: 8

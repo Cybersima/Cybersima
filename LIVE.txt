@@ -3,11 +3,17 @@ CyberSym SecureTrade — going live (real orders)
 
 Paper trading and live market data are already on.
 This add-on sends REAL market orders with YOUR money on the
-exchange you pick: Coinbase or Kraken. You do not need both.
+venue you pick: Coinbase, Kraken, Gemini, OANDA, or Robinhood.
+You do not need every one.
+
+Bitstamp is not on the desk. Bitstamp by Robinhood goes
+close-only for retail on February 1, 2027 — use Robinhood.
+Yahoo is not on the desk. It is delayed and not tradable.
 
 Paper and live are on the SAME dashboard. Start with paper
-(start-live.bat). Pick Live on: Coinbase or Kraken. When the
-Ready check is green, switch Paper → Live.
+(start-live.bat). Pick Live on: Coinbase, Kraken, Gemini,
+OANDA, or Robinhood. When the Ready check is green, switch
+Paper → Live.
 You can switch back to Paper any time without closing the app.
 GO-LIVE.bat still starts already live if you want that.
 
@@ -17,13 +23,14 @@ What goes live
   USD vs USDC dislocations (buy cheap, sell rich, convert leftover
   USDC back to USD) and same-exchange triangles — including Kraken
   FX (EUR-USD, GBP-USD, EUR-GBP) from Kraken’s own ticker.
-• Yahoo FX is delayed and watch-only. It is not a live feed.
-  Coinbase does not list EUR-USD; it lists USDC-EUR / USDC-GBP.
+• Coinbase does not list EUR-USD; it lists USDC-EUR / USDC-GBP.
+  Kraken FX uses Kraken’s own ticker. OANDA is a separate FX account.
 • Buys are market. Sells and flatten post a maker limit (Kraken ~16 bps,
   Coinbase ~40 bps) then market whatever is unfilled after ~8 seconds.
   That is the cost cut. It is not a profit guarantee.
 • Each tap starts in USD and aims to finish in USD.
-• Each tap is $1–$25 (default $5). Session budget: $25 this run.
+• Each tap is $0.10–$25 (default $5). Exchange pair mins still apply
+  (a dime of BTC will not clear Kraken). Session budget: $25 this run.
 • P&L is from actual fill prices, not the estimated edge.
 
 Auto window
@@ -40,10 +47,14 @@ Auto window
 
 What stays off live (would mean holding)
 ----------------------------------------
-• Buy Coinbase / sell Kraken (or Gemini / Bitstamp).
+• Buy Coinbase / sell Kraken (or Gemini / Robinhood).
   You cannot instantly move coins between exchanges. Paper can fake
   that round-trip; live cannot without parking coins on both books.
-• Gemini and Bitstamp stay paper (live is Coinbase or Kraken).
+• Gemini and Robinhood live walks every leg (no skipped middle).
+  Sells are market/IOC, not Coinbase/Kraken maker-then-market.
+• OANDA live is one USD-quoted pair, open then close the same size.
+  It does not flatten a position you already had. Triangles stay paper.
+• Robinhood has no practice/sandbox. A working key is real money.
 
 You can lose money. Fees and slippage eat most retail gaps.
 This is not a profit guarantee.
@@ -92,6 +103,34 @@ Kraken does NOT download a file. You copy the two values it shows
    will not sell coins you already had. A $10 tap does not create
    an edge, and Kraken BTC often needs more than $10 to clear the
    pair minimum.
+
+Setup (once) — Gemini
+---------------------
+1. Create an API key at https://exchange.gemini.com/settings/api
+   Permission: Trading. Do NOT enable Fund Management / Withdrawals.
+2. Copy keys\gemini.json.example to gemini.json and fill key + secret.
+
+Setup (once) — OANDA
+--------------------
+1. Open a practice account at https://www.oanda.com (start on practice).
+2. Tools -> API -> Generate a personal access token. Copy the account ID.
+3. Copy keys\oanda.json.example to oanda.json. Leave environment "practice"
+   until you deliberately want real money.
+   Live OANDA only opens then closes one USD-quoted pair of the tap size.
+   It will not flatten a EUR-USD position you already had.
+
+Setup (once) — Robinhood
+------------------------
+Robinhood has no sandbox. A working key is real money.
+1. Generate an Ed25519 pair (cryptography is already installed):
+
+     .venv\Scripts\python -c "import base64; from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey; k=Ed25519PrivateKey.generate(); print('private:', base64.b64encode(k.private_bytes_raw()).decode()); print('public:', base64.b64encode(k.public_key().public_bytes_raw()).decode())"
+
+2. Register the PUBLIC key in Robinhood crypto API credentials. Enable
+   read accounts/holdings/orders/quotes and place orders with fee tiers.
+3. Copy keys\robinhood.json.example to robinhood.json. Put the API key
+   Robinhood shows you in "api_key" and the PRIVATE key from step 1 in
+   "private_key".
 
 4. Stop the demo window first (close the black window).
 

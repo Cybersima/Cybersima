@@ -1,10 +1,10 @@
 # CyberSym SecureTrade
 
-**CyberSym SecureTrade** is CyberSym’s retail-friendly crypto + FX dislocation scanner. It watches 50+ markets at once across **Coinbase, Kraken, Gemini, Bitstamp, and Yahoo Finance**, flags cross-venue and triangular gaps, and paper-trades executable legs by default. Live orders stay off until you opt in.
+**CyberSym SecureTrade** is CyberSym’s retail-friendly crypto + FX dislocation scanner. It watches 50+ markets at once across **Coinbase, Kraken, Gemini, OANDA, and Robinhood**, flags cross-venue and triangular gaps, and paper-trades executable legs by default. Live orders stay off until you opt in. Yahoo (delayed) and Bitstamp (Robinhood merger, retail close-only Feb 2027) stay off the desk.
 
 A CyberSym product. Binance is **disabled by default** because it is not available to US residents. You can turn it on with `--binance` if you are in a supported region.
 
-This is a scanner with hard risk limits. Public APIs are not an HFT pipe. Yahoo Finance is delayed. You will not outrun professional market makers, and nothing here is a profit guarantee or financial advice.
+This is a scanner with hard risk limits. Public APIs are not an HFT pipe. You will not outrun professional market makers, and nothing here is a profit guarantee or financial advice.
 
 ## Download and install on your computer
 
@@ -44,9 +44,10 @@ To rebuild a zip locally: `bash scripts/make-zip.sh`
 ## What it does
 
 - **Coinbase Exchange** public REST + WebSocket tickers (no API key for market data)
-- **Kraken, Gemini, and Bitstamp** public REST tickers
-- **Yahoo Finance** for FX, metals, and overlapping crypto indices (data only — not executable)
-- **Cross-venue gaps** between those US exchanges (executable in paper mode) and vs Yahoo (alerts only)
+- **Kraken and Gemini** public REST tickers
+- **OANDA** FX (needs `keys/oanda.json`; start on practice)
+- **Robinhood** crypto (needs `keys/robinhood.json`; no sandbox)
+- **Cross-venue gaps** between those US venues (executable in paper mode)
 - **Triangular arb** inside a single venue (e.g. BTC / ETH / USD on Coinbase or Kraken)
 - **Paper broker** by default, with a kill switch, notional cap, cooldown, and daily loss limit
 - **iPad / tablet dashboard** at `http://<this-machine>:8080` (PWA-capable, large blotter, Add to Home Screen)
@@ -75,13 +76,13 @@ On an iPad on the same Wi-Fi, start with `--host 0.0.0.0`, open `http://<your-la
 
 | File | Role |
 | --- | --- |
-| `src/pulsearb/config/markets.yaml` | Symbols per venue (Coinbase, Kraken, Gemini, Bitstamp, Yahoo; Binance optional) |
+| `src/pulsearb/config/markets.yaml` | Symbols per venue (Coinbase, Kraken, Gemini, OANDA, Robinhood; Binance optional) |
 | `src/pulsearb/config/settings.yaml` | Scan rate, fees, edge thresholds, risk caps |
 | `.env.example` | Bind address, execution mode, Coinbase/Binance keys |
 
 Copy `.env.example` to `.env` if you need to change host/port or enable live orders.
 
-Yahoo is polled about every 2s on purpose. US exchange tickers refresh about once per second. Coinbase also has a WebSocket.
+US exchange tickers refresh about once per second. Coinbase also has a WebSocket.
 
 ## Live execution (opt-in Coinbase)
 
@@ -92,9 +93,9 @@ Real Coinbase orders need a **Secret API key** at [portal.cdp.coinbase.com/proje
 Live mode:
 
 - Sends **Coinbase dislocations** (same coin on the USD book vs the USDC book) and Coinbase triangles as market IOC orders: buy with USD, then sell, aiming to finish back in **USD**
-- Default tap size **$5** (buttons $1, $2, $3, $4, $5 …). Max **$25** per tap
+- Default tap size **$5** (buttons from $0.10). Max **$25** per tap. Exchange pair mins still apply.
 - Session live budget **$25** (split across many taps)
-- Does **not** take cross-venue live (Coinbase vs Kraken/Gemini/Bitstamp) — that would mean holding a coin to move it
+- Does **not** take cross-venue live (Coinbase vs Kraken/Gemini/Robinhood) — that would mean holding a coin to move it
 - Keeps **Auto off** so every live order is a tap
 - P&L is from actual fill prices
 - Requires `PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK` (GO-LIVE sets this)
@@ -125,7 +126,7 @@ pytest
 ## Honest limits
 
 - Retail Python + public exchange APIs is **seconds**, not microseconds.
-- Many “gaps” vs Yahoo are stale data, not free money.
+- Cross-venue “gaps” are often stale or untradeable. Live cannot move coins between exchanges.
 - Fees, slippage, and withdraw/deposit time usually eat cross-venue crypto/FX differences.
 - 24/7 means **you** keep the process running (systemd, Docker, or a small VPS).
 

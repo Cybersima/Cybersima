@@ -11,7 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 PACKAGE_DIR = Path(__file__).resolve().parent
 DEFAULT_MARKETS = PACKAGE_DIR / "config" / "markets.yaml"
 DEFAULT_SETTINGS = PACKAGE_DIR / "config" / "settings.yaml"
-SPOT_VENUES = ("coinbase", "kraken", "gemini", "bitstamp", "binance")
+SPOT_VENUES = ("coinbase", "kraken", "gemini", "bitstamp", "binance", "oanda", "robinhood")
 LIVE_FEEDS = SPOT_VENUES + ("yahoo",)
 
 
@@ -41,6 +41,16 @@ class EnvSettings(BaseSettings):
     kraken_api_key: str = Field(default="", alias="KRAKEN_API_KEY")
     kraken_api_secret: str = Field(default="", alias="KRAKEN_API_SECRET")
     kraken_api_json: str = Field(default="", alias="KRAKEN_API_JSON")
+    oanda_account_id: str = Field(default="", alias="OANDA_ACCOUNT_ID")
+    oanda_access_token: str = Field(default="", alias="OANDA_ACCESS_TOKEN")
+    oanda_environment: str = Field(default="", alias="OANDA_ENVIRONMENT")
+    oanda_api_json: str = Field(default="", alias="OANDA_API_JSON")
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
+    gemini_api_secret: str = Field(default="", alias="GEMINI_API_SECRET")
+    gemini_api_json: str = Field(default="", alias="GEMINI_API_JSON")
+    robinhood_api_key: str = Field(default="", alias="ROBINHOOD_API_KEY")
+    robinhood_private_key: str = Field(default="", alias="ROBINHOOD_PRIVATE_KEY")
+    robinhood_api_json: str = Field(default="", alias="ROBINHOOD_API_JSON")
 
 
 class AppConfig:
@@ -110,6 +120,37 @@ class AppConfig:
             api_secret=self.env.kraken_api_secret,
         )
 
+    def oanda_credentials(self) -> tuple[str, str, str] | None:
+        from pulsearb.engine.keys import load_oanda_credentials
+
+        return load_oanda_credentials(
+            cwd=Path.cwd(),
+            json_path=self.env.oanda_api_json or None,
+            account_id=self.env.oanda_account_id,
+            access_token=self.env.oanda_access_token,
+            environment=self.env.oanda_environment,
+        )
+
+    def gemini_credentials(self) -> tuple[str, str] | None:
+        from pulsearb.engine.keys import load_gemini_credentials
+
+        return load_gemini_credentials(
+            cwd=Path.cwd(),
+            json_path=self.env.gemini_api_json or None,
+            api_key=self.env.gemini_api_key,
+            api_secret=self.env.gemini_api_secret,
+        )
+
+    def robinhood_credentials(self) -> tuple[str, str] | None:
+        from pulsearb.engine.keys import load_robinhood_credentials
+
+        return load_robinhood_credentials(
+            cwd=Path.cwd(),
+            json_path=self.env.robinhood_api_json or None,
+            api_key=self.env.robinhood_api_key,
+            private_key=self.env.robinhood_private_key,
+        )
+
     def binance_live_ready(self) -> bool:
         return bool(
             self.venue_enabled("binance")
@@ -126,6 +167,9 @@ class AppConfig:
             self.coinbase_credentials() is not None
             or self.kraken_credentials() is not None
             or self.binance_live_ready()
+            or self.oanda_credentials() is not None
+            or self.gemini_credentials() is not None
+            or self.robinhood_credentials() is not None
         )
 
     def live_notional(self) -> float:
@@ -143,6 +187,12 @@ class AppConfig:
             names.append("kraken")
         if self.binance_live_ready():
             names.append("binance")
+        if self.oanda_credentials() is not None:
+            names.append("oanda")
+        if self.gemini_credentials() is not None:
+            names.append("gemini")
+        if self.robinhood_credentials() is not None:
+            names.append("robinhood")
         return names
 
     def venue_enabled(self, venue: str) -> bool:

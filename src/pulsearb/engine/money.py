@@ -162,14 +162,37 @@ def venue_live_ok(opportunity: Opportunity, venue: str) -> bool:
     return quote == "USD"
 
 
+def oanda_roundtrip_ok(opportunity: Opportunity) -> bool:
+    """OANDA live is open-then-close on one USD-quoted pair, not a triangle."""
+    if not venue_live_ok(opportunity, "oanda"):
+        return False
+    legs = opportunity.legs
+    return (
+        len(legs) == 2
+        and legs[0].action == "buy"
+        and legs[1].action == "sell"
+        and legs[0].symbol == legs[1].symbol
+    )
+
+
+def live_exec_ok(opportunity: Opportunity, venue: str) -> bool:
+    """True when this venue's live broker can send the row as written."""
+    wanted = str(venue or "").strip().lower()
+    if wanted == "oanda":
+        return oanda_roundtrip_ok(opportunity)
+    return venue_live_ok(opportunity, wanted)
+
+
 def auto_route_ok(opportunity: Opportunity, live_venue: str, *, live: bool) -> bool:
     """Auto only takes same-exchange USD-start routes that live can send.
 
     Cross-venue (Kraken vs Gemini, etc.) and USDC-first triangles stay
     click-to-paper so they cannot starve the real taps.
+    Paper Auto stays Coinbase or Kraken so Gemini paper edges cannot starve
+    the venues that actually go live most often.
     """
     if live:
-        return venue_live_ok(opportunity, live_venue)
+        return live_exec_ok(opportunity, live_venue)
     venues = {leg.venue for leg in opportunity.legs}
     if len(venues) != 1:
         return False

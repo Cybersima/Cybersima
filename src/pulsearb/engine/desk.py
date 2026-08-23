@@ -22,12 +22,19 @@ POPULAR_ASSETS = [
     "AAVE",
     "EUR",
     "GBP",
+    "AUD",
+    "JPY",
+    "CAD",
+    "CHF",
 ]
 QUOTE_SKIP = {"USD", "USDT", "USDC", "DAI"}
 USD_PRICE_QUOTES = ("USD", "USDT", "USDC", "FDUSD", "BUSD", "TUSD")
 PRICE_MODES = ("any", "under", "over")
 PRICE_PRESETS = [1, 2, 5, 10, 50, 100, 1000]
-VENUES = ["coinbase", "kraken", "gemini", "bitstamp"]
+# Yahoo is delayed/watch-only. Bitstamp retail goes close-only Feb 2027
+# (merging into Robinhood) — both stay off the desk.
+SITE_HIDDEN_VENUES = {"yahoo", "bitstamp"}
+VENUES = ["coinbase", "kraken", "gemini", "oanda", "robinhood"]
 KINDS = ["cross_venue", "dislocation", "triangular"]
 KIND_LABELS = {
     "cross_venue": "Price gaps",
@@ -35,12 +42,13 @@ KIND_LABELS = {
     "triangular": "Same-exchange triangles",
     "alert": "Watch only",
 }
-LIVE_VENUES = ["coinbase", "kraken"]
+LIVE_VENUES = ["coinbase", "kraken", "gemini", "oanda", "robinhood"]
 VENUE_LABELS = {
     "coinbase": "Coinbase",
     "kraken": "Kraken",
     "gemini": "Gemini",
-    "bitstamp": "Bitstamp",
+    "oanda": "OANDA",
+    "robinhood": "Robinhood",
 }
 
 
@@ -107,7 +115,11 @@ class TradeDesk:
         return round(max(floor, min(amount, self.cap)), 2)
 
     def presets(self) -> list[float]:
-        raw = [1, 2, 3, 4, 5, 10, 25] if self.live else [1, 2, 3, 4, 5, 10, 25, 50, 100]
+        raw = (
+            [0.10, 0.25, 0.50, 1, 2, 3, 4, 5, 10, 25]
+            if self.live
+            else [0.10, 0.25, 0.50, 1, 2, 3, 4, 5, 10, 25, 50, 100]
+        )
         out: list[float] = []
         for item in raw:
             if self.min_notional - 1e-9 <= item <= self.cap + 1e-9:
@@ -163,6 +175,8 @@ class TradeDesk:
             self.price_limit = self.clamp_price_limit(payload.get("price_limit"))
 
     def matches(self, opportunity: Opportunity, book: MarketBook | None = None) -> bool:
+        if any(leg.venue in SITE_HIDDEN_VENUES for leg in opportunity.legs):
+            return False
         if opportunity.kind == OpportunityKind.ALERT:
             return self._assets_ok(opportunity) and self._price_ok(opportunity, book)
         if opportunity.kind.value not in self.kinds:
@@ -170,13 +184,15 @@ class TradeDesk:
         needed = {
             leg.venue
             for leg in opportunity.legs
-            if leg.venue not in {"yahoo", "simulator"}
+            if leg.venue not in SITE_HIDDEN_VENUES | {"simulator"}
         }
         if needed and not needed.issubset(set(self.venues)):
             return False
         return self._assets_ok(opportunity) and self._price_ok(opportunity, book)
 
     def quote_ok(self, quote: Quote, book: MarketBook | None = None) -> bool:
+        if quote.venue in SITE_HIDDEN_VENUES:
+            return False
         if self.price_mode == "any":
             return True
         try:

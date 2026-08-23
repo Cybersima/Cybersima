@@ -81,7 +81,7 @@ def test_dashboard_and_kill_switch() -> None:
     assert "USD vs USDC dislocations" in page.text
     assert "Kraken FX" in page.text
     assert "maker" in page.text.lower()
-    assert "Yahoo FX is delayed" in page.text
+    assert "Yahoo" in page.text and "Bitstamp" in page.text
     assert "asset_class === \"fx\"" in js.text or 'asset_class === "fx"' in js.text
     assert "tradeCard" in js.text
     assert "cash-usd" in js.text
@@ -95,8 +95,14 @@ def test_dashboard_and_kill_switch() -> None:
     assert desk.json()["auto_invest"] is False
     assert desk.json()["auto_allowed"] is True
     assert desk.json()["notional"] == 5
-    assert desk.json()["min_notional"] == 1
+    assert desk.json()["min_notional"] == 0.1
     assert 1 in desk.json()["presets"]
+    assert 0.1 in desk.json()["presets"]
+    ids = {row["id"] for row in desk.json()["venue_choices"]}
+    assert "yahoo" not in ids
+    assert "bitstamp" not in ids
+    assert "robinhood" in ids
+    assert "oanda" in ids
     updated = client.post("/api/desk", json={"notional": 50, "assets": ["BTC", "ETH"]})
     assert updated.status_code == 200
     assert updated.json()["notional"] == 50

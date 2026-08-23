@@ -37,7 +37,7 @@
         <div class="brand-copy">
           <p class="company">{{ company }}</p>
           <h1>{{ product_short }}</h1>
-          <p class="lede" id="lede">{% if execution.startswith('live') %}Live: same-exchange USD round-trips on Coinbase or Kraken. Each tap buys with USD and aims to finish back in USD.{% else %}Paper first. Switch to Live for real Coinbase or Kraken taps. Cross-exchange gaps stay paper.{% endif %}</p>
+          <p class="lede" id="lede">{% if execution.startswith('live') %}Live: same-exchange USD round-trips on the venue you picked. Each tap buys with USD and aims to finish back in USD.{% else %}Paper first. Switch to Live for real Coinbase, Kraken, Gemini, OANDA, or Robinhood taps. Cross-exchange gaps stay paper.{% endif %}</p>
         </div>
       </div>
       <div class="mast-meta">
@@ -104,7 +104,7 @@
       <div class="live-venue-picks">
         <label>Live on</label>
         <div class="segmented" role="group" aria-label="Live exchange" id="live-venue-chips"></div>
-        <p class="hint">Use the exchange where you have an account. You do not need both. Gemini and Bitstamp stay paper.</p>
+        <p class="hint">Use the account you have. You do not need every venue. Bitstamp is hidden (Robinhood merger, retail close-only Feb 2027). Yahoo is hidden (delayed, not tradable).</p>
       </div>
       <div class="live-confirm" id="live-confirm" hidden>
         <p>This spends real USD on the exchange you picked. Each tap buys and sells and aims to finish back in dollars. Not buy-and-hold. Cross-exchange gaps stay paper.</p>
@@ -121,7 +121,7 @@
         <label for="invest-amount">How much per tap</label>
         <div class="amount-row">
           <span class="dollar">$</span>
-          <input id="invest-amount" type="number" min="1" step="1" value="5" inputmode="decimal" />
+          <input id="invest-amount" type="number" min="0.10" step="0.01" value="5" inputmode="decimal" />
         </div>
         <div class="presets" id="presets"></div>
         <p class="hint" id="amount-hint">Each tap is this size. $1–$5 is typical. Coins under $1 still buy a fraction.</p>
@@ -171,7 +171,7 @@
       <div class="desk-block">
         <label>Trade style</label>
         <div class="chips" id="kind-chips"></div>
-        <p class="hint">Live takes USD vs USDC dislocations and same-exchange triangles — including Kraken FX — then sells back toward USD. Buys are market; sells rest as maker for a few seconds, then flatten. Yahoo FX is delayed and watch-only. Price gaps vs another exchange stay paper.</p>
+        <p class="hint">Live takes USD vs USDC dislocations and same-exchange triangles — including Kraken FX — then sells back toward USD. Coinbase/Kraken sells rest as maker for a few seconds, then flatten. Price gaps vs another exchange stay paper. Yahoo and Bitstamp are not on this desk.</p>
       </div>
     </section>
 
@@ -221,7 +221,7 @@
       </div>
       <p class="note" id="report-path"></p>
       <p class="note">
-        Public feeds are not an HFT pipe. Yahoo FX is delayed and watch-only. Live FX uses Kraken’s own EUR/GBP books (same ticker as crypto). Coinbase has no EUR-USD pair — only USDC-EUR / USDC-GBP. Gemini and Bitstamp stay paper.
+        Public feeds are not an HFT pipe. Live FX uses Kraken’s own EUR/GBP books or an OANDA practice/live account. Coinbase has no EUR-USD pair — only USDC-EUR / USDC-GBP. Yahoo (delayed) and Bitstamp (Robinhood merger) stay off this desk.
         This is a scanner, not a profit guarantee. {{ copyright }}
       </p>
     </footer>

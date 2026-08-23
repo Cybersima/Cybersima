@@ -63,17 +63,18 @@ let desk = {
   auto_invest: false,
   all_assets: false,
   assets: ["BTC", "ETH", "SOL", "XRP"],
-  venues: ["coinbase", "kraken", "gemini", "bitstamp"],
+  venues: ["coinbase", "kraken", "gemini", "oanda", "robinhood"],
   kinds: ["cross_venue", "dislocation", "triangular"],
   cap: 250,
-  min_notional: 1,
-  presets: [1, 2, 3, 4, 5, 10, 25, 50, 100, 250],
-  asset_choices: ["BTC", "ETH", "SOL", "XRP", "ADA", "DOGE", "LTC", "LINK", "AVAX", "DOT", "UNI", "AAVE"],
+  min_notional: 0.1,
+  presets: [0.1, 0.25, 0.5, 1, 2, 3, 4, 5, 10, 25, 50, 100],
+  asset_choices: ["BTC", "ETH", "SOL", "XRP", "ADA", "DOGE", "LTC", "LINK", "AVAX", "DOT", "UNI", "AAVE", "EUR", "GBP"],
   venue_choices: [
     { id: "coinbase", label: "Coinbase" },
     { id: "kraken", label: "Kraken" },
     { id: "gemini", label: "Gemini" },
-    { id: "bitstamp", label: "Bitstamp" },
+    { id: "oanda", label: "OANDA" },
+    { id: "robinhood", label: "Robinhood" },
   ],
   kind_choices: [
     { id: "cross_venue", label: "Price gaps" },
@@ -85,6 +86,9 @@ let desk = {
   live_venue_choices: [
     { id: "coinbase", label: "Coinbase" },
     { id: "kraken", label: "Kraken" },
+    { id: "gemini", label: "Gemini" },
+    { id: "oanda", label: "OANDA" },
+    { id: "robinhood", label: "Robinhood" },
   ],
   live_venues_ready: [],
   schedule_enabled: false,
@@ -106,6 +110,12 @@ function fmt(n, d = 2) {
   if (Math.abs(x) >= 1000) return x.toLocaleString(undefined, { maximumFractionDigits: 2 });
   if (Math.abs(x) < 0.001) return x.toExponential(2);
   return x.toFixed(d);
+}
+
+function fmtTap(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return "—";
+  return x < 1 ? x.toFixed(2) : String(Math.round(x * 100) / 100 === Math.round(x) ? Math.round(x) : x.toFixed(2));
 }
 
 function clockTime(ts) {
@@ -265,7 +275,7 @@ function playChime(force, kind = "offer") {
 }
 
 function investLabel() {
-  return desk.live ? `Buy & sell $${fmt(desk.notional, 0)}` : `Invest $${fmt(desk.notional, 0)}`;
+  return desk.live ? `Buy & sell $${fmtTap(desk.notional)}` : `Invest $${fmtTap(desk.notional)}`;
 }
 
 function tradeKey(row) {
@@ -453,15 +463,15 @@ function paintDesk() {
   if (document.activeElement !== amountInput) {
     amountInput.value = String(desk.notional);
     amountInput.max = String(desk.cap);
-    amountInput.min = String(desk.min_notional || 1);
-    amountInput.step = Number(desk.notional) < 5 ? "1" : "1";
+    amountInput.min = String(desk.min_notional || 0.1);
+    amountInput.step = Number(desk.min_notional) < 1 || Number(desk.notional) < 1 ? "0.01" : "1";
   }
   presetsEl.replaceChildren(
     ...desk.presets.map((amt) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = `preset${Number(desk.notional) === Number(amt) ? " on" : ""}`;
-      btn.textContent = `$${amt}`;
+      btn.textContent = `$${fmtTap(amt)}`;
       btn.addEventListener("click", () => saveDesk({ notional: amt }));
       return btn;
     })
@@ -474,8 +484,8 @@ function paintDesk() {
     ? ""
     : "While live, turn on Only between (a start and stop time) before Auto can run.";
   amountHint.textContent = desk.live
-    ? `This tap: $${fmt(desk.notional, 0)} on ${liveVenueLabel()}. Session budget $${fmt(desk.budget || desk.cap, 0)} · $${fmt(desk.budget_left ?? desk.cap, 2)} left (${desk.taps_left ?? "?"} more taps). Coins under $1 still buy a fraction.`
-    : "Each tap is this size. $1–$5 is typical. Paper until you go live. Coins under $1 still buy a fraction.";
+    ? `This tap: $${fmtTap(desk.notional)} on ${liveVenueLabel()}. Session budget $${fmt(desk.budget || desk.cap, 0)} · $${fmt(desk.budget_left ?? desk.cap, 2)} left (${desk.taps_left ?? "?"} more taps). Coins under $1 still buy a fraction.`
+    : "Each tap is this size. $1–$5 is typical (paper can go to $0.10). Paper until you go live. Coins under $1 still buy a fraction.";
   if (modeHint) {
     modeHint.textContent = autoAllowed
       ? (desk.live
@@ -917,7 +927,7 @@ function render() {
     blockBanner.hidden = !reason;
     blockBanner.classList.toggle("show", Boolean(reason));
   }
-  if (cashTap) cashTap.textContent = `$${fmt(desk.notional, 0)}`;
+  if (cashTap) cashTap.textContent = `$${fmtTap(desk.notional)}`;
   if (cashSession) {
     if (desk.budget != null) {
       cashSession.textContent = `$${fmt(desk.budget_left ?? 0, 2)} of $${fmt(desk.budget, 0)}`;
@@ -933,7 +943,9 @@ function render() {
   document.getElementById("kpi-tri").textContent = s.triangles ?? 0;
   document.getElementById("kpi-up").textContent = `${fmt(s.uptime_s, 0)}s`;
   const feeds = s.feed_status || {};
-  feedBadge.textContent = Object.entries(feeds).map(([k, v]) => `${k}:${v}`).join(" · ") || "waiting";
+  feedBadge.textContent = Object.entries(feeds)
+    .filter(([k]) => k !== "yahoo" && k !== "bitstamp")
+    .map(([k, v]) => `${k}:${v}`).join(" · ") || "waiting";
   killBtn.classList.toggle("on", Boolean(s.killed));
   killBtn.textContent = s.killed ? "Resume" : "Kill switch";
   const reportRows = s.report_rows ?? 0;
@@ -956,8 +968,8 @@ async function invest(id, btn) {
     if (!data.ok) throw new Error(data.error || "Could not invest");
     showToast(
       desk.live
-        ? `Round-trip sent ($${fmt(desk.notional, 0)}). Check Your trades — opened, each leg, and close back to USD.`
-        : `Invested $${fmt(desk.notional, 0)}. Check Your trades.`
+        ? `Round-trip sent ($${fmtTap(desk.notional)}). Check Your trades — opened, each leg, and close back to USD.`
+        : `Invested $${fmtTap(desk.notional)}. Check Your trades.`
     );
   } catch (err) {
     showToast(String(err.message || err));
@@ -1088,6 +1100,10 @@ function connect() {
         deskReady = true;
         const saved = readSavedDesk();
         if (saved) {
+          const hidden = new Set(["yahoo", "bitstamp"]);
+          if (Array.isArray(saved.venues)) {
+            saved.venues = saved.venues.filter((item) => !hidden.has(item));
+          }
           saveDesk(saved);
         } else {
           paintDesk();

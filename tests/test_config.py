@@ -8,15 +8,19 @@ def test_default_markets_cover_fifty_plus_us_venues() -> None:
         len(config.symbols("coinbase"))
         + len(config.symbols("kraken"))
         + len(config.symbols("gemini"))
-        + len(config.symbols("bitstamp"))
-        + len(config.yahoo_symbols)
+        + len(config.symbols("oanda"))
+        + len(config.symbols("robinhood"))
     )
     assert total >= 50
     assert config.venue_enabled("coinbase")
     assert config.venue_enabled("kraken")
     assert config.venue_enabled("gemini")
-    assert config.venue_enabled("bitstamp")
+    assert config.venue_enabled("oanda")
+    assert config.venue_enabled("robinhood")
+    assert not config.venue_enabled("bitstamp")
+    assert not config.venue_enabled("yahoo")
     assert not config.venue_enabled("binance")
+    assert config.fee_map()["robinhood"] == 85.0
 
 
 def test_triangles_discovered_from_coinbase_universe() -> None:

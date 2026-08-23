@@ -145,6 +145,347 @@ async def ping_coinbase_accounts(
         return {}, str(exc)[:240]
 
 
+def oanda_keys_file_path(config: AppConfig, cwd: Path | None = None) -> Path:
+    if config.env.oanda_api_json:
+        return Path(config.env.oanda_api_json)
+    return (cwd or Path.cwd()) / "keys" / "oanda.json"
+
+
+async def assess_oanda_ready(
+    config: AppConfig,
+    *,
+    cwd: Path | None = None,
+    client: httpx.AsyncClient | None = None,
+    ping: bool = True,
+    killed: bool = False,
+    armed: bool | None = None,
+) -> dict[str, Any]:
+    """Separate from assess_live_ready's coinbase/kraken checks on purpose -
+    that function is a tested, hardcoded two-venue ternary ladder, and OANDA
+    is different enough (Bearer token not signing, one home-currency balance
+    not USD/USDC/USDT, margin not spot) that forcing it into the same shape
+    risked bugs in the working Coinbase/Kraken path for no real benefit.
+    Same checklist shape and spirit, adapted to OANDA."""
+    from pulsearb.engine.oanda_live import LiveOandaBroker, explain_oanda_order_error
+
+    root = cwd or Path.cwd()
+    path = oanda_keys_file_path(config, root)
+    cap = float(config.risk.get("live_max_notional_usdt", 25))
+    checks: list[dict[str, Any]] = []
+
+    creds = config.oanda_credentials()
+    file_ok = creds is not None
+    if path.is_file():
+        file_detail = f"Found {path}" if file_ok else f"{path} exists but is missing account_id / access_token."
+    elif bool(config.env.oanda_account_id and config.env.oanda_access_token):
+        file_detail = "Using OANDA credentials from the environment."
+    else:
+        file_detail = (
+            "No file yet. Generate a personal access token in the OANDA account portal "
+            "(My Account -> My Services -> Manage API Access) and save it as "
+            f"{path} with account_id, access_token, and environment (practice or live)."
+        )
+    checks.append(_check("oanda_keys_file", "OANDA key file", file_ok, file_detail))
+
+    if not file_ok:
+        checks.append(_wait("oanda_ping", "OANDA accepts the token", "Waiting until the key file is in place."))
+        checks.append(_wait("oanda_cash", f"At least ${cap:.0f} account balance", "Waiting until the key file is in place."))
+        balances: dict[str, float] = {}
+        environment = "practice"
+    else:
+        account_id, access_token, environment = creds
+        ping_ok = False
+        ping_detail = "Cannot ping OANDA until credentials are present."
+        balances = {}
+        if ping:
+            broker = LiveOandaBroker(
+                risk=RiskManager(),
+                account_id=account_id,
+                access_token=access_token,
+                paper_fallback=PaperBroker(RiskManager()),
+                environment=environment,
+                client=client,
+            )
+            try:
+                balances = await broker.refresh_balances(client)
+                ping_ok = True
+                shown = ", ".join(f"{asset} {amount:.2f}" for asset, amount in balances.items() if amount > 0)
+                ping_detail = f"OANDA account reachable ({environment}). {shown or 'zero balance'}"
+                if broker.status.startswith("warning"):
+                    ping_detail = f"{ping_detail} - {broker.status}"
+            except Exception as exc:
+                ping_detail = explain_oanda_order_error(str(exc))
+        else:
+            ping_ok = True
+            ping_detail = "Ping skipped."
+        checks.append(_check("oanda_ping", "OANDA accepts the token", ping_ok, ping_detail, required=ping))
+
+        balance = float(balances.get("USD", 0.0) or 0.0)
+        if ping and ping_ok:
+            cash_ok = balance + 1e-9 >= cap
+            cash_detail = (
+                f"${balance:.2f} in the account. Each tap can be $0.10-${cap:.0f}; leave at least ${cap:.0f} "
+                "so a full-size tap has room."
+                if cash_ok
+                else f"Only ${balance:.2f} in the account. Leave at least ${cap:.0f} for a full-size tap."
+            )
+            checks.append(_check("oanda_cash", f"At least ${cap:.0f} account balance", cash_ok, cash_detail, required=ping))
+        elif ping:
+            checks.append(_wait("oanda_cash", f"At least ${cap:.0f} account balance", "Waiting until OANDA answers."))
+        else:
+            checks.append(_check("oanda_cash", f"At least ${cap:.0f} account balance", True, "Cash check skipped.", required=False, status="wait"))
+
+    checks.append(
+        _check(
+            "oanda_leverage_note",
+            "Margin, not spot",
+            True,
+            "A tap opens a position worth the tap size in currency exposure, then immediately closes it - "
+            "leverage only reduces the margin held against that position, it never makes the position bigger. "
+            "No position is left open.",
+            required=False,
+        )
+    )
+    if killed:
+        checks.append(_check("kill_switch", "Kill switch", False, "New orders are paused. Click Resume on the dashboard."))
+
+    ready = all(row["ok"] for row in checks if row["required"])
+    live_on = config.live_enabled() if armed is None else bool(armed)
+    if live_on and killed:
+        note = "LIVE is still on. The kill switch paused new orders. Click Resume."
+    elif live_on and ready:
+        note = "Live OANDA round-trips are on. Switch back to Paper any time. Every real order is a tap."
+    elif ready:
+        note = "Ready. Stay on Paper to practice, then switch to Live when you want real OANDA orders."
+    elif not file_ok:
+        note = f"Not ready. Save {path} with your OANDA account_id and access_token, then check again."
+    else:
+        note = "Not ready. Fix the failed checks above, then check again."
+    return {
+        "ok": True,
+        "ready": ready,
+        "armed": live_on,
+        "cap": cap,
+        "cash": round(float(balances.get("USD", 0.0) or 0.0), 4),
+        "usd": round(float(balances.get("USD", 0.0) or 0.0), 4),
+        "balances": {str(key): round(float(value), 8) for key, value in balances.items() if float(value) > 0},
+        "keys_path": str(path),
+        "venue": "oanda",
+        "venues_with_keys": ["oanda"] if file_ok else [],
+        "checks": checks,
+        "note": note,
+    }
+
+
+async def assess_gemini_ready(
+    config: AppConfig,
+    *,
+    cwd: Path | None = None,
+    client: httpx.AsyncClient | None = None,
+    ping: bool = True,
+    killed: bool = False,
+    armed: bool | None = None,
+) -> dict[str, Any]:
+    """Additive, same reasoning as assess_oanda_ready above: kept separate
+    from the coinbase/kraken ternary ladder rather than trying to fold in
+    a third auth scheme (Gemini's base64-payload HMAC-SHA384) there."""
+    from pulsearb.engine.gemini_live import LiveGeminiBroker, explain_gemini_order_error
+
+    root = cwd or Path.cwd()
+    path = (root / "keys" / "gemini.json") if not config.env.gemini_api_json else Path(config.env.gemini_api_json)
+    cap = float(config.risk.get("live_max_notional_usdt", 25))
+    checks: list[dict[str, Any]] = []
+
+    creds = config.gemini_credentials()
+    file_ok = creds is not None
+    if path.is_file():
+        file_detail = f"Found {path}" if file_ok else f"{path} exists but is missing key / secret."
+    elif bool(config.env.gemini_api_key and config.env.gemini_api_secret):
+        file_detail = "Using Gemini credentials from the environment."
+    else:
+        file_detail = (
+            "No file yet. Create an API key at https://exchange.gemini.com/settings/api "
+            "with Trading permission and save it as "
+            f"{path} with \"key\" and \"secret\"."
+        )
+    checks.append(_check("gemini_keys_file", "Gemini key file", file_ok, file_detail))
+
+    balances: dict[str, float] = {}
+    if not file_ok:
+        checks.append(_wait("gemini_ping", "Gemini accepts the key", "Waiting until the key file is in place."))
+        checks.append(_wait("gemini_cash", f"At least ${cap:.0f} USD cash", "Waiting until the key file is in place."))
+    else:
+        api_key, api_secret = creds
+        ping_ok = False
+        ping_detail = "Cannot ping Gemini until credentials are present."
+        if ping:
+            broker = LiveGeminiBroker(risk=RiskManager(), api_key=api_key, api_secret=api_secret, paper_fallback=PaperBroker(RiskManager()), client=client)
+            try:
+                balances = await broker.refresh_balances(client)
+                ping_ok = True
+                shown = ", ".join(f"{asset} {amount:.4g}" for asset, amount in balances.items() if amount > 0)
+                ping_detail = f"Gemini accounts reachable. {shown or 'no positive balances'}"
+            except Exception as exc:
+                ping_detail = explain_gemini_order_error(str(exc))
+        else:
+            ping_ok = True
+            ping_detail = "Ping skipped."
+        checks.append(_check("gemini_ping", "Gemini accepts the key", ping_ok, ping_detail, required=ping))
+
+        cash = quote_cash(balances)
+        usd = usd_spendable(balances)
+        if ping and ping_ok:
+            floor = max(0.10, float(config.risk.get("min_notional_usdt", 0.10)))
+            usd_ok = usd + 1e-9 >= floor
+            cash_ok = cash + 1e-9 >= cap
+            if not usd_ok:
+                cash_detail = f"${usd:.2f} USD and ${cash:.2f} USD+USDC+USDT. A live tap starts by spending USD, not USDC. Move at least ${floor:.2f} into USD on Gemini."
+            elif not cash_ok:
+                cash_detail = f"Only ${cash:.2f} cash. Leave at least ${cap:.0f} USD in Gemini."
+            else:
+                cash_detail = f"${usd:.2f} USD (${cash:.2f} including USDC/USDT). Session budget is ${cap:.0f}."
+            checks.append(_check("gemini_cash", f"USD to start a tap (${cap:.0f} cash)", usd_ok and cash_ok, cash_detail, required=ping))
+        elif ping:
+            checks.append(_wait("gemini_cash", f"At least ${cap:.0f} USD cash", "Waiting until Gemini answers."))
+        else:
+            checks.append(_check("gemini_cash", f"At least ${cap:.0f} USD cash", True, "Cash check skipped.", required=False, status="wait"))
+
+    if killed:
+        checks.append(_check("kill_switch", "Kill switch", False, "New orders are paused. Click Resume on the dashboard."))
+
+    ready = all(row["ok"] for row in checks if row["required"])
+    live_on = config.live_enabled() if armed is None else bool(armed)
+    if live_on and killed:
+        note = "LIVE is still on. The kill switch paused new orders. Click Resume."
+    elif live_on and ready:
+        note = "Live Gemini round-trips are on. Switch back to Paper any time."
+    elif ready:
+        note = "Ready. Stay on Paper to practice, then switch to Live when you want real Gemini orders."
+    elif not file_ok:
+        note = f"Not ready. Save {path} with your Gemini key and secret, then check again."
+    else:
+        note = "Not ready. Fix the failed checks above, then check again."
+    return {
+        "ok": True, "ready": ready, "armed": live_on, "cap": cap,
+        "cash": round(quote_cash(balances), 4), "usd": round(usd_spendable(balances), 4),
+        "balances": {str(k): round(float(v), 8) for k, v in balances.items() if float(v) > 0},
+        "keys_path": str(path), "venue": "gemini",
+        "venues_with_keys": ["gemini"] if file_ok else [],
+        "checks": checks, "note": note,
+    }
+
+
+async def assess_robinhood_ready(
+    config: AppConfig,
+    *,
+    cwd: Path | None = None,
+    client: httpx.AsyncClient | None = None,
+    ping: bool = True,
+    killed: bool = False,
+    armed: bool | None = None,
+) -> dict[str, Any]:
+    """Same additive pattern as the other assess_*_ready functions - kept
+    separate from the coinbase/kraken ternary ladder. Extra note worth
+    surfacing here specifically: Robinhood has no practice/sandbox
+    environment (unlike OANDA), so a passing ping here means the key is
+    live-capable immediately - there's no "safe" environment to test
+    against first the way there is for OANDA."""
+    from pulsearb.engine.robinhood_live import LiveRobinhoodBroker, explain_robinhood_order_error
+
+    root = cwd or Path.cwd()
+    path = (root / "keys" / "robinhood.json") if not config.env.robinhood_api_json else Path(config.env.robinhood_api_json)
+    cap = float(config.risk.get("live_max_notional_usdt", 25))
+    checks: list[dict[str, Any]] = []
+
+    creds = config.robinhood_credentials()
+    file_ok = creds is not None
+    if path.is_file():
+        file_detail = f"Found {path}" if file_ok else f"{path} exists but is missing api_key / private_key."
+    elif bool(config.env.robinhood_api_key and config.env.robinhood_private_key):
+        file_detail = "Using Robinhood credentials from the environment."
+    else:
+        file_detail = (
+            "No file yet. Generate an Ed25519 keypair (see the Python script "
+            "in Robinhood's API docs), register the public key at your "
+            "Robinhood crypto account's API Credentials page, and save the "
+            f"API key + base64 private key as {path} with \"api_key\" and \"private_key\"."
+        )
+    checks.append(_check("robinhood_keys_file", "Robinhood key file", file_ok, file_detail))
+
+    balances: dict[str, float] = {}
+    if not file_ok:
+        checks.append(_wait("robinhood_ping", "Robinhood accepts the key", "Waiting until the key file is in place."))
+        checks.append(_wait("robinhood_cash", f"At least ${cap:.0f} buying power", "Waiting until the key file is in place."))
+    else:
+        api_key, private_key = creds
+        ping_ok = False
+        ping_detail = "Cannot ping Robinhood until credentials are present."
+        if ping:
+            broker = LiveRobinhoodBroker(risk=RiskManager(), api_key=api_key, private_key_base64=private_key, paper_fallback=PaperBroker(RiskManager()), client=client)
+            try:
+                balances = await broker.refresh_balances(client)
+                ping_ok = True
+                shown = ", ".join(f"{asset} {amount:.4g}" for asset, amount in balances.items() if amount > 0)
+                ping_detail = f"Robinhood account reachable (#{broker._account_number}). {shown or 'zero balance'}"
+            except Exception as exc:
+                ping_detail = explain_robinhood_order_error(str(exc))
+        else:
+            ping_ok = True
+            ping_detail = "Ping skipped."
+        checks.append(_check("robinhood_ping", "Robinhood accepts the key", ping_ok, ping_detail, required=ping))
+
+        balance = float(balances.get("USD", 0.0) or 0.0)
+        if ping and ping_ok:
+            cash_ok = balance + 1e-9 >= cap
+            cash_detail = (
+                f"${balance:.2f} buying power. Each tap can be $0.10-${cap:.0f}; leave at least ${cap:.0f} "
+                "so a full-size tap has room."
+                if cash_ok
+                else f"Only ${balance:.2f} buying power. Leave at least ${cap:.0f} for a full-size tap."
+            )
+            checks.append(_check("robinhood_cash", f"At least ${cap:.0f} buying power", cash_ok, cash_detail, required=ping))
+        elif ping:
+            checks.append(_wait("robinhood_cash", f"At least ${cap:.0f} buying power", "Waiting until Robinhood answers."))
+        else:
+            checks.append(_check("robinhood_cash", f"At least ${cap:.0f} buying power", True, "Cash check skipped.", required=False, status="wait"))
+
+    checks.append(
+        _check(
+            "robinhood_no_sandbox",
+            "No practice environment",
+            True,
+            "Robinhood has no paper/sandbox API - this key is real-money-capable the moment it works. "
+            "Unlike OANDA, there's no safer environment to test against first.",
+            required=False,
+        )
+    )
+    if killed:
+        checks.append(_check("kill_switch", "Kill switch", False, "New orders are paused. Click Resume on the dashboard."))
+
+    ready = all(row["ok"] for row in checks if row["required"])
+    live_on = config.live_enabled() if armed is None else bool(armed)
+    if live_on and killed:
+        note = "LIVE is still on. The kill switch paused new orders. Click Resume."
+    elif live_on and ready:
+        note = "Live Robinhood round-trips are on. Switch back to Paper any time."
+    elif ready:
+        note = "Ready. Stay on Paper to practice, then switch to Live when you want real Robinhood orders."
+    elif not file_ok:
+        note = f"Not ready. Save {path} with your Robinhood API key and private key, then check again."
+    else:
+        note = "Not ready. Fix the failed checks above, then check again."
+    return {
+        "ok": True, "ready": ready, "armed": live_on, "cap": cap,
+        "cash": round(float(balances.get("USD", 0.0) or 0.0), 4), "usd": round(float(balances.get("USD", 0.0) or 0.0), 4),
+        "balances": {str(k): round(float(v), 8) for k, v in balances.items() if float(v) > 0},
+        "keys_path": str(path), "venue": "robinhood",
+        "venues_with_keys": ["robinhood"] if file_ok else [],
+        "checks": checks, "note": note,
+    }
+
+
+
+
 async def assess_live_ready(
     config: AppConfig | None = None,
     *,
@@ -158,6 +499,12 @@ async def assess_live_ready(
     config = config or AppConfig()
     root = cwd or Path.cwd()
     wanted = str(venue or "").strip().lower()
+    if wanted == "oanda":
+        return await assess_oanda_ready(config, cwd=root, client=client, ping=ping, killed=killed, armed=armed)
+    if wanted == "gemini":
+        return await assess_gemini_ready(config, cwd=root, client=client, ping=ping, killed=killed, armed=armed)
+    if wanted == "robinhood":
+        return await assess_robinhood_ready(config, cwd=root, client=client, ping=ping, killed=killed, armed=armed)
     coinbase_path = keys_file_path(config, root)
     kraken_path = kraken_keys_file_path(config, root)
     has_coinbase = coinbase_path.is_file() or bool(config.env.coinbase_api_key and config.env.coinbase_api_secret)
@@ -315,20 +662,21 @@ async def assess_live_ready(
                 cash = quote_cash(balances)
                 usd = usd_spendable(balances)
                 if ping and ping_ok:
-                    usd_ok = usd + 1e-9 >= 1.0
+                    floor = max(0.10, float(config.risk.get("min_notional_usdt", 0.10)))
+                    usd_ok = usd + 1e-9 >= floor
                     cash_ok = cash + 1e-9 >= cap
                     if not usd_ok:
                         cash_detail = (
                             f"${usd:.2f} USD and ${cash:.2f} USD+USDC+USDT. "
                             f"A live tap starts by spending USD, not USDC. "
-                            f"Move at least $1 into USD on {venue_label}."
+                            f"Move at least ${floor:.2f} into USD on {venue_label}."
                         )
                     elif not cash_ok:
                         cash_detail = f"Only ${cash:.2f} cash. Leave at least ${cap:.0f} USD in {venue_label}."
                     else:
                         cash_detail = (
                             f"${usd:.2f} USD (${cash:.2f} including USDC/USDT). "
-                            f"Session budget is ${cap:.0f}; each tap can be $1–${cap:.0f}. "
+                            f"Session budget is ${cap:.0f}; each tap can be $0.10–${cap:.0f}. "
                             "Live first legs spend USD."
                         )
                     checks.append(
@@ -363,7 +711,7 @@ async def assess_live_ready(
             "live_cap",
             "Live size cap",
             True,
-            f"Each tap is $1–${cap:.0f}. Session budget ${cap:.0f}. Live is {venue_label} USD round-trips "
+            f"Each tap is $0.10–${cap:.0f}. Session budget ${cap:.0f}. Live is {venue_label} USD round-trips "
             "(USD vs USDC dislocations and same-exchange triangles). Cross-venue stays paper.",
             required=False,
         )

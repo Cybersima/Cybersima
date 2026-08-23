@@ -30,6 +30,8 @@ def test_native_symbols() -> None:
     assert to_native_symbol("kraken", "ETH-BTC") == "ETHXBT"
     assert to_native_symbol("gemini", "BTC-USD") == "btcusd"
     assert to_native_symbol("bitstamp", "ETH-BTC") == "ethbtc"
+    assert to_native_symbol("oanda", "EUR-USD") == "EUR_USD"
+    assert to_native_symbol("robinhood", "BTC-USD") == "BTC-USD"
 
 
 def test_pair_asset_class_marks_fx() -> None:

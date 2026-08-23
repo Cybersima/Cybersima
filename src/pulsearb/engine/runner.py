@@ -17,21 +17,24 @@ from pulsearb.engine.arbitrage import (
 from pulsearb.engine.book import MarketBook
 from pulsearb.engine.broker import Broker, LiveBinanceBroker, LiveRouter, PaperBroker
 from pulsearb.engine.coinbase_live import LiveCoinbaseBroker
-from pulsearb.engine.desk import KIND_LABELS, TradeDesk
+from pulsearb.engine.desk import KIND_LABELS, SITE_HIDDEN_VENUES, TradeDesk
+from pulsearb.engine.gemini_live import LiveGeminiBroker
 from pulsearb.engine.kraken_live import LiveKrakenBroker
 from pulsearb.engine.live_ready import quote_cash, usd_spendable
-from pulsearb.engine.money import auto_route_ok, venue_live_ok, venue_maker_bps
+from pulsearb.engine.money import auto_route_ok, live_exec_ok, venue_maker_bps
+from pulsearb.engine.oanda_live import LiveOandaBroker
+from pulsearb.engine.robinhood_live import LiveRobinhoodBroker
 from pulsearb.engine.report import ProfitLedger
 from pulsearb.engine.risk import RiskManager
 from pulsearb.engine.schedule import window_open
 from pulsearb.engine.trades import group_trades
 from pulsearb.feeds.binance import BinanceFeed
-from pulsearb.feeds.bitstamp import BitstampFeed
 from pulsearb.feeds.coinbase import CoinbaseFeed
 from pulsearb.feeds.gemini import GeminiFeed
 from pulsearb.feeds.kraken import KrakenFeed
 from pulsearb.feeds.simulator import SimulatorFeed
-from pulsearb.feeds.yahoo import YahooFeed
+from pulsearb.feeds.oanda import OandaFeed
+from pulsearb.feeds.robinhood import RobinhoodFeed
 from pulsearb.models import EngineStats, Fill, Opportunity
 from pulsearb.symbols import canonical_from_pair
 
@@ -106,7 +109,12 @@ class Engine:
 
     def _ensure_live_router(self) -> bool:
         if isinstance(self.broker, LiveRouter) and (
-            self.broker.coinbase is not None or self.broker.kraken is not None or self.broker.binance is not None
+            self.broker.coinbase is not None
+            or self.broker.kraken is not None
+            or self.broker.binance is not None
+            or self.broker.oanda is not None
+            or self.broker.gemini is not None
+            or self.broker.robinhood is not None
         ):
             self.broker.armed = self.live_armed
             self.broker.live_venue = self.desk.live_venue
@@ -114,6 +122,9 @@ class Engine:
         coinbase_broker = None
         kraken_broker = None
         binance_broker = None
+        oanda_broker = None
+        gemini_broker = None
+        robinhood_broker = None
         creds = self.config.coinbase_credentials()
         if creds:
             key_name, secret = creds
@@ -150,7 +161,44 @@ class Engine:
                 rest_url=str(rest),
                 paper_fallback=self.paper,
             )
-        if coinbase_broker is None and kraken_broker is None and binance_broker is None:
+        oanda_creds = self.config.oanda_credentials()
+        if oanda_creds:
+            account_id, access_token, environment = oanda_creds
+            oanda_broker = LiveOandaBroker(
+                risk=self.risk,
+                account_id=account_id,
+                access_token=access_token,
+                paper_fallback=self.paper,
+                environment=environment,
+            )
+        gemini_creds = self.config.gemini_credentials()
+        if gemini_creds:
+            key_name, secret = gemini_creds
+            gemini_cfg = self.config.markets.get("gemini") or {}
+            gemini_broker = LiveGeminiBroker(
+                risk=self.risk,
+                api_key=key_name,
+                api_secret=secret,
+                paper_fallback=self.paper,
+                rest_url=str(gemini_cfg.get("rest_url") or "https://api.gemini.com"),
+            )
+        robinhood_creds = self.config.robinhood_credentials()
+        if robinhood_creds:
+            api_key, private_key = robinhood_creds
+            robinhood_broker = LiveRobinhoodBroker(
+                risk=self.risk,
+                api_key=api_key,
+                private_key_base64=private_key,
+                paper_fallback=self.paper,
+            )
+        if (
+            coinbase_broker is None
+            and kraken_broker is None
+            and binance_broker is None
+            and oanda_broker is None
+            and gemini_broker is None
+            and robinhood_broker is None
+        ):
             self.broker = self.paper
             return False
         self.broker = LiveRouter(
@@ -158,6 +206,9 @@ class Engine:
             coinbase=coinbase_broker,
             kraken=kraken_broker,
             binance=binance_broker,
+            oanda=oanda_broker,
+            gemini=gemini_broker,
+            robinhood=robinhood_broker,
             armed=self.live_armed,
             live_venue=self.desk.live_venue,
         )
@@ -232,9 +283,9 @@ class Engine:
         if not self._ensure_live_router():
             return {
                 "ok": False,
-                "error": (
+                "                error": (
                     f"No {self.desk.live_venue.title()} key file. "
-                    "Save keys\\coinbase.json or keys\\kraken.json, then Check again."
+                    "Save the matching file in keys\\, then Check again."
                 ),
             }
         self.live_armed = True
@@ -282,13 +333,23 @@ class Engine:
             )
         elif live:
             venue_label = self.desk.live_venue.title()
-            live_note = (
-                f"LIVE on {venue_label}: USD vs USDC books and same-exchange triangles. "
-                "Each tap buys with USD (market) and sells as a maker limit, then markets "
-                "anything still open after a few seconds so leftover coins do not sit. "
-                "Cross-venue (Coinbase vs Kraken) stays paper. Each tap is your desk size. "
-                "Session budget is the $25 cap."
-            )
+            if self.desk.live_venue in {"coinbase", "kraken"}:
+                live_note = (
+                    f"LIVE on {venue_label}: USD vs USDC books and same-exchange triangles. "
+                    "Each tap buys with USD (market) and sells as a maker limit, then markets "
+                    "anything still open after a few seconds so leftover coins do not sit. "
+                    "Cross-venue stays paper. Each tap is your desk size. Session budget is the $25 cap."
+                )
+            elif self.desk.live_venue == "oanda":
+                live_note = (
+                    "LIVE on OANDA: one USD-quoted pair, open then close the same size. "
+                    "Triangles stay paper. Leverage does not enlarge the tap."
+                )
+            else:
+                live_note = (
+                    f"LIVE on {venue_label}: same-exchange USD-start taps. "
+                    "Buys and sells are market/IOC. Cross-venue stays paper. Session budget is the $25 cap."
+                )
         else:
             live_note = ""
         return {
@@ -314,7 +375,11 @@ class Engine:
             },
             "desk": self.desk_view(),
             "quotes": [q.to_dict() for q in quotes if self.desk.quote_ok(q, self.book)],
-            "opportunities": [self._opp_view(o) for o in list(self.opportunities)[:40]],
+            "opportunities": [
+                self._opp_view(o)
+                for o in list(self.opportunities)[:40]
+                if not any(leg.venue in SITE_HIDDEN_VENUES for leg in o.legs)
+            ],
             "fills": [f.to_dict() for f in fill_list],
             "trades": group_trades(fill_list),
         }
@@ -418,7 +483,7 @@ class Engine:
             opp
             for opp in self.opportunities
             if opp.executable
-            and venue_live_ok(opp, self.desk.live_venue)
+            and live_exec_ok(opp, self.desk.live_venue)
             and self.desk.matches(opp, self.book)
             and opp.id not in self.invested
         ]
@@ -502,7 +567,7 @@ class Engine:
             error = "You already took this trade."
             self._set_last_block(error, source="invest")
             return {"ok": False, "error": error}
-        if self.live_active() and not venue_live_ok(opp, self.desk.live_venue):
+        if self.live_active() and not live_exec_ok(opp, self.desk.live_venue):
             venue_label = self.desk.live_venue.title()
             error = (
                 f"Live only takes {venue_label} round-trips that buy with USD and sell back toward USD. "
@@ -563,6 +628,8 @@ class Engine:
     def _demo_instruments(self) -> list[tuple[str, str, bool]]:
         rows: list[tuple[str, str, bool]] = []
         for venue in SPOT_VENUES:
+            if venue in SITE_HIDDEN_VENUES:
+                continue
             if venue == "binance" and not self.config.env.enable_binance:
                 continue
             for symbol in self.config.symbols(venue):
@@ -571,8 +638,6 @@ class Engine:
                 except ValueError:
                     continue
                 rows.append((venue, canon, True))
-        for row in self.config.yahoo_symbols:
-            rows.append(("yahoo", row["canonical"], False))
         return rows
 
     async def run_feeds(self) -> None:
@@ -619,15 +684,6 @@ class Engine:
                         poll_seconds=float(cfg.get("poll_seconds") or settings.get("gemini_poll_seconds", 1.0)),
                     ).run(self.book, self.stats.feed_status)
                 )
-            if self.config.venue_enabled("bitstamp"):
-                cfg = markets["bitstamp"]
-                tasks.append(
-                    BitstampFeed(
-                        symbols=self.config.symbols("bitstamp"),
-                        rest_url=str(cfg.get("rest_url")),
-                        poll_seconds=float(cfg.get("poll_seconds") or settings.get("bitstamp_poll_seconds", 1.0)),
-                    ).run(self.book, self.stats.feed_status)
-                )
             if self.config.venue_enabled("binance"):
                 cfg = markets["binance"]
                 rest = cfg.get("testnet_rest_url" if self.config.env.binance_testnet else "rest_url")
@@ -640,14 +696,37 @@ class Engine:
                         rest_poll_seconds=float(settings.get("binance_rest_poll_seconds", 1.0)),
                     ).run(self.book, self.stats.feed_status)
                 )
-            if self.config.venue_enabled("yahoo"):
-                cfg = markets["yahoo"]
-                tasks.append(
-                    YahooFeed(
-                        symbols=self.config.yahoo_symbols,
-                        poll_seconds=float(cfg.get("poll_seconds") or settings.get("yahoo_poll_seconds", 2.0)),
-                    ).run(self.book, self.stats.feed_status)
-                )
+            if self.config.venue_enabled("oanda"):
+                oanda_creds = self.config.oanda_credentials()
+                if oanda_creds:
+                    account_id, access_token, environment = oanda_creds
+                    cfg = markets["oanda"]
+                    tasks.append(
+                        OandaFeed(
+                            symbols=self.config.symbols("oanda"),
+                            account_id=account_id,
+                            access_token=access_token,
+                            environment=environment,
+                            poll_seconds=float(cfg.get("poll_seconds") or settings.get("oanda_poll_seconds", 2.0)),
+                        ).run(self.book, self.stats.feed_status)
+                    )
+                else:
+                    self.stats.feed_status["oanda"] = "no keys\\oanda.json - skipped"
+            if self.config.venue_enabled("robinhood"):
+                robinhood_creds = self.config.robinhood_credentials()
+                if robinhood_creds:
+                    api_key, private_key = robinhood_creds
+                    cfg = markets["robinhood"]
+                    tasks.append(
+                        RobinhoodFeed(
+                            symbols=self.config.symbols("robinhood"),
+                            api_key=api_key,
+                            private_key_base64=private_key,
+                            poll_seconds=float(cfg.get("poll_seconds") or settings.get("robinhood_poll_seconds", 1.0)),
+                        ).run(self.book, self.stats.feed_status)
+                    )
+                else:
+                    self.stats.feed_status["robinhood"] = "no keys\\robinhood.json - skipped"
         if not tasks:
             raise RuntimeError("No market feeds enabled")
         await asyncio.gather(*tasks)
@@ -708,7 +787,7 @@ class Engine:
                     )
                 )
             dislocations: list[Opportunity] = []
-            for venue in ("coinbase", "kraken"):
+            for venue in ("coinbase", "kraken", "gemini"):
                 dislocations.extend(
                     detect_quote_dislocations(
                         self.book,

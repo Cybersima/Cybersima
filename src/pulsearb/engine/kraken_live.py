@@ -255,7 +255,7 @@ class LiveKrakenBroker(Broker):
                 spend = min(opportunity.notional, self.balances.get(quote, 0.0))
             else:
                 spend = pocket.get(quote, 0.0)
-            if quote in STABLE and spend + 1e-9 < max(1.0, float(self.risk.min_notional_usdt)):
+            if quote in STABLE and spend + 1e-9 < max(0.01, float(self.risk.min_notional_usdt)):
                 return f"insufficient {quote} ({spend:.4f} < {self.risk.min_notional_usdt:.2f})"
             if spend <= 0 or price <= 0:
                 return f"no {quote} from this tap to buy {symbol}"

@@ -1,4 +1,6 @@
-# Default venue set is US-accessible: Coinbase, Kraken, Gemini, Bitstamp, Yahoo.
+# Desk venues: Coinbase, Kraken, Gemini, OANDA, Robinhood.
+# Yahoo is delayed/watch-only and stays OFF the site.
+# Bitstamp retail goes close-only 1 Feb 2027 (Robinhood merger) and stays OFF.
 # Binance stays in this file but is OFF — it is not available to US residents.
 
 coinbase:
@@ -132,7 +134,7 @@ gemini:
     - ETH-EUR
 
 bitstamp:
-  enabled: true
+  enabled: false
   rest_url: https://www.bitstamp.net
   poll_seconds: 1.0
   symbols:
@@ -218,7 +220,7 @@ binance:
     - FDUSDUSDT
 
 yahoo:
-  enabled: true
+  enabled: false
   poll_seconds: 2.0
   symbols:
     - ticker: EURUSD=X
@@ -297,6 +299,40 @@ usd_equivalents:
   - USDC
   - FDUSD
 
+# OANDA: margin FX. Live only takes a single USD-quoted pair open-then-close.
+# USD-JPY / USD-CAD / USD-CHF stay paper (first quote is not USD).
+oanda:
+  enabled: true
+  poll_seconds: 2.0
+  environment: practice
+  symbols:
+    - EUR-USD
+    - GBP-USD
+    - AUD-USD
+    - NZD-USD
+    - USD-JPY
+    - USD-CAD
+    - USD-CHF
+    - EUR-GBP
+    - EUR-JPY
+    - EUR-CHF
+
+# Robinhood Crypto API v2. Feed needs keys/robinhood.json (no public ticker).
+robinhood:
+  enabled: true
+  poll_seconds: 1.0
+  symbols:
+    - BTC-USD
+    - ETH-USD
+    - SOL-USD
+    - XRP-USD
+    - ADA-USD
+    - DOGE-USD
+    - LTC-USD
+    - LINK-USD
+    - AVAX-USD
+    - DOT-USD
+
 # Explicit pairs are optional. The engine also auto-matches the same asset
-# across Coinbase / Kraken / Gemini / Bitstamp / Yahoo / Binance.
+# across Coinbase / Kraken / Gemini / OANDA / Robinhood.
 cross_venue: []

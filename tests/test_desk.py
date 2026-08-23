@@ -63,6 +63,24 @@ def test_notional_allows_one_dollar_taps() -> None:
     assert 5 in desk.presets()
 
 
+def test_notional_allows_dime_taps_when_floor_is_dime() -> None:
+    desk = TradeDesk(live=True, live_max=25, min_notional=0.10)
+    desk.apply({"notional": 0.10})
+    assert desk.notional == 0.10
+    assert 0.10 in desk.presets()
+
+
+def test_desk_hides_yahoo_and_bitstamp() -> None:
+    desk = TradeDesk()
+    yahoo = _opp(venues=("yahoo", "coinbase"))
+    bitstamp = _opp(venues=("bitstamp", "bitstamp"))
+    assert not desk.matches(yahoo)
+    assert not desk.matches(bitstamp)
+    assert desk.quote_ok(_quote("yahoo", "EUR-USD", 1.1), None) is False
+    assert "bitstamp" not in [row["id"] for row in desk.to_dict()["venue_choices"]]
+    assert "yahoo" not in [row["id"] for row in desk.to_dict()["venue_choices"]]
+
+
 def test_notional_clamps_to_cap() -> None:
     desk = TradeDesk(live=True, live_max=25, max_notional=250)
     desk.apply({"notional": 500})

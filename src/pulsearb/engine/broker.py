@@ -332,6 +332,9 @@ class LiveRouter(Broker):
         coinbase: Broker | None = None,
         kraken: Broker | None = None,
         binance: Broker | None = None,
+        oanda: Broker | None = None,
+        gemini: Broker | None = None,
+        robinhood: Broker | None = None,
         *,
         armed: bool = True,
         live_venue: str = "coinbase",
@@ -340,6 +343,9 @@ class LiveRouter(Broker):
         self.coinbase = coinbase
         self.kraken = kraken
         self.binance = binance
+        self.oanda = oanda
+        self.gemini = gemini
+        self.robinhood = robinhood
         self.armed = armed
         self.live_venue = str(live_venue or "coinbase").strip().lower()
         self.fills: list[Fill] = []
@@ -355,12 +361,18 @@ class LiveRouter(Broker):
             return self.kraken
         if venue == "binance":
             return self.binance
+        if venue == "oanda":
+            return self.oanda
+        if venue == "gemini":
+            return self.gemini
+        if venue == "robinhood":
+            return self.robinhood
         return None
 
     @property
     def live_pnl(self) -> float:
         total = 0.0
-        for name in ("coinbase", "kraken", "binance"):
+        for name in ("coinbase", "kraken", "binance", "oanda", "gemini", "robinhood"):
             broker = self._broker(name)
             if broker is not None:
                 total += float(getattr(broker, "pnl", 0.0))
@@ -382,6 +394,12 @@ class LiveRouter(Broker):
             names.append("kraken")
         if self.binance is not None:
             names.append("binance")
+        if self.oanda is not None:
+            names.append("oanda")
+        if self.gemini is not None:
+            names.append("gemini")
+        if self.robinhood is not None:
+            names.append("robinhood")
         return names
 
     async def execute(self, opportunity: Opportunity) -> list[Fill]:

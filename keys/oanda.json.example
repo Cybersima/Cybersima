@@ -1,0 +1,5 @@
+{
+  "account_id": "PASTE_OANDA_ACCOUNT_ID_HERE",
+  "access_token": "PASTE_OANDA_PERSONAL_ACCESS_TOKEN_HERE",
+  "environment": "practice"
+}

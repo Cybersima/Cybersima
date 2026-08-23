@@ -152,6 +152,10 @@ def to_native_symbol(venue: str, canonical: str) -> str:
     if venue == "binance":
         q = "USDT" if quote == "USD" else quote
         return f"{base}{q}"
+    if venue == "oanda":
+        return f"{base}_{quote}"
+    if venue == "robinhood":
+        return f"{base}-{quote}"
     return canonical
 
 

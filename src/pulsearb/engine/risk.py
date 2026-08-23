@@ -67,7 +67,12 @@ class RiskManager:
         if self.killed:
             return RiskDecision(False, "kill switch is on")
         if notional + 1e-9 < self.min_notional_usdt:
-            return RiskDecision(False, f"size below ${self.min_notional_usdt:.0f} minimum")
+            shown = (
+                f"{self.min_notional_usdt:.2f}"
+                if self.min_notional_usdt < 1
+                else f"{self.min_notional_usdt:.0f}"
+            )
+            return RiskDecision(False, f"size below ${shown} minimum")
         if notional > self.max_notional_usdt:
             return RiskDecision(False, "notional exceeds cap")
         left = self.remaining_budget()
