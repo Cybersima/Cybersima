@@ -81,5 +81,7 @@ Real Coinbase or Kraken orders (your money):
    triangles — including Kraken FX (EUR/GBP) from Kraken’s ticker.
    Yahoo and Bitstamp are not on the desk. Raising the tap
    does not create a gap. Cross-venue two-exchange gaps stay paper.
+   Dislocations can take from 15 bps net after fees; triangles and
+   paper two-exchange clicks need 25. Live never takes two exchanges.
 
 © CyberSym. All rights reserved.

@@ -28,8 +28,22 @@ fees:
   robinhood_taker_bps: 85.0
   extra_slippage_bps: 2.0
 
+# Board rows: net bps after estimated fees. Invest/Auto use the
+# per-strategy take floors below — same unit, not one number.
+# Triangles pay three fills; dislocations pay two.
 min_edge_bps: 8.0
 min_executable_edge_bps: 15.0
+strategy_edges:
+  dislocation:
+    min_edge_bps: 8.0
+    min_executable_edge_bps: 15.0
+  triangular:
+    min_edge_bps: 8.0
+    min_executable_edge_bps: 25.0
+  cross_venue:
+    min_edge_bps: 8.0
+    # Paper click only. Live still refuses two-exchange routes.
+    min_executable_edge_bps: 25.0
 max_raw_edge_bps: 300.0
 max_quote_skew_seconds: 1.5
 

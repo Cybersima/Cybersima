@@ -26,6 +26,7 @@ def detect_cross_venue(
     max_raw_edge_bps: float = 300.0,
     max_quote_age: float | None = None,
     max_quote_skew: float = 1.5,
+    min_executable_edge_bps: float | None = None,
 ) -> list[Opportunity]:
     found: list[Opportunity] = []
     now = time.time()
@@ -53,6 +54,7 @@ def detect_cross_venue(
                 max_raw_edge_bps=max_raw_edge_bps,
                 max_quote_age=max_quote_age,
                 max_quote_skew=max_quote_skew,
+                min_executable_edge_bps=min_executable_edge_bps,
             )
         )
     return found
@@ -68,6 +70,7 @@ def detect_auto_cross(
     stale_seconds: float = 8.0,
     max_raw_edge_bps: float = 300.0,
     max_quote_skew: float = 1.5,
+    min_executable_edge_bps: float | None = None,
 ) -> list[Opportunity]:
     groups: dict[str, list[Quote]] = {}
     now = time.time()
@@ -96,6 +99,7 @@ def detect_auto_cross(
                     max_raw_edge_bps=max_raw_edge_bps,
                     max_quote_age=stale_seconds,
                     max_quote_skew=max_quote_skew,
+                    min_executable_edge_bps=min_executable_edge_bps,
                 )
             )
     return found
@@ -113,8 +117,10 @@ def _cross_from_quotes(
     max_raw_edge_bps: float = 300.0,
     max_quote_age: float | None = None,
     max_quote_skew: float = 1.5,
+    min_executable_edge_bps: float | None = None,
 ) -> list[Opportunity]:
     out: list[Opportunity] = []
+    min_exec = min_edge_bps if min_executable_edge_bps is None else min_executable_edge_bps
     for cheap, rich in ((a, b), (b, a)):
         if cheap.ask <= 0 or rich.bid <= 0:
             continue
@@ -134,8 +140,9 @@ def _cross_from_quotes(
             aligned = _quotes_aligned(
                 [cheap, rich], now, max_age=max_quote_age, max_skew=max_quote_skew
             )
-        executable = bool(cheap.executable and rich.executable and aligned)
-        kind = OpportunityKind.CROSS_VENUE if executable else OpportunityKind.ALERT
+        books_ok = bool(cheap.executable and rich.executable and aligned)
+        executable = books_ok and net >= min_exec - 1e-9
+        kind = OpportunityKind.CROSS_VENUE if books_ok else OpportunityKind.ALERT
         summary = (
             f"Buy {cheap.native_symbol} on {cheap.venue} @ {cheap.ask:.6g} / "
             f"sell {rich.native_symbol} on {rich.venue} @ {rich.bid:.6g}"

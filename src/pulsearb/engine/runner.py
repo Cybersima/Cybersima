@@ -522,6 +522,7 @@ class Engine:
             elif not live_rows:
                 parts.append(
                     f"Auto is on. No executable {venue} USD-start row this scan. "
+                    f"USD/USDC dislocations take from 15 bps net; triangles from 25. "
                     f"Raising the tap to ${self.desk.notional:.0f} does not create a gap."
                 )
             else:
@@ -531,7 +532,8 @@ class Engine:
         elif not live_rows:
             parts.append(
                 f"No executable {venue} USD-start row right now. "
-                f"A ${self.desk.notional:.0f} tap still needs a real same-exchange gap after fees."
+                f"A ${self.desk.notional:.0f} tap still needs a real same-exchange gap after fees "
+                f"(15 bps net for USD/USDC, 25 bps for triangles)."
             )
         if self.last_block:
             note = str(self.last_block.get("note") or "")
@@ -556,7 +558,10 @@ class Engine:
             self._set_last_block(error, source="invest")
             return {"ok": False, "error": error}
         if not opp.executable:
-            error = "That row is watch-only (delayed data)."
+            if opp.legs and all(leg.executable for leg in opp.legs):
+                error = "That row is watch-only — net edge is below its take floor."
+            else:
+                error = "That row is watch-only (delayed data)."
             self._set_last_block(error, source="invest")
             return {"ok": False, "error": error}
         if not self.desk.matches(opp, self.book):
@@ -735,8 +740,9 @@ class Engine:
         interval = self.config.scan_interval_ms / 1000.0
         fee_map = self._fee_map
         extra = self._slippage
-        min_alert = float(self.config.settings.get("min_edge_bps", 8))
-        min_exec = float(self.config.settings.get("min_executable_edge_bps", 15))
+        disloc_alert, disloc_exec = self.config.strategy_edge("dislocation")
+        tri_alert, tri_exec = self.config.strategy_edge("triangular")
+        cross_alert, cross_exec = self.config.strategy_edge("cross_venue")
         stale = float(self.config.risk.get("stale_quote_seconds", 8))
         max_raw = float(self.config.settings.get("max_raw_edge_bps", 300))
         max_skew = float(self.config.settings.get("max_quote_skew_seconds", 1.5))
@@ -746,24 +752,26 @@ class Engine:
             cross = detect_cross_venue(
                 self.book,
                 self.config.markets.get("cross_venue") or [],
-                min_alert,
+                cross_alert,
                 fee_map,
                 extra,
                 notional,
                 max_raw_edge_bps=max_raw,
                 max_quote_age=stale,
                 max_quote_skew=max_skew,
+                min_executable_edge_bps=cross_exec,
             )
             auto = detect_auto_cross(
                 self.book,
                 self.config.usd_equivalents,
-                min_alert,
+                cross_alert,
                 fee_map,
                 extra,
                 notional,
                 stale_seconds=stale,
                 max_raw_edge_bps=max_raw,
                 max_quote_skew=max_skew,
+                min_executable_edge_bps=cross_exec,
             )
             triangles: list[Opportunity] = []
             for venue, tri in self.triangles_by_venue.items():
@@ -774,12 +782,12 @@ class Engine:
                     detect_triangles(
                         self.book,
                         tri,
-                        min_alert,
+                        tri_alert,
                         taker,
                         extra,
                         notional,
                         venue=scan_venue,
-                        min_executable_edge_bps=min_exec,
+                        min_executable_edge_bps=tri_exec,
                         max_raw_edge_bps=max_raw,
                         max_quote_age=stale,
                         max_quote_skew=max_skew,
@@ -792,11 +800,11 @@ class Engine:
                     detect_quote_dislocations(
                         self.book,
                         venue=venue,
-                        min_edge_bps=min_alert,
+                        min_edge_bps=disloc_alert,
                         fee_map=fee_map,
                         extra_slippage_bps=extra,
                         notional=notional,
-                        min_executable_edge_bps=min_exec,
+                        min_executable_edge_bps=disloc_exec,
                         max_raw_edge_bps=max_raw,
                         max_quote_age=stale,
                         max_quote_skew=max_skew,

@@ -41,3 +41,21 @@ def test_kraken_universe_includes_live_fx_triangle() -> None:
     assert config.fee_map()["kraken_fx"] == 20.0
     assert config.fee_map()["kraken_maker"] == 16.0
     assert config.maker_exits() is True
+
+
+def test_strategy_edge_defaults_split_take_floors() -> None:
+    config = AppConfig()
+    show, take = config.strategy_edge("dislocation")
+    assert show == 8.0
+    assert take == 15.0
+    show, take = config.strategy_edge("triangular")
+    assert show == 8.0
+    assert take == 25.0
+    show, take = config.strategy_edge("cross_venue")
+    assert show == 8.0
+    assert take == 25.0
+    show, take = config.strategy_edge("triangle")
+    assert take == 25.0
+    show, take = config.strategy_edge("unknown")
+    assert show == 8.0
+    assert take == 15.0

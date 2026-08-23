@@ -235,6 +235,37 @@ class AppConfig:
         mapping["kraken_fx_maker"] = float(fees.get("kraken_fx_maker_bps", 16.0))
         return mapping
 
+    def strategy_edge(self, kind: str) -> tuple[float, float]:
+        """Return (show_bps, take_bps) net after estimated fees for a scanner kind.
+
+        kind: dislocation | triangular | cross_venue (aliases accepted).
+        Missing keys fall back to the global min_edge_bps / min_executable_edge_bps.
+        """
+        default_alert = float(self.settings.get("min_edge_bps", 8))
+        default_exec = float(self.settings.get("min_executable_edge_bps", 15))
+        aliases = {
+            "dislocation": "dislocation",
+            "triangular": "triangular",
+            "triangle": "triangular",
+            "cross_venue": "cross_venue",
+            "cross-venue": "cross_venue",
+            "cross": "cross_venue",
+        }
+        key = aliases.get(str(kind).strip().lower(), str(kind).strip().lower())
+        raw = self.settings.get("strategy_edges") or {}
+        block = raw.get(key) if isinstance(raw, dict) else None
+        if not isinstance(block, dict):
+            return default_alert, default_exec
+        try:
+            alert = float(block.get("min_edge_bps", default_alert))
+        except (TypeError, ValueError):
+            alert = default_alert
+        try:
+            take = float(block.get("min_executable_edge_bps", default_exec))
+        except (TypeError, ValueError):
+            take = default_exec
+        return alert, take
+
     def maker_exits(self) -> bool:
         return bool((self.settings.get("execution") or {}).get("maker_exits", True))
 

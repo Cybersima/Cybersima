@@ -23,6 +23,10 @@ What goes live
   USD vs USDC dislocations (buy cheap, sell rich, convert leftover
   USDC back to USD) and same-exchange triangles — including Kraken
   FX (EUR-USD, GBP-USD, EUR-GBP) from Kraken’s own ticker.
+• Take floors are net bps after estimated fees, not one shared number:
+  dislocations 15 bps, triangles 25 bps (three fills). Rows still
+  show from 8 bps. Cross-venue paper clicks also need 25 bps; live
+  still refuses two-exchange routes.
 • Coinbase does not list EUR-USD; it lists USDC-EUR / USDC-GBP.
   Kraken FX uses Kraken’s own ticker. OANDA is a separate FX account.
 • Buys are market. Sells and flatten post a maker limit (Kraken ~16 bps,

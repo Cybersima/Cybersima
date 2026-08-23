@@ -328,3 +328,82 @@ def test_cross_venue_drops_fantasy_raw_edge() -> None:
     )
     assert opps == []
 
+
+def test_dislocation_take_floor_is_fifteen_not_twenty_five() -> None:
+    book = MarketBook()
+    book.update(make_quote("coinbase", "BTC-USD", 99990, 100000, executable=True))
+    book.update(make_quote("coinbase", "BTC-USDC", 101080, 101090, executable=True))
+    book.update(make_quote("coinbase", "USDC-USD", 0.999, 1.001, executable=True))
+    kwargs = dict(
+        venue="coinbase",
+        min_edge_bps=8,
+        fee_map={"coinbase": 50, "coinbase_maker": 40, "coinbase_stable": 1.0},
+        extra_slippage_bps=2,
+        notional=10,
+    )
+    at_fifteen = detect_quote_dislocations(book, **kwargs, min_executable_edge_bps=15)
+    at_twenty_five = detect_quote_dislocations(book, **kwargs, min_executable_edge_bps=25)
+    assert at_fifteen
+    best = max(at_fifteen, key=lambda row: row.net_edge_bps)
+    assert best.kind is OpportunityKind.DISLOCATION
+    assert 15 <= best.net_edge_bps < 25
+    assert best.executable
+    assert at_twenty_five
+    assert all(not row.executable for row in at_twenty_five)
+
+
+def test_triangle_watch_only_between_dislocation_and_triangle_take_floors() -> None:
+    book = MarketBook()
+    book.update(make_quote("coinbase", "BTC-USD", 100000, 100010))
+    book.update(make_quote("coinbase", "ETH-USD", 2000, 2001))
+    book.update(make_quote("coinbase", "ETH-BTC", 0.01967, 0.01968))
+    triangles = discover_triangles(["BTC-USD", "ETH-USD", "ETH-BTC"])
+    kwargs = dict(
+        min_edge_bps=8,
+        taker_bps=50,
+        extra_slippage_bps=2,
+        notional=5,
+        venue="coinbase",
+        maker_bps=40,
+    )
+    watch = detect_triangles(book, triangles, **kwargs, min_executable_edge_bps=25)
+    take = detect_triangles(book, triangles, **kwargs, min_executable_edge_bps=15)
+    assert watch
+    best = max(watch, key=lambda row: row.net_edge_bps)
+    assert best.kind is OpportunityKind.TRIANGULAR
+    assert 15 <= best.net_edge_bps < 25
+    assert not best.executable
+    assert take
+    assert max(take, key=lambda row: row.net_edge_bps).executable
+
+
+def test_cross_venue_paper_click_floor_is_twenty_five() -> None:
+    thin = MarketBook()
+    thin.update(make_quote("coinbase", "BTC-USD", 99990, 100000, executable=True))
+    thin.update(make_quote("kraken", "XBTUSD", 100900, 100920, executable=True))
+    kwargs = dict(
+        usd_equivalents={"USD", "USDT", "USDC"},
+        min_edge_bps=8,
+        fee_bps_by_venue={"coinbase": 50, "kraken": 26},
+        extra_slippage_bps=2,
+        notional=10,
+        min_executable_edge_bps=25,
+    )
+    thin_rows = detect_auto_cross(thin, **kwargs)
+    assert thin_rows
+    best_thin = max(thin_rows, key=lambda row: row.net_edge_bps)
+    assert best_thin.kind is OpportunityKind.CROSS_VENUE
+    assert 8 <= best_thin.net_edge_bps < 25
+    assert not best_thin.executable
+
+    fat = MarketBook()
+    fat.update(make_quote("coinbase", "BTC-USD", 99990, 100000, executable=True))
+    fat.update(make_quote("kraken", "XBTUSD", 101080, 101100, executable=True))
+    fat_rows = detect_auto_cross(fat, **kwargs)
+    assert fat_rows
+    best_fat = max(fat_rows, key=lambda row: row.net_edge_bps)
+    assert best_fat.kind is OpportunityKind.CROSS_VENUE
+    assert best_fat.net_edge_bps >= 25
+    assert best_fat.executable
+
+

@@ -830,10 +830,18 @@ function render() {
         } else if (!row.executable) {
           const note = document.createElement("div");
           note.className = "hint";
-          note.textContent =
-            row.kind === "triangular"
-              ? "Watch only — after three exchange fees this edge is too small to take."
-              : "Watch only — delayed data, not an order.";
+          if (row.kind === "triangular") {
+            note.textContent =
+              "Watch only — after three exchange fees this edge is below the 25 bps triangle take floor.";
+          } else if (row.kind === "dislocation") {
+            note.textContent =
+              "Watch only — after fees this USD/USDC gap is below the 15 bps dislocation take floor.";
+          } else if (row.kind === "cross_venue") {
+            note.textContent =
+              "Watch only — after two-exchange fees this gap is below the 25 bps paper click floor. Live never takes cross-venue.";
+          } else {
+            note.textContent = "Watch only — delayed data, not an order.";
+          }
           li.append(note);
         }
         return li;
