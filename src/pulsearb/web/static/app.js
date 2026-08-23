@@ -1179,6 +1179,7 @@ async function paintSecurity() {
       data.note,
     ];
     guardBanner.textContent = bits.filter(Boolean).join(" · ");
+    paintPhonePair();
   } catch (err) {
     /* ignore */
   }
@@ -1224,3 +1225,105 @@ async function paintLiveReady() {
     if (liveReadyRefresh) liveReadyRefresh.disabled = false;
   }
 }
+
+const PANE_KEY = "cybersym-pane";
+const PANES = ["trades", "desk", "markets", "more"];
+
+function isStandaloneApp() {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true
+  );
+}
+
+function isPhoneShell() {
+  return window.matchMedia("(max-width: 720px)").matches || isStandaloneApp();
+}
+
+function setPane(name) {
+  const next = PANES.includes(name) ? name : "trades";
+  document.body.dataset.pane = next;
+  document.querySelectorAll("#phone-dock [data-pane]").forEach((btn) => {
+    const on = btn.dataset.pane === next;
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  try {
+    localStorage.setItem(PANE_KEY, next);
+  } catch (err) {
+    /* private mode */
+  }
+}
+
+function setupPhoneShell() {
+  const dock = document.getElementById("phone-dock");
+  if (dock) {
+    dock.querySelectorAll("[data-pane]").forEach((btn) => {
+      btn.addEventListener("click", () => setPane(btn.dataset.pane));
+    });
+  }
+  let saved = "trades";
+  try {
+    saved = localStorage.getItem(PANE_KEY) || "trades";
+  } catch (err) {
+    saved = "trades";
+  }
+  setPane(saved);
+  const banner = document.getElementById("phone-install");
+  if (banner) banner.hidden = !(isPhoneShell() && !isStandaloneApp());
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+  }
+}
+
+async function paintPhonePair() {
+  const box = document.getElementById("phone-pair");
+  const list = document.getElementById("phone-urls");
+  if (!box || !list) return;
+  if (isPhoneShell()) {
+    box.hidden = true;
+    return;
+  }
+  try {
+    const res = await fetch("/api/phone");
+    if (!res.ok) return;
+    const data = await res.json();
+    const urls = data.urls || [];
+    if (!data.lan || !urls.length) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    list.replaceChildren(
+      ...urls.map((url) => {
+        const li = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = url;
+        link.textContent = url;
+        const copy = document.createElement("button");
+        copy.type = "button";
+        copy.className = "phone-copy";
+        copy.textContent = "Copy";
+        copy.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(url);
+            copy.textContent = "Copied";
+            setTimeout(() => {
+              copy.textContent = "Copy";
+            }, 1200);
+          } catch (err) {
+            showToast(url);
+          }
+        });
+        li.append(link, copy);
+        return li;
+      })
+    );
+  } catch (err) {
+    box.hidden = true;
+  }
+}
+
+setupPhoneShell();
+paintPhonePair();
+

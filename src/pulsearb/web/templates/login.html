@@ -2,8 +2,13 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="{{ product_short }}" />
   <meta name="theme-color" content="#05070c" />
+  <meta name="application-name" content="{{ product }}" />
   <title>{{ product }} lock</title>
   <script>
     (function () {
@@ -15,9 +20,11 @@
     })();
   </script>
   <link rel="icon" href="{{ logo_src }}" />
+  <link rel="apple-touch-icon" href="{{ logo_src }}" />
+  <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/static/app.css" />
 </head>
-<body>
+<body class="lock-body">
   <div class="app lock-app">
     <header class="masthead">
       <div class="brand">
@@ -25,21 +32,33 @@
         <div class="brand-copy">
           <p class="company">{{ company }}</p>
           <h1>{{ product_short }}</h1>
-          <p class="lede">Enter the lock PIN from the black SecureTrade window.</p>
+          <p class="lede">Phone app lock. Enter the PIN from the black SecureTrade window on the PC.</p>
         </div>
       </div>
     </header>
+    <p class="phone-install" id="phone-install" hidden>
+      After you unlock, Add to Home Screen so SecureTrade opens like an app. The scanner stays on the PC.
+    </p>
     <section class="desk-block lock-card">
       <label for="pin">Dashboard lock PIN</label>
       <form id="lock-form">
         <input id="pin" name="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="6-digit PIN" />
         <button type="submit" class="invest-btn">Unlock</button>
       </form>
-      <p class="hint" id="lock-hint">This computer’s browser should unlock by itself. Phone or iPad: type the PIN printed in the black window. Keys never go in the browser.</p>
+      <p class="hint" id="lock-hint">This computer’s browser should unlock by itself. Phone: type the PIN printed in the black window. Keys never go in the browser.</p>
       <p class="hint" id="lock-error" hidden></p>
     </section>
   </div>
   <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function () {});
+    }
+    (function () {
+      var standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      var phone = window.matchMedia("(max-width: 720px)").matches || standalone;
+      var banner = document.getElementById("phone-install");
+      if (banner && phone && !standalone) banner.hidden = false;
+    })();
     const form = document.getElementById("lock-form");
     const pin = document.getElementById("pin");
     const err = document.getElementById("lock-error");

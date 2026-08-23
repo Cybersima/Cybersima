@@ -23,22 +23,35 @@ from pulsearb.branding import (
 )
 from pulsearb.engine.report import REPORT_HEADERS
 from pulsearb.engine.runner import Engine, run_engine
+from pulsearb.netutil import lan_urls
 from pulsearb.web.guard import COOKIE, DashboardGuard
 
 WEB_DIR = Path(__file__).resolve().parent
-OPEN_PATHS = {"/login", "/api/unlock", "/brand/logo"}
+OPEN_PATHS = {"/login", "/api/unlock", "/brand/logo", "/sw.js", "/manifest.json"}
+SESSION_MAX_AGE = 7 * 24 * 60 * 60
 
 
 class GuardMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         guard: DashboardGuard = request.app.state.guard
         path = request.url.path
-        if path.startswith("/static/") or path.startswith("/brand/") or path in OPEN_PATHS:
+        if (
+            path.startswith("/static/")
+            or path.startswith("/brand/")
+            or path in OPEN_PATHS
+        ):
             return await call_next(request)
         token = request.query_params.get("unlock")
         if token and guard.token_ok(token):
             response = RedirectResponse(url="/", status_code=303)
-            response.set_cookie(COOKIE, guard.cookie, httponly=True, samesite="lax", path="/")
+            response.set_cookie(
+                COOKIE,
+                guard.cookie,
+                httponly=True,
+                samesite="lax",
+                path="/",
+                max_age=SESSION_MAX_AGE,
+            )
             return response
         if guard.cookie_ok(request.cookies.get(COOKIE)):
             return await call_next(request)
@@ -69,7 +82,14 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     app.add_middleware(GuardMiddleware)
 
     def _set_session(response: Response) -> None:
-        response.set_cookie(COOKIE, app.state.guard.cookie, httponly=True, samesite="lax", path="/")
+        response.set_cookie(
+            COOKIE,
+            app.state.guard.cookie,
+            httponly=True,
+            samesite="lax",
+            path="/",
+            max_age=SESSION_MAX_AGE,
+        )
 
     def _logo_file() -> FileResponse:
         path = resolve_logo_path(WEB_DIR)
@@ -98,6 +118,41 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
     @app.get("/brand/logo")
     async def brand_logo() -> FileResponse:
         return _logo_file()
+
+    @app.get("/sw.js")
+    async def service_worker() -> FileResponse:
+        return FileResponse(
+            WEB_DIR / "static" / "sw.js",
+            media_type="application/javascript",
+            headers={"Cache-Control": "no-store", "Service-Worker-Allowed": "/"},
+        )
+
+    @app.get("/manifest.json")
+    async def web_manifest() -> FileResponse:
+        return FileResponse(
+            WEB_DIR / "static" / "manifest.json",
+            media_type="application/manifest+json",
+            headers={"Cache-Control": "no-store"},
+        )
+
+    @app.get("/api/phone")
+    async def phone_pair() -> dict:
+        host = engine.config.host
+        lan = host in {"0.0.0.0", "::"}
+        urls = lan_urls(engine.config.port) if lan else []
+        return {
+            "ok": True,
+            "lan": lan,
+            "port": engine.config.port,
+            "urls": urls,
+            "local": f"http://127.0.0.1:{engine.config.port}",
+            "pin_hint": "Type the 6-digit PIN from the black SecureTrade window.",
+            "install": (
+                "iPhone: Safari → Share → Add to Home Screen. "
+                "Android: Chrome menu → Add to Home screen / Install app. "
+                "The scanner stays running on this PC."
+            ),
+        }
 
     @app.get("/static/logo.png")
     async def branded_logo() -> FileResponse:
@@ -176,7 +231,7 @@ def create_app(engine: Engine, start_engine: bool = False) -> FastAPI:
             "network_note": (
                 "Dashboard is only on this computer."
                 if local
-                else "Dashboard is on your Wi-Fi. Anyone needs the PIN."
+                else "Dashboard is on your Wi-Fi. Phone needs the PIN. See PHONE.txt."
             ),
             "execution": "live" if engine.live_active() else "paper",
             "live_cap": engine.config.live_notional() if engine.live_active() else engine.desk.notional,

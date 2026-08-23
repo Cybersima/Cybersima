@@ -9,7 +9,7 @@ import uvicorn
 from pulsearb.branding import PRODUCT
 from pulsearb.config import AppConfig
 from pulsearb.engine.runner import Engine
-from pulsearb.netutil import choose_port
+from pulsearb.netutil import choose_port, lan_urls
 from pulsearb.web.app import create_app
 
 
@@ -18,7 +18,10 @@ def build_parser() -> argparse.ArgumentParser:
         prog="securetrade",
         description=f"{PRODUCT}: scan 50+ crypto and FX markets on Coinbase, Kraken, Gemini, Bitstamp, and Yahoo. Paper trading by default.",
     )
-    parser.add_argument("--host", help="Dashboard bind host (default 127.0.0.1). Use 0.0.0.0 for iPad on Wi-Fi; the lock PIN is required.")
+    parser.add_argument(
+        "--host",
+        help="Dashboard bind host (default 127.0.0.1). 0.0.0.0 shares it on this Wi-Fi for the phone app; the lock PIN is required.",
+    )
     parser.add_argument("--port", type=int, help="Dashboard port")
     parser.add_argument("--demo", action="store_true", help="Offline simulator only — no live APIs")
     parser.add_argument(
@@ -86,7 +89,18 @@ def main(argv: list[str] | None = None) -> None:
     print(f"{PRODUCT} dashboard: {url}")
     print(f"{PRODUCT} lock PIN: {guard.pin}")
     print(f"{PRODUCT}: this computer's browser unlocks automatically.")
-    print(f"{PRODUCT}: phone or iPad — type that PIN on the lock screen.")
+    phone = lan_urls(port) if config.host in {"0.0.0.0", "::"} else []
+    if config.host in {"0.0.0.0", "::"}:
+        if phone:
+            print(f"{PRODUCT} phone app on this Wi-Fi (same network as this PC):")
+            for item in phone:
+                print(f"    {item}")
+        else:
+            print(f"{PRODUCT}: phone app is listening on this Wi-Fi. If no address is listed, see PHONE.txt.")
+        print(f"{PRODUCT}: on the phone, type that PIN. Then Add to Home Screen — see PHONE.txt.")
+        print(f"{PRODUCT}: if the phone cannot open it, Allow Python on the Windows firewall popup.")
+    else:
+        print(f"{PRODUCT}: phone or iPad — start with --host 0.0.0.0 (start.bat already does), then type that PIN.")
     if engine.report.csv_path:
         print(f"{PRODUCT} profit report: {engine.report.csv_path}")
     if config.live_enabled():

@@ -50,7 +50,7 @@ To rebuild a zip locally: `bash scripts/make-zip.sh`
 - **Cross-venue gaps** between those US venues (executable in paper mode)
 - **Triangular arb** inside a single venue (e.g. BTC / ETH / USD on Coinbase or Kraken)
 - **Paper broker** by default, with a kill switch, notional cap, cooldown, and daily loss limit
-- **iPad / tablet dashboard** at `http://<this-machine>:8080` (PWA-capable, large blotter, Add to Home Screen)
+- **Phone app** on the same Wi-Fi: open the address printed in the black window, type the PIN, then Add to Home Screen (`PHONE.txt`). The scanner stays on the PC.
 - **Binance** remains optional (`python -m pulsearb --binance`) for non-US users
 
 ## Quick start
@@ -70,7 +70,7 @@ Live market data (still paper trading):
 python -m pulsearb
 ```
 
-On an iPad on the same Wi-Fi, start with `--host 0.0.0.0`, open `http://<your-lan-ip>:8080`, and enter the lock PIN from the black window. Then use Share → Add to Home Screen.
+On a phone on the same Wi-Fi, start with `--host 0.0.0.0` (start.bat already does), open the phone address printed in the black window, enter the lock PIN, then Share → Add to Home Screen. See `PHONE.txt`.
 
 ## Configuration
 

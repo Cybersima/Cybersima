@@ -4,10 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="{{ product_short }}" />
   <meta name="theme-color" content="#05070c" />
   <meta name="application-name" content="{{ product }}" />
+  <meta name="format-detection" content="telephone=no" />
   <title>{{ product }} — {{ company }}</title>
   <script>
     (function () {
@@ -23,13 +25,13 @@
   </script>
   <link rel="icon" href="{{ logo_src }}" />
   <link rel="apple-touch-icon" href="{{ logo_src }}" />
-  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="manifest" href="/manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/app.css" />
 </head>
-<body>
+<body data-pane="trades">
   <div class="app">
     <header class="masthead">
       <div class="brand">
@@ -46,25 +48,34 @@
           <span class="badge" id="exec-badge">{{ execution }}</span>
           <span class="badge dim" id="feed-badge">connecting</span>
         </div>
-        <div class="appearance">
+        <div class="appearance pane-more">
           <span class="tag">Look</span>
           <div class="segmented" role="group" aria-label="Appearance">
             <button type="button" id="theme-dark" class="on" aria-pressed="true">Dark</button>
             <button type="button" id="theme-light" aria-pressed="false">Light</button>
           </div>
         </div>
-        <div class="appearance">
+        <div class="appearance pane-more">
           <span class="tag">Sound</span>
           <div class="segmented" role="group" aria-label="Trade alert sound">
             <button type="button" id="sound-on" class="on" aria-pressed="true">On</button>
             <button type="button" id="sound-off" aria-pressed="false">Off</button>
           </div>
         </div>
-        <a id="export-report" class="export-btn" href="/api/report.csv" download="CyberSym-SecureTrade-profit-report.csv">Export my trades</a>
+        <a id="export-report" class="export-btn pane-more" href="/api/report.csv" download="CyberSym-SecureTrade-profit-report.csv">Export my trades</a>
         <button id="kill" type="button">Kill switch</button>
       </div>
     </header>
 
+    <p class="phone-install" id="phone-install" hidden>
+      This is the phone app. Add it to your Home Screen: iPhone Safari → Share → Add to Home Screen.
+      Android Chrome → menu → Add to Home screen. Leave the black window open on the PC.
+    </p>
+    <section class="phone-pair" id="phone-pair" hidden>
+      <label>Phone app</label>
+      <p class="hint" id="phone-pair-copy">Same Wi-Fi as this PC. Open the address below, type the PIN from the black window, then Add to Home Screen. See PHONE.txt.</p>
+      <ul id="phone-urls" class="phone-urls"></ul>
+    </section>
     <p class="live-banner" id="live-banner" hidden></p>
     <p class="block-banner" id="block-banner" hidden></p>
     <p class="guard-banner" id="guard-banner"></p>
@@ -89,7 +100,7 @@
       </article>
     </section>
 
-    <section class="live-ready" id="live-ready" aria-label="Ready for live trading">
+    <section class="live-ready pane-desk" id="live-ready" aria-label="Ready for live trading">
       <div class="live-ready-head">
         <label>Paper or live</label>
         <div class="live-ready-actions">
@@ -116,7 +127,7 @@
       <ul id="live-ready-list" class="ready-list"></ul>
     </section>
 
-    <section class="desk" id="desk" aria-label="Choose what to invest">
+    <section class="desk pane-desk" id="desk" aria-label="Choose what to invest">
       <div class="desk-block amount-block">
         <label for="invest-amount">How much per tap</label>
         <div class="amount-row">
@@ -175,7 +186,7 @@
       </div>
     </section>
 
-    <section class="kpis">
+    <section class="kpis pane-more">
       <article><label>Markets live</label><strong id="kpi-live">0</strong></article>
       <article><label>Scan</label><strong id="kpi-scan">0 ms</strong></article>
       <article><label>Opportunities</label><strong id="kpi-opps">0</strong></article>
@@ -185,14 +196,14 @@
     </section>
 
     <main class="layout">
-      <section class="panel">
+      <section class="panel pane-markets">
         <header>
           <h2>Markets</h2>
           <input id="filter" type="search" placeholder="Find BTC, ETH, Coinbase…" />
         </header>
         <div id="grid" class="grid"></div>
       </section>
-      <aside class="side">
+      <aside class="side pane-trades">
         <section class="panel">
           <header>
             <h2>Trades for you</h2>
@@ -213,7 +224,7 @@
       </aside>
     </main>
 
-    <footer class="sig">
+    <footer class="sig pane-more">
       <img class="sig-logo" src="{{ logo_src }}" width="40" height="40" alt="" />
       <div>
         <strong>{{ product }}</strong>
@@ -225,6 +236,12 @@
         This is a scanner, not a profit guarantee. {{ copyright }}
       </p>
     </footer>
+    <nav class="phone-dock" id="phone-dock" aria-label="Phone app">
+      <button type="button" data-pane="trades" class="on" aria-pressed="true">Trades</button>
+      <button type="button" data-pane="desk">Desk</button>
+      <button type="button" data-pane="markets">Markets</button>
+      <button type="button" data-pane="more">More</button>
+    </nav>
   </div>
   <script src="/static/app.js"></script>
 </body>

@@ -15,7 +15,9 @@ If several Pythons are installed, the app uses C:\Python314\python.exe
 first, not "py -3". Optional: python-path.txt next to start.bat with one
 line = full path to python.exe.
 
-Dashboard: http://127.0.0.1:8080
+Dashboard: http://127.0.0.1:8080 on this PC.
+Phone app: same Wi-Fi, use the phone address in the black window,
+type the PIN, then Add to Home Screen. Read PHONE.txt.
 start-live.bat = live prices, paper trades. Practice on Paper.
 GO-LIVE.bat still starts already live if you prefer.
 

@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from pulsearb.config import AppConfig
@@ -51,6 +53,9 @@ def test_dashboard_and_kill_switch() -> None:
     assert 'id="cash-bar"' in page.text
     assert "Your trades" in page.text
     assert 'id="live-banner"' in page.text
+    assert 'id="phone-dock"' in page.text
+    assert 'id="phone-install"' in page.text
+    assert "/manifest.json" in page.text
     assert 'id="block-banner"' in page.text
     assert 'id="guard-banner"' in page.text
     assert 'id="live-ready"' in page.text
@@ -87,6 +92,8 @@ def test_dashboard_and_kill_switch() -> None:
     assert "cash-usd" in js.text
     assert "idle_reason" in js.text
     assert "usd_spendable" in js.text
+    assert "setupPhoneShell" in js.text
+    assert "paintPhonePair" in js.text
     assert "cybersym-theme" in page.text
     assert "I’ll pick each trade" in page.text or "I'll pick each trade" in page.text
     assert 'id="invest-amount"' in page.text
@@ -200,6 +207,8 @@ def test_dashboard_requires_lock_without_session() -> None:
     login = client.get("/login")
     assert login.status_code == 200
     assert "lock PIN" in login.text
+    assert "/manifest.json" in login.text
+    assert "apple-mobile-web-app-capable" in login.text
     assert "/brand/logo" in login.text
     bad = client.post("/api/unlock", json={"pin": "000000"})
     assert bad.json()["ok"] is False
@@ -234,3 +243,37 @@ def test_guard_pin_compare() -> None:
     assert not guard.token_ok("nope")
     assert not guard.cookie_ok("nope")
     assert guard.cookie_ok(guard.cookie)
+
+
+def test_phone_app_shell_is_public_and_pairable() -> None:
+    app = create_app(Engine(AppConfig()))
+    locked = TestClient(app, follow_redirects=False)
+    sw = locked.get("/sw.js")
+    assert sw.status_code == 200
+    assert "cybersym-securetrade-shell" in sw.text
+    assert sw.headers.get("service-worker-allowed") == "/"
+    manifest = locked.get("/manifest.json")
+    assert manifest.status_code == 200
+    body = json.loads(manifest.text)
+    assert body["display"] == "standalone"
+    assert body["short_name"] == "SecureTrade"
+    phone = locked.get("/api/phone")
+    assert phone.status_code == 401
+
+    client, engine, _, page = open_dashboard()
+    assert 'id="phone-dock"' in page.text
+    assert "Add to Home Screen" in page.text
+    css = client.get("/static/app.css")
+    assert ".phone-dock" in css.text
+    pair = client.get("/api/phone")
+    assert pair.status_code == 200
+    data = pair.json()
+    assert data["ok"] is True
+    assert "pin_hint" in data
+    assert data["local"].startswith("http://127.0.0.1:")
+    engine.config.settings["host"] = "0.0.0.0"
+    engine.config.settings["port"] = 8080
+    open_lan = client.get("/api/phone").json()
+    assert open_lan["lan"] is True
+    assert isinstance(open_lan["urls"], list)
+

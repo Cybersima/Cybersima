@@ -151,7 +151,9 @@ Robinhood has no sandbox. A working key is real money.
 
 You confirm Live on the dashboard (or GO-LIVE.bat). The dashboard shows a red
 LIVE banner, your balances, and the $25 cap. Switch back to Paper any time.
-This computer's browser unlocks by itself. iPad: enter that PIN.
+This computer's browser unlocks by itself. Phone: open the Wi-Fi
+address printed in the black window, type that PIN, then Add to
+Home Screen (see PHONE.txt).
 Use Kill switch or close the window to stop new orders. Leftover coins
 from a tap that cannot be sold back to USD pause new orders (Resume).
 You stay on Live until you click Paper.

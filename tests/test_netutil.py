@@ -1,6 +1,6 @@
 import socket
 
-from pulsearb.netutil import choose_port, port_is_free
+from pulsearb.netutil import choose_port, lan_hosts, lan_urls, port_is_free
 
 
 def test_choose_port_skips_busy_listener() -> None:
@@ -17,3 +17,13 @@ def test_choose_port_skips_busy_listener() -> None:
         assert port_is_free("127.0.0.1", next_port)
     finally:
         busy.close()
+
+
+def test_lan_hosts_skip_loopback() -> None:
+    for host in lan_hosts():
+        assert not host.startswith("127.")
+        assert ":" not in host
+    for url in lan_urls(8080):
+        assert url.startswith("http://")
+        assert url.endswith(":8080")
+

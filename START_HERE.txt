@@ -24,7 +24,9 @@ Unzip into a NEW folder. Do not copy .venv from 1.4 or 1.5.
    • Linux:    ./start.sh
 5. Open http://127.0.0.1:8080
    The black window prints a lock PIN. This computer's browser unlocks
-   by itself. Phone or iPad: type that PIN.
+   by itself. Phone: open the phone address it prints (same Wi-Fi),
+   type that PIN, then Add to Home Screen. That is the phone app.
+   Read PHONE.txt.
 
 Company logo: Windows: double-click Install-Logo.bat and pick your
    PNG/JPG. Or drop it in branding\ (cybersym-logo.png is best).

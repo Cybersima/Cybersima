@@ -18,8 +18,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo Starting with live Coinbase, Kraken, Gemini, Bitstamp, and Yahoo data (paper trading).
+echo Starting with live Coinbase, Kraken, Gemini, OANDA, and Robinhood data (paper trading).
 echo If port 8080 is already in use, the app will pick the next free port.
+echo Phone app: same Wi-Fi, open the phone address printed next, type the PIN, then Add to Home Screen. See PHONE.txt
 echo Profit report file: %cd%\data\CyberSym-SecureTrade-profit-report.csv
-"%RUNPY%" -m pulsearb --host 127.0.0.1 --port 8080 --open-browser
+"%RUNPY%" -m pulsearb --host 0.0.0.0 --port 8080 --open-browser
 pause

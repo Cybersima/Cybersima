@@ -1,0 +1,39 @@
+CyberSym SecureTrade — phone app
+================================
+
+The scanner stays on this PC. The phone app is that same desk,
+installed on your Home Screen, talking to this computer over Wi-Fi.
+
+You cannot run SecureTrade on the phone alone. Leave the black
+window open. Close it and the phone app has nothing to talk to.
+
+1. On the PC, start as usual:
+     start.bat          demo / paper
+     start-live.bat     live prices, paper trades
+2. Look at the black window. It prints:
+     • lock PIN (6 digits)
+     • phone address, like http://192.168.1.23:8080
+3. Phone on the SAME Wi-Fi (not cellular).
+     Open that address in Safari (iPhone) or Chrome (Android).
+4. Type the PIN.
+5. Add to Home Screen — that is the app:
+     iPhone:  Share (square with arrow) → Add to Home Screen
+     Android: Chrome menu (⋮) → Add to Home screen / Install app
+6. Open SecureTrade from the Home Screen like any other app.
+   Bottom tabs: Trades, Desk, Markets, More.
+
+If the phone cannot open the address
+------------------------------------
+• Phone and PC must be on the same Wi-Fi. Guest/hotel Wi-Fi
+  often blocks this. Try the house network.
+• Windows may pop “Windows Defender Firewall has blocked
+  some features of Python”. Click Allow.
+• Use the address from the black window, not 127.0.0.1
+  (that only works on the PC).
+• If the port is 8081 instead of 8080, use that number.
+
+The PIN is the lock. Keys never go in the phone. Live taps
+from the phone still spend real USD on the venue you armed
+on the PC. Kill switch is on the phone too.
+
+© CyberSym. All rights reserved.

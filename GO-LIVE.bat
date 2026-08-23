@@ -53,6 +53,7 @@ set PULSEARB_LIVE_CONFIRM=I_UNDERSTAND_THE_RISK
 
 echo.
 echo Starting live trading...
+echo Phone app: same Wi-Fi, open the phone address printed next, type the PIN. See PHONE.txt
 echo.
-"%RUNPY%" -m pulsearb --live-trading --host 127.0.0.1 --port 8080 --open-browser
+"%RUNPY%" -m pulsearb --live-trading --host 0.0.0.0 --port 8080 --open-browser
 pause
