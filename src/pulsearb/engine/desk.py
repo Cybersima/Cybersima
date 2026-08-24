@@ -32,8 +32,10 @@ USD_PRICE_QUOTES = ("USD", "USDT", "USDC", "FDUSD", "BUSD", "TUSD")
 PRICE_MODES = ("any", "under", "over")
 PRICE_PRESETS = [1, 2, 5, 10, 50, 100, 1000]
 # Yahoo is delayed/watch-only. Bitstamp retail goes close-only Feb 2027
-# (merging into Robinhood) — both stay off the desk.
+# (merging into Robinhood) — both stay off the tradable desk.
 SITE_HIDDEN_VENUES = {"yahoo", "bitstamp"}
+# Delayed / non-exchange feeds: book them for reference, never buy or sell.
+DATA_ONLY_VENUES = {"yahoo"}
 VENUES = ["coinbase", "kraken", "gemini", "oanda", "robinhood"]
 KINDS = ["cross_venue", "dislocation", "triangular"]
 KIND_LABELS = {

@@ -24,7 +24,7 @@ Copy robinhood.json.example. No sandbox — a working key is real money.
 See LIVE.txt for the Ed25519 keypair command.
 
 Bitstamp is not used (Robinhood merger; retail close-only 1 Feb 2027).
-Yahoo is not used (delayed, not tradable).
+Yahoo is delayed reference data only. It is not a buy/sell venue.
 
 You do not need every venue. Pick one on the dashboard.
 See LIVE.txt. Run CHECK-LIVE.bat (does not send orders) before going live.

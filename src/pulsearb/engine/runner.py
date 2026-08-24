@@ -17,7 +17,7 @@ from pulsearb.engine.arbitrage import (
 from pulsearb.engine.book import MarketBook
 from pulsearb.engine.broker import Broker, LiveBinanceBroker, LiveRouter, PaperBroker
 from pulsearb.engine.coinbase_live import LiveCoinbaseBroker
-from pulsearb.engine.desk import KIND_LABELS, SITE_HIDDEN_VENUES, TradeDesk
+from pulsearb.engine.desk import DATA_ONLY_VENUES, KIND_LABELS, SITE_HIDDEN_VENUES, TradeDesk
 from pulsearb.engine.gemini_live import LiveGeminiBroker
 from pulsearb.engine.kraken_live import LiveKrakenBroker
 from pulsearb.engine.live_ready import quote_cash, usd_spendable
@@ -35,6 +35,7 @@ from pulsearb.feeds.kraken import KrakenFeed
 from pulsearb.feeds.simulator import SimulatorFeed
 from pulsearb.feeds.oanda import OandaFeed
 from pulsearb.feeds.robinhood import RobinhoodFeed
+from pulsearb.feeds.yahoo import YahooFeed
 from pulsearb.models import EngineStats, Fill, Opportunity
 from pulsearb.symbols import canonical_from_pair
 
@@ -283,7 +284,7 @@ class Engine:
         if not self._ensure_live_router():
             return {
                 "ok": False,
-                "                error": (
+                "error": (
                     f"No {self.desk.live_venue.title()} key file. "
                     "Save the matching file in keys\\, then Check again."
                 ),
@@ -374,7 +375,16 @@ class Engine:
                 "last_block": self.last_block,
             },
             "desk": self.desk_view(),
-            "quotes": [q.to_dict() for q in quotes if self.desk.quote_ok(q, self.book)],
+            "quotes": [
+                q.to_dict()
+                for q in quotes
+                if q.venue not in SITE_HIDDEN_VENUES and self.desk.quote_ok(q, self.book)
+            ],
+            "reference_quotes": [
+                q.to_dict()
+                for q in quotes
+                if q.venue in DATA_ONLY_VENUES
+            ],
             "opportunities": [
                 self._opp_view(o)
                 for o in list(self.opportunities)[:40]
@@ -491,9 +501,16 @@ class Engine:
     def _idle_reason(self) -> str:
         if not self.live_active():
             if self.desk.auto_invest and not self._auto_candidates(list(self.opportunities)):
+                watch = sum(1 for row in self.opportunities if not row.executable)
+                extra = (
+                    f" {watch} row(s) on the board are watch-only (stale books or below the take floor)."
+                    if watch
+                    else ""
+                )
                 return (
                     "Auto only takes Coinbase or Kraken same-exchange rows that buy with USD. "
-                    "Cross-venue gaps (Kraken vs Gemini) stay click-to-paper so they cannot starve those taps."
+                    "Cross-venue stays click-to-paper. Yahoo is reference data only — it cannot be bought or sold."
+                    + extra
                 )
             return ""
         venue = self.desk.live_venue.title()
@@ -520,10 +537,14 @@ class Engine:
             elif not self.desk.schedule_active():
                 parts.append(f"Auto window is closed until {self.desk.schedule_start}.")
             elif not live_rows:
+                watch = sum(1 for row in self.opportunities if not row.executable)
+                extra = f" {watch} other row(s) are watch-only (stale books or below the take floor)." if watch else ""
                 parts.append(
                     f"Auto is on. No executable {venue} USD-start row this scan. "
                     f"USD/USDC dislocations take from 15 bps net; triangles from 25. "
+                    f"Yahoo cannot be bought or sold. "
                     f"Raising the tap to ${self.desk.notional:.0f} does not create a gap."
+                    + extra
                 )
             else:
                 decision = self.risk.allow(self.desk.notional)
@@ -562,6 +583,10 @@ class Engine:
                 error = "That row is watch-only — net edge is below its take floor."
             else:
                 error = "That row is watch-only (delayed data)."
+            self._set_last_block(error, source="invest")
+            return {"ok": False, "error": error}
+        if any(leg.venue in DATA_ONLY_VENUES | SITE_HIDDEN_VENUES for leg in opp.legs):
+            error = "Yahoo is delayed reference data. It cannot be bought or sold."
             self._set_last_block(error, source="invest")
             return {"ok": False, "error": error}
         if not self.desk.matches(opp, self.book):
@@ -732,6 +757,14 @@ class Engine:
                     )
                 else:
                     self.stats.feed_status["robinhood"] = "no keys\\robinhood.json - skipped"
+            if self.config.venue_enabled("yahoo"):
+                cfg = markets.get("yahoo") or {}
+                tasks.append(
+                    YahooFeed(
+                        symbols=self.config.yahoo_symbols,
+                        poll_seconds=float(cfg.get("poll_seconds") or settings.get("yahoo_poll_seconds", 2.0)),
+                    ).run(self.book, self.stats.feed_status)
+                )
         if not tasks:
             raise RuntimeError("No market feeds enabled")
         await asyncio.gather(*tasks)
@@ -745,7 +778,8 @@ class Engine:
         cross_alert, cross_exec = self.config.strategy_edge("cross_venue")
         stale = float(self.config.risk.get("stale_quote_seconds", 8))
         max_raw = float(self.config.settings.get("max_raw_edge_bps", 300))
-        max_skew = float(self.config.settings.get("max_quote_skew_seconds", 1.5))
+        cross_skew = float(self.config.settings.get("max_quote_skew_seconds", 1.5))
+        same_skew = float(self.config.settings.get("same_venue_quote_skew_seconds", stale))
         while True:
             started = time.perf_counter()
             notional = self.desk.notional
@@ -758,7 +792,7 @@ class Engine:
                 notional,
                 max_raw_edge_bps=max_raw,
                 max_quote_age=stale,
-                max_quote_skew=max_skew,
+                max_quote_skew=cross_skew,
                 min_executable_edge_bps=cross_exec,
             )
             auto = detect_auto_cross(
@@ -770,7 +804,7 @@ class Engine:
                 notional,
                 stale_seconds=stale,
                 max_raw_edge_bps=max_raw,
-                max_quote_skew=max_skew,
+                max_quote_skew=cross_skew,
                 min_executable_edge_bps=cross_exec,
             )
             triangles: list[Opportunity] = []
@@ -790,7 +824,7 @@ class Engine:
                         min_executable_edge_bps=tri_exec,
                         max_raw_edge_bps=max_raw,
                         max_quote_age=stale,
-                        max_quote_skew=max_skew,
+                        max_quote_skew=same_skew,
                         maker_bps=maker,
                     )
                 )
@@ -807,7 +841,7 @@ class Engine:
                         min_executable_edge_bps=disloc_exec,
                         max_raw_edge_bps=max_raw,
                         max_quote_age=stale,
-                        max_quote_skew=max_skew,
+                        max_quote_skew=same_skew,
                     )
                 )
             # Demo quotes use real venue names, so the venue-scoped scan above is enough.

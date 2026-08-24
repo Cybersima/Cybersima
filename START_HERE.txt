@@ -81,7 +81,8 @@ Real Coinbase or Kraken orders (your money):
    Default: $5 per tap, $25 session budget. Live starts with USD
    (dollars), not USDC. USD vs USDC dislocations and same-exchange
    triangles — including Kraken FX (EUR/GBP) from Kraken’s ticker.
-   Yahoo and Bitstamp are not on the desk. Raising the tap
+   Yahoo is delayed reference data only (not a market, never a fill).
+   Bitstamp is not on the desk. Raising the tap
    does not create a gap. Cross-venue two-exchange gaps stay paper.
    Dislocations can take from 15 bps net after fees; triangles and
    paper two-exchange clicks need 25. Live never takes two exchanges.

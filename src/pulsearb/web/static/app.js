@@ -742,6 +742,7 @@ function friendlyOpp(row) {
 function render() {
   const q = (filter.value || "").trim().toLowerCase();
   const quotes = (snapshot.quotes || []).filter((row) => {
+    if (row.venue === "yahoo" || row.venue === "bitstamp") return false;
     if (!quotePassesPriceFilter(row)) return false;
     if (!q) return true;
     return `${row.venue} ${row.native_symbol} ${row.canonical}`.toLowerCase().includes(q);
@@ -772,6 +773,30 @@ function render() {
         return el;
       })
     );
+  }
+
+  const refGrid = document.getElementById("reference-grid");
+  if (refGrid) {
+    const refs = snapshot.reference_quotes || [];
+    if (!refs.length) {
+      const empty = document.createElement("div");
+      empty.className = "grid-empty";
+      empty.textContent = "Yahoo delayed quotes appear here for comparison. They cannot be bought or sold.";
+      refGrid.replaceChildren(empty);
+    } else {
+      refGrid.replaceChildren(
+        ...refs.map((row) => {
+          const el = document.createElement("div");
+          el.className = "cell";
+          el.innerHTML = `
+        <div class="sym">yahoo · ${row.native_symbol}${row.asset_class === "fx" ? " · FX" : ""}</div>
+        <div class="px">${fmt(row.mid, 4)}</div>
+        <div class="meta"><span>${fmt(row.bid, 4)} / ${fmt(row.ask, 4)}</span><span>delayed</span></div>
+      `;
+          return el;
+        })
+      );
+    }
   }
 
     const mine = (snapshot.opportunities || []).filter((row) => row.chosen !== false);

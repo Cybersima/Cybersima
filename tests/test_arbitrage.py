@@ -34,10 +34,10 @@ def test_triangle_detects_mispriced_ethbtc() -> None:
     assert best.net_edge_bps > 20
 
 
-def test_cross_venue_yahoo_is_alert_only() -> None:
+def test_cross_venue_yahoo_is_never_a_trade() -> None:
     book = MarketBook()
     book.update(make_quote("binance", "BTCUSDT", 97000, 97010, executable=True))
-    book.update(make_quote("yahoo", "BTC-USD", 98100, 98120, executable=False))
+    book.update(make_quote("yahoo", "BTC-USD", 98100, 98120, executable=True))
     pairs = [
         {
             "id": "btc-usd",
@@ -53,9 +53,10 @@ def test_cross_venue_yahoo_is_alert_only() -> None:
         extra_slippage_bps=2,
         notional=250,
     )
-    assert opps
-    assert all(not o.executable for o in opps)
-    assert all(o.kind is OpportunityKind.ALERT for o in opps)
+    assert opps == []
+    yahoo_q = book.get("yahoo", "BTC-USD")
+    assert yahoo_q is not None
+    assert yahoo_q.executable is False
 
 
 def test_no_cross_when_inside_fees() -> None:
@@ -286,6 +287,33 @@ def test_triangle_stale_quotes_are_watch_only() -> None:
     )
     assert opps
     assert all(not opp.executable for opp in opps)
+
+
+def test_dislocation_three_second_skew_stays_takeable_on_same_venue() -> None:
+    book = MarketBook()
+    now = time.time()
+    cheap = make_quote("coinbase", "BTC-USD", 99990, 100000, executable=True)
+    cheap.ts = now - 3
+    book.update(cheap)
+    book.update(make_quote("coinbase", "BTC-USDC", 101080, 101090, executable=True))
+    book.update(make_quote("coinbase", "USDC-USD", 0.999, 1.001, executable=True))
+    kwargs = dict(
+        venue="coinbase",
+        min_edge_bps=8,
+        fee_map={"coinbase": 50, "coinbase_maker": 40, "coinbase_stable": 1.0},
+        extra_slippage_bps=2,
+        notional=10,
+        min_executable_edge_bps=15,
+        max_quote_age=8.0,
+    )
+    tight = detect_quote_dislocations(book, **kwargs, max_quote_skew=1.5)
+    wide = detect_quote_dislocations(book, **kwargs, max_quote_skew=8.0)
+    assert tight
+    assert all(not row.executable for row in tight)
+    assert wide
+    best = max(wide, key=lambda row: row.net_edge_bps)
+    assert 15 <= best.net_edge_bps < 25
+    assert best.executable
 
 
 def test_dislocation_id_stable_and_fantasy_raw_dropped() -> None:

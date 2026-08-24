@@ -1,6 +1,6 @@
 # CyberSym SecureTrade
 
-**CyberSym SecureTrade** is CyberSym’s retail-friendly crypto + FX dislocation scanner. It watches 50+ markets at once across **Coinbase, Kraken, Gemini, OANDA, and Robinhood**, flags cross-venue and triangular gaps, and paper-trades executable legs by default. Live orders stay off until you opt in. Yahoo (delayed) and Bitstamp (Robinhood merger, retail close-only Feb 2027) stay off the desk.
+**CyberSym SecureTrade** is CyberSym’s retail-friendly crypto + FX dislocation scanner. It watches 50+ markets at once across **Coinbase, Kraken, Gemini, OANDA, and Robinhood**, flags cross-venue and triangular gaps, and paper-trades executable legs by default. Live orders stay off until you opt in. Yahoo is delayed **reference data only** (not on Markets, never a fill). Bitstamp (Robinhood merger, retail close-only Feb 2027) stays off the desk.
 
 A CyberSym product. Binance is **disabled by default** because it is not available to US residents. You can turn it on with `--binance` if you are in a supported region.
 

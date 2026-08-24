@@ -10,6 +10,8 @@ from pulsearb.engine.money import route_fee_bps
 from pulsearb.models import Leg, Opportunity, OpportunityKind, Quote
 from pulsearb.symbols import comparison_key, split_pair
 
+DATA_ONLY_VENUES = {"yahoo", "bitstamp"}
+
 
 def _oid(*parts: str) -> str:
     raw = "|".join(parts)
@@ -122,6 +124,8 @@ def _cross_from_quotes(
     out: list[Opportunity] = []
     min_exec = min_edge_bps if min_executable_edge_bps is None else min_executable_edge_bps
     for cheap, rich in ((a, b), (b, a)):
+        if cheap.venue in DATA_ONLY_VENUES or rich.venue in DATA_ONLY_VENUES:
+            continue
         if cheap.ask <= 0 or rich.bid <= 0:
             continue
         raw_bps = (rich.bid / cheap.ask - 1.0) * 10_000

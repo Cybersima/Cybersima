@@ -18,7 +18,7 @@ def test_default_markets_cover_fifty_plus_us_venues() -> None:
     assert config.venue_enabled("oanda")
     assert config.venue_enabled("robinhood")
     assert not config.venue_enabled("bitstamp")
-    assert not config.venue_enabled("yahoo")
+    assert config.venue_enabled("yahoo")
     assert not config.venue_enabled("binance")
     assert config.fee_map()["robinhood"] == 85.0
 

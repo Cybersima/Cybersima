@@ -45,7 +45,10 @@ strategy_edges:
     # Paper click only. Live still refuses two-exchange routes.
     min_executable_edge_bps: 25.0
 max_raw_edge_bps: 300.0
+# Cross-venue: two clocks. Same-venue uses the stale window so Coinbase
+# REST stamps a few seconds apart are not all marked watch-only.
 max_quote_skew_seconds: 1.5
+same_venue_quote_skew_seconds: 8.0
 
 risk:
   max_notional_usdt: 250

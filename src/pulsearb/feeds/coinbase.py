@@ -35,14 +35,14 @@ class CoinbaseFeed(Feed):
                 status[self.name] = f"reconnect: {exc}"[:80]
                 await asyncio.sleep(2.0)
 
-    def _quote(self, product_id: str, bid: float, ask: float) -> Quote:
+    def _quote(self, product_id: str, bid: float, ask: float, ts: float | None = None) -> Quote:
         return Quote(
             venue="coinbase",
             native_symbol=product_id,
             canonical=canonical_from_pair(product_id),
             bid=bid,
             ask=ask,
-            ts=time.time(),
+            ts=time.time() if ts is None else ts,
             asset_class=pair_asset_class(product_id),
             executable=True,
         )
@@ -50,7 +50,7 @@ class CoinbaseFeed(Feed):
     async def _rest_loop(self, book: MarketBook, status: dict[str, str]) -> None:
         sem = asyncio.Semaphore(8)
 
-        async def one(client: httpx.AsyncClient, product: str) -> bool:
+        async def one(client: httpx.AsyncClient, product: str, ts: float) -> bool:
             async with sem:
                 response = await client.get(f"{self.rest_url}/products/{product}/ticker")
             if response.status_code != 200:
@@ -60,14 +60,15 @@ class CoinbaseFeed(Feed):
             ask = float(row.get("ask") or 0)
             if not bid or not ask:
                 return False
-            book.update(self._quote(product, bid, ask))
+            book.update(self._quote(product, bid, ask, ts=ts))
             return True
 
         async with httpx.AsyncClient(timeout=8.0, headers=HTTP_HEADERS) as client:
             while True:
                 try:
+                    now = time.time()
                     results = await asyncio.gather(
-                        *(one(client, product) for product in self.symbols),
+                        *(one(client, product, now) for product in self.symbols),
                         return_exceptions=True,
                     )
                     applied = sum(1 for item in results if item is True)

@@ -12,6 +12,8 @@ from pulsearb.engine.risk import RiskManager
 from pulsearb.models import Fill, Opportunity
 from pulsearb.symbols import split_pair
 
+DATA_ONLY_VENUES = {"yahoo", "bitstamp"}
+
 
 def _usd_price_from_opportunity(opportunity: Opportunity, asset: str) -> float | None:
     wanted = str(asset or "").upper()
@@ -79,7 +81,23 @@ class PaperBroker(Broker):
                     paper=True,
                     opportunity_id=opportunity.id,
                     status="alert_only",
-                    note="Yahoo/data-only dislocation — not executable",
+                    note="Watch-only row — delayed data or below its take floor.",
+                )
+            ]
+        if any(leg.venue in DATA_ONLY_VENUES for leg in opportunity.legs):
+            return [
+                Fill(
+                    venue="alert",
+                    symbol="-",
+                    side="skip",
+                    qty=0,
+                    price=0,
+                    notional=0,
+                    ts=time.time(),
+                    paper=True,
+                    opportunity_id=opportunity.id,
+                    status="alert_only",
+                    note="Yahoo is delayed reference data. It cannot be bought or sold.",
                 )
             ]
         self.risk.on_submit()

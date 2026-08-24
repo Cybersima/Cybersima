@@ -8,7 +8,9 @@ You do not need every one.
 
 Bitstamp is not on the desk. Bitstamp by Robinhood goes
 close-only for retail on February 1, 2027 — use Robinhood.
-Yahoo is not on the desk. It is delayed and not tradable.
+Yahoo is delayed reference data only. It is not on Markets and
+cannot be bought or sold — paper or live. Compare quotes on the
+Yahoo reference panel. Bitstamp is not on the desk.
 
 Paper and live are on the SAME dashboard. Start with paper
 (start-live.bat). Pick Live on: Coinbase, Kraken, Gemini,

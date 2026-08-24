@@ -1,5 +1,5 @@
 # Desk venues: Coinbase, Kraken, Gemini, OANDA, Robinhood.
-# Yahoo is delayed/watch-only and stays OFF the site.
+# Yahoo is delayed reference data only — never a buy/sell venue, not on Markets.
 # Bitstamp retail goes close-only 1 Feb 2027 (Robinhood merger) and stays OFF.
 # Binance stays in this file but is OFF — it is not available to US residents.
 
@@ -220,7 +220,7 @@ binance:
     - FDUSDUSDT
 
 yahoo:
-  enabled: false
+  enabled: true
   poll_seconds: 2.0
   symbols:
     - ticker: EURUSD=X

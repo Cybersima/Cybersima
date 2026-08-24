@@ -115,7 +115,7 @@
       <div class="live-venue-picks">
         <label>Live on</label>
         <div class="segmented" role="group" aria-label="Live exchange" id="live-venue-chips"></div>
-        <p class="hint">Use the account you have. You do not need every venue. Bitstamp is hidden (Robinhood merger, retail close-only Feb 2027). Yahoo is hidden (delayed, not tradable).</p>
+        <p class="hint">Use the account you have. You do not need every venue. Yahoo is delayed reference data only — it is not on Markets and cannot be bought or sold. Bitstamp is hidden (Robinhood merger, retail close-only Feb 2027).</p>
       </div>
       <div class="live-confirm" id="live-confirm" hidden>
         <p>This spends real USD on the exchange you picked. Each tap buys and sells and aims to finish back in dollars. Not buy-and-hold. Cross-exchange gaps stay paper.</p>
@@ -182,7 +182,7 @@
       <div class="desk-block">
         <label>Trade style</label>
         <div class="chips" id="kind-chips"></div>
-        <p class="hint">Live takes USD vs USDC dislocations and same-exchange triangles — including Kraken FX — then sells back toward USD. Coinbase/Kraken sells rest as maker for a few seconds, then flatten. Price gaps vs another exchange stay paper. Yahoo and Bitstamp are not on this desk.</p>
+        <p class="hint">Live takes USD vs USDC dislocations and same-exchange triangles — including Kraken FX — then sells back toward USD. Coinbase/Kraken sells rest as maker for a few seconds, then flatten. Price gaps vs another exchange stay paper. Yahoo is reference only (not a market). Bitstamp stays off.</p>
       </div>
     </section>
 
@@ -193,6 +193,15 @@
       <article><label id="kpi-pnl-label">Paper P&amp;L</label><strong id="kpi-pnl">0.00</strong></article>
       <article><label>Triangles</label><strong id="kpi-tri">0</strong></article>
       <article><label>Uptime</label><strong id="kpi-up">0s</strong></article>
+    </section>
+
+    <section class="panel pane-more" id="reference-panel">
+      <header>
+        <h2>Yahoo reference</h2>
+        <span class="panel-meta">Delayed · not tradable</span>
+      </header>
+      <p class="hint" id="reference-hint">Yahoo prices are for comparison only. The bot cannot buy or sell there. Paper and live fills stay on Coinbase, Kraken, Gemini, OANDA, or Robinhood.</p>
+      <div id="reference-grid" class="grid"></div>
     </section>
 
     <main class="layout">
@@ -232,7 +241,7 @@
       </div>
       <p class="note" id="report-path"></p>
       <p class="note">
-        Public feeds are not an HFT pipe. Live FX uses Kraken’s own EUR/GBP books or an OANDA practice/live account. Coinbase has no EUR-USD pair — only USDC-EUR / USDC-GBP. Yahoo (delayed) and Bitstamp (Robinhood merger) stay off this desk.
+        Public feeds are not an HFT pipe. Live FX uses Kraken’s own EUR/GBP books or an OANDA practice/live account. Coinbase has no EUR-USD pair — only USDC-EUR / USDC-GBP. Yahoo is delayed reference data only — never a fill. Bitstamp stays off.
         This is a scanner, not a profit guarantee. {{ copyright }}
       </p>
     </footer>

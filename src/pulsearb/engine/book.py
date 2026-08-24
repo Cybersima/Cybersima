@@ -6,6 +6,8 @@ from threading import RLock
 from pulsearb.models import Quote
 from pulsearb.symbols import normalize_asset, split_pair
 
+DATA_ONLY_VENUES = {"yahoo"}
+
 
 class MarketBook:
     """Thread/async-safe last-quote book keyed by (venue, native_symbol)."""
@@ -17,6 +19,8 @@ class MarketBook:
     def update(self, quote: Quote) -> None:
         if quote.bid <= 0 or quote.ask <= 0 or quote.ask < quote.bid:
             return
+        if quote.venue in DATA_ONLY_VENUES:
+            quote.executable = False
         with self._lock:
             self._quotes[(quote.venue, quote.native_symbol)] = quote
 

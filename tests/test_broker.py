@@ -47,6 +47,30 @@ async def test_alert_not_traded() -> None:
     assert fills[0].status == "alert_only"
 
 
+@pytest.mark.asyncio
+async def test_paper_never_fills_yahoo_legs() -> None:
+    opp = Opportunity(
+        kind=OpportunityKind.CROSS_VENUE,
+        edge_bps=80,
+        net_edge_bps=40,
+        notional=10,
+        legs=[
+            Leg("buy", "coinbase", "BTC-USD", 100000, True),
+            Leg("sell", "yahoo", "BTC-USD", 101000, True),
+        ],
+        summary="fake yahoo sell",
+        executable=True,
+        ts=0,
+        id="yahoo-sell",
+    )
+    broker = PaperBroker(RiskManager(cooldown_seconds=0))
+    fills = await broker.execute(opp)
+    assert fills
+    assert fills[0].status == "alert_only"
+    assert "Yahoo" in (fills[0].note or "")
+    assert not any(row.venue == "yahoo" and row.status == "filled" for row in fills)
+
+
 def test_notional_cap() -> None:
     risk = RiskManager(max_notional_usdt=10, cooldown_seconds=0)
     decision = risk.allow(50)

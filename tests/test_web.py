@@ -51,6 +51,8 @@ def test_dashboard_and_kill_switch() -> None:
     assert 'id="export-report"' in page.text
     assert "Export my trades" in page.text
     assert 'id="cash-bar"' in page.text
+    assert 'id="reference-grid"' in page.text
+    assert "Yahoo reference" in page.text
     assert "Your trades" in page.text
     assert 'id="live-banner"' in page.text
     assert 'id="phone-dock"' in page.text
@@ -94,6 +96,7 @@ def test_dashboard_and_kill_switch() -> None:
     assert "usd_spendable" in js.text
     assert "setupPhoneShell" in js.text
     assert "paintPhonePair" in js.text
+    assert "reference_quotes" in js.text
     assert "cybersym-theme" in page.text
     assert "I’ll pick each trade" in page.text or "I'll pick each trade" in page.text
     assert 'id="invest-amount"' in page.text
@@ -129,6 +132,21 @@ def test_dashboard_and_kill_switch() -> None:
     live_try = client.post("/api/execution", json={"mode": "live"})
     assert live_try.status_code == 200
     assert live_try.json()["ok"] is False
+
+
+def test_yahoo_quotes_are_reference_not_markets() -> None:
+    from tests.helpers import make_quote
+
+    client, engine, _, page = open_dashboard()
+    engine.book.update(make_quote("yahoo", "EUR-USD", 1.1, 1.101, executable=True))
+    engine.book.update(make_quote("coinbase", "BTC-USD", 100000, 100010, executable=True))
+    snap = client.get("/api/snapshot").json()
+    assert all(row["venue"] != "yahoo" for row in snap["quotes"])
+    assert any(row["venue"] == "coinbase" for row in snap["quotes"])
+    refs = snap.get("reference_quotes") or []
+    assert any(row["venue"] == "yahoo" for row in refs)
+    assert all(row["executable"] is False for row in refs if row["venue"] == "yahoo")
+    assert "Yahoo reference" in page.text
 
 
 def test_clear_boards_wipes_tapes_independently() -> None:
