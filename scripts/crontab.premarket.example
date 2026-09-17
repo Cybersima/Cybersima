@@ -1,0 +1,9 @@
+# Premarket report — weekday 8:45 AM America/New_York
+#
+# crontab -e  (Linux / macOS)
+# Replace REPO with your checkout path and PYTHON with your interpreter.
+#
+#   45 8 * * 1-5 cd REPO && TZ=America/New_York PYTHON scripts/premarket_report.py --strict-premarket --out REPO/logs/
+#
+# Or use the wrapper:
+#   45 8 * * 1-5 REPO/scripts/run_premarket_report.sh
