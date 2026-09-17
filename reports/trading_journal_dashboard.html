@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SecureTrade Journal · Edge Dashboard</title>
+<style>
+:root {
+  --bg:#0b0f14; --panel:#121821; --panel2:#182130; --border:#243044;
+  --text:#e7eef8; --muted:#8b9bb4; --green:#3ddc97; --red:#ff5c7a;
+  --amber:#f0b429; --blue:#5b9fd4; --grid:#1c2738;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; padding:0; background:var(--bg); color:var(--text);
+  font:14px/1.45 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+.wrap { max-width:1200px; margin:0 auto; padding:28px 20px 60px; }
+header { margin-bottom:28px; }
+header h1 { margin:0 0 6px; font-size:28px; letter-spacing:-0.02em; }
+header .sub { color:var(--muted); font-size:13px; }
+.kpis { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin:22px 0 28px; }
+@media (max-width:900px) { .kpis { grid-template-columns:repeat(2,1fr); } }
+.kpi { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+.kpi .label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.06em; }
+.kpi .value { font-size:22px; font-weight:700; margin-top:4px; font-variant-numeric:tabular-nums; }
+.kpi .value.pos { color:var(--green); } .kpi .value.neg { color:var(--red); }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:900px) { .grid { grid-template-columns:1fr; } }
+.card { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px 18px 14px; margin-bottom:0; }
+.card h2 { margin:0 0 4px; font-size:15px; font-weight:650; }
+.card .takeaway { margin:10px 0 0; padding:8px 10px; background:var(--panel2); border-left:3px solid var(--blue);
+  border-radius:0 8px 8px 0; color:#c5d3e8; font-size:12.5px; }
+.full { grid-column:1 / -1; }
+svg { width:100%; height:auto; display:block; margin-top:8px; }
+.bar-row { display:grid; grid-template-columns:130px 1fr 72px; gap:8px; align-items:center; margin:6px 0; font-size:12.5px; cursor:default; }
+.bar-track { height:10px; background:var(--grid); border-radius:99px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:99px; } .bar-fill.pos { background:var(--green); } .bar-fill.neg { background:var(--red); }
+.cal { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:10px; }
+.cal .day { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:10px 8px; min-height:74px; text-align:center; }
+.cal .day.green { background:rgba(61,220,151,0.12); border-color:rgba(61,220,151,0.35); }
+.cal .day.red { background:rgba(255,92,122,0.12); border-color:rgba(255,92,122,0.35); }
+.cal .day .wd { color:var(--muted); font-size:11px; }
+.cal .day .amt { font-weight:700; margin-top:6px; font-variant-numeric:tabular-nums; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:700px) { .two-col { grid-template-columns:1fr; } }
+table { width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums; }
+th,td { text-align:left; padding:7px 6px; border-bottom:1px solid var(--border); }
+th { color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; }
+.pos { color:var(--green); } .neg { color:var(--red); }
+.pill { display:inline-block; padding:2px 8px; border-radius:99px; background:var(--panel2); border:1px solid var(--border); font-size:11px; color:var(--muted); }
+.leak { display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); align-items:flex-start; }
+.leak:last-child { border-bottom:0; }
+.leak .rank { width:28px; height:28px; border-radius:8px; background:rgba(255,92,122,0.15); color:var(--red);
+  display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0; }
+.leak .body { flex:1; } .leak .title { font-weight:650; } .leak .detail { color:var(--muted); font-size:12px; margin-top:2px; }
+.leak .amt { font-weight:700; color:var(--red); font-variant-numeric:tabular-nums; white-space:nowrap; }
+ul.clean { margin:8px 0 0; padding-left:18px; } ul.clean li { margin:5px 0; color:#d5deec; }
+.tooltip-layer { position:fixed; pointer-events:none; z-index:50; background:#0f1622f2; border:1px solid var(--border);
+  color:var(--text); padding:8px 10px; border-radius:8px; font-size:12px; max-width:280px; display:none; box-shadow:0 8px 24px #0008; white-space:pre-wrap; }
+.compare { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.compare .box { background:var(--panel2); border-radius:10px; padding:12px; border:1px solid var(--border); }
+.compare h3 { margin:0 0 8px; font-size:13px; color:var(--muted); font-weight:600; }
+.metric { display:flex; justify-content:space-between; padding:4px 0; font-size:12.5px; border-bottom:1px dashed var(--border); gap:10px; }
+.metric:last-child { border-bottom:0; }
+.foot { margin-top:24px; color:var(--muted); font-size:11.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Trading Journal · Edge Profile</h1>
+  <div class="sub" id="subtitle"></div>
+</header>
+<section class="kpis" id="kpis"></section>
+<div class="grid">
+  <div class="card full" id="equity-card"></div>
+  <div class="card" id="calendar-card"></div>
+  <div class="card" id="weekly-card"></div>
+  <div class="card" id="side-card"></div>
+  <div class="card" id="hold-card"></div>
+  <div class="card" id="dow-card"></div>
+  <div class="card" id="tod-card"></div>
+  <div class="card" id="regime-card"></div>
+  <div class="card" id="strategy-card"></div>
+  <div class="card" id="stocks-card"></div>
+  <div class="card" id="overtrade-card"></div>
+  <div class="card full" id="edge-card"></div>
+  <div class="card full" id="market-card"></div>
+  <div class="card full" id="leaks-card"></div>
+  <div class="card" id="focus-card"></div>
+  <div class="card" id="avoid-card"></div>
+</div>
+<div class="foot" id="foot"></div>
+</div>
+<div class="tooltip-layer" id="tip"></div>
+<script>
+
+const D = {"meta": {"source": "SecureTrade audit bundle · trade_history.csv", "market_data": "Yahoo Finance via yfinance (no separate market-data API keys in .env)", "generated_at": "2026-09-17 18:31 EDT", "session": "2026-09-17 00:54 → 17:32 EDT", "completed_trades": 44, "open_ignored": 3, "reconciled_pnl": -0.931535}, "kpis": {"pnl": -0.931535, "n": 44, "wr": 0.29545454545454547, "pf": 0.7306521820031313, "exp": -0.021171253995839846, "max_dd": 1.917524, "dd_peak": "10:47 ET", "dd_trough": "17:32 ET", "avg_win": 0.1943806950162171, "avg_loss": -0.1115640068073476, "longest_win_streak": 3, "longest_lose_streak": 12, "top5_pct_gross": 71.3}, "curve": [{"t": "04:38", "iso": "2026-09-17T04:38:42.607882-04:00", "cum": 0.074323, "pnl": 0.074323, "symbol": "DOGE-USD"}, {"t": "04:54", "iso": "2026-09-17T04:54:52.823680-04:00", "cum": 0.172863, "pnl": 0.09854, "symbol": "EUR/USD"}, {"t": "04:59", "iso": "2026-09-17T04:59:04.375437-04:00", "cum": 0.145862, "pnl": -0.027001, "symbol": "SOL-USD"}, {"t": "05:19", "iso": "2026-09-17T05:19:22.575043-04:00", "cum": 0.107412, "pnl": -0.038451, "symbol": "ADA-USD"}, {"t": "05:40", "iso": "2026-09-17T05:40:06.654044-04:00", "cum": 0.006543, "pnl": -0.100869, "symbol": "XRP-USD"}, {"t": "06:10", "iso": "2026-09-17T06:10:16.338019-04:00", "cum": -0.131527, "pnl": -0.13807, "symbol": "BCH-USD"}, {"t": "06:31", "iso": "2026-09-17T06:31:28.536774-04:00", "cum": -0.132022, "pnl": -0.000494, "symbol": "HBAR-USD"}, {"t": "06:53", "iso": "2026-09-17T06:53:24.953272-04:00", "cum": -0.206473, "pnl": -0.074451, "symbol": "HBAR-USD"}, {"t": "07:09", "iso": "2026-09-17T07:09:17.545639-04:00", "cum": -0.240985, "pnl": -0.034513, "symbol": "BTC-USD"}, {"t": "07:17", "iso": "2026-09-17T07:17:55.541759-04:00", "cum": -0.281636, "pnl": -0.040651, "symbol": "BTC-USD"}, {"t": "07:49", "iso": "2026-09-17T07:49:03.906107-04:00", "cum": -0.310349, "pnl": -0.028713, "symbol": "LTC-USD"}, {"t": "07:58", "iso": "2026-09-17T07:58:44.570982-04:00", "cum": -0.772306, "pnl": -0.461957, "symbol": "USD/CAD"}, {"t": "08:19", "iso": "2026-09-17T08:19:10.152165-04:00", "cum": -0.653105, "pnl": 0.119201, "symbol": "DOGE-USD"}, {"t": "08:39", "iso": "2026-09-17T08:39:41.191549-04:00", "cum": -0.513384, "pnl": 0.139722, "symbol": "LINK-USD"}, {"t": "08:40", "iso": "2026-09-17T08:40:16.232129-04:00", "cum": -0.059634, "pnl": 0.45375, "symbol": "EUR/USD"}, {"t": "09:02", "iso": "2026-09-17T09:02:06.195073-04:00", "cum": -0.103343, "pnl": -0.043709, "symbol": "BTC-USD"}, {"t": "09:25", "iso": "2026-09-17T09:25:57.146153-04:00", "cum": -0.131658, "pnl": -0.028315, "symbol": "DOGE-USD"}, {"t": "09:35", "iso": "2026-09-17T09:35:18.499373-04:00", "cum": 0.25792, "pnl": 0.389577, "symbol": "USD/JPY"}, {"t": "09:36", "iso": "2026-09-17T09:36:23.605495-04:00", "cum": 0.112433, "pnl": -0.145486, "symbol": "LTC-USD"}, {"t": "09:45", "iso": "2026-09-17T09:45:56.574107-04:00", "cum": 0.046217, "pnl": -0.066217, "symbol": "DOGE-USD"}, {"t": "10:06", "iso": "2026-09-17T10:06:11.733671-04:00", "cum": 0.168127, "pnl": 0.12191, "symbol": "ADA-USD"}, {"t": "10:26", "iso": "2026-09-17T10:26:40.911709-04:00", "cum": 0.807101, "pnl": 0.638974, "symbol": "BCH-USD"}, {"t": "10:47", "iso": "2026-09-17T10:47:37.589060-04:00", "cum": 0.985989, "pnl": 0.178888, "symbol": "HBAR-USD"}, {"t": "11:00", "iso": "2026-09-17T11:00:52.597351-04:00", "cum": 0.831559, "pnl": -0.15443, "symbol": "ADA-USD"}, {"t": "11:16", "iso": "2026-09-17T11:16:00.121314-04:00", "cum": 0.692574, "pnl": -0.138985, "symbol": "HBAR-USD"}, {"t": "11:33", "iso": "2026-09-17T11:33:17.537951-04:00", "cum": 0.236529, "pnl": -0.456045, "symbol": "USD/JPY"}, {"t": "11:38", "iso": "2026-09-17T11:38:47.595248-04:00", "cum": 0.286366, "pnl": 0.049837, "symbol": "BTC-USD"}, {"t": "12:00", "iso": "2026-09-17T12:00:32.185244-04:00", "cum": 0.405846, "pnl": 0.11948, "symbol": "HBAR-USD"}, {"t": "12:20", "iso": "2026-09-17T12:20:04.677044-04:00", "cum": 0.465339, "pnl": 0.059494, "symbol": "EUR/JPY"}, {"t": "12:21", "iso": "2026-09-17T12:21:08.048383-04:00", "cum": 0.357956, "pnl": -0.107383, "symbol": "ADA-USD"}, {"t": "12:34", "iso": "2026-09-17T12:34:20.909677-04:00", "cum": 0.193493, "pnl": -0.164464, "symbol": "ADA-USD"}, {"t": "13:11", "iso": "2026-09-17T13:11:27.165829-04:00", "cum": 0.276746, "pnl": 0.083253, "symbol": "XRP-USD"}, {"t": "13:12", "iso": "2026-09-17T13:12:18.104194-04:00", "cum": -0.173326, "pnl": -0.450072, "symbol": "EUR/JPY"}, {"t": "13:32", "iso": "2026-09-17T13:32:01.949757-04:00", "cum": -0.258249, "pnl": -0.084923, "symbol": "BCH-USD"}, {"t": "13:40", "iso": "2026-09-17T13:40:28.166803-04:00", "cum": -0.397756, "pnl": -0.139507, "symbol": "BCH-USD"}, {"t": "14:13", "iso": "2026-09-17T14:13:29.449352-04:00", "cum": -0.403612, "pnl": -0.005856, "symbol": "BTC-USD"}, {"t": "14:33", "iso": "2026-09-17T14:33:52.382888-04:00", "cum": -0.421039, "pnl": -0.017427, "symbol": "LINK-USD"}, {"t": "14:56", "iso": "2026-09-17T14:56:15.770405-04:00", "cum": -0.463353, "pnl": -0.042314, "symbol": "ADA-USD"}, {"t": "15:16", "iso": "2026-09-17T15:16:30.828448-04:00", "cum": -0.505476, "pnl": -0.042124, "symbol": "DOGE-USD"}, {"t": "15:49", "iso": "2026-09-17T15:49:01.849323-04:00", "cum": -0.544946, "pnl": -0.03947, "symbol": "BTC-USD"}, {"t": "16:13", "iso": "2026-09-17T16:13:18.656709-04:00", "cum": -0.560822, "pnl": -0.015876, "symbol": "BTC-USD"}, {"t": "16:37", "iso": "2026-09-17T16:37:32.864906-04:00", "cum": -0.585431, "pnl": -0.024609, "symbol": "HBAR-USD"}, {"t": "17:09", "iso": "2026-09-17T17:09:07.324734-04:00", "cum": -0.617255, "pnl": -0.031824, "symbol": "LTC-USD"}, {"t": "17:32", "iso": "2026-09-17T17:32:17.893232-04:00", "cum": -0.931535, "pnl": -0.31428, "symbol": "EUR/JPY"}], "weekly_curve": [{"week": "2026-09-14", "pnl": -0.931535, "cum": -0.931535}], "daily": {"2026-09-14": {"pnl": 0.0, "n": 0, "weekday": "Mon"}, "2026-09-15": {"pnl": 0.0, "n": 0, "weekday": "Tue"}, "2026-09-16": {"pnl": 0.0, "n": 0, "weekday": "Wed"}, "2026-09-17": {"pnl": -0.931535, "n": 44, "weekday": "Thu"}, "2026-09-18": {"pnl": 0.0, "n": 0, "weekday": "Fri"}, "2026-09-19": {"pnl": 0.0, "n": 0, "weekday": "Sat"}, "2026-09-20": {"pnl": 0.0, "n": 0, "weekday": "Sun"}}, "side": {"long": {"n": 41, "pnl": 0.4365390522272751, "wr": 0.3170731707317073, "pf": 1.2088293950855626, "exp": 0.01064729395676281, "wins": 13, "losses": 28, "avg_w": 0.1943806950162171, "avg_l": -0.07465749939226952}, "short": {"n": 3, "pnl": -1.3680742280442284, "wr": 0.0, "pf": 0.0, "exp": -0.45602474268140947, "wins": 0, "losses": 3, "avg_w": null, "avg_l": -0.45602474268140947}}, "hold": {"same_day": {"n": 44, "pnl": -0.9315351758169532, "wr": 0.29545454545454547, "pf": 0.7306521820031313, "exp": -0.021171253995839846, "wins": 13, "losses": 31, "avg_w": 0.1943806950162171, "avg_l": -0.1115640068073476}}, "dow": {"Thursday": {"n": 44, "pnl": -0.9315351758169532, "wr": 0.29545454545454547, "pf": 0.7306521820031313, "exp": -0.021171253995839846, "wins": 13, "losses": 31, "avg_w": 0.1943806950162171, "avg_l": -0.1115640068073476}}, "tod": {"Before 09:30": {"n": 19, "pnl": 0.11243320176599712, "wr": 0.3157894736842105, "pf": 1.0967017890143214, "exp": 0.005917536935052483, "wins": 6, "losses": 13, "avg_w": 0.21251880787010047, "avg_l": -0.08943689580420044}, "09:30–10:00": {"n": 3, "pnl": -0.4003509722507647, "wr": 0.3333333333333333, "pf": 0.23342807635697616, "exp": -0.13345032408358823, "wins": 1, "losses": 2, "avg_w": 0.1219104880283357, "avg_l": -0.2611307301395502}, "10:00–11:00": {"n": 3, "pnl": 0.6634321550855367, "wr": 0.6666666666666666, "pf": 5.296013302510244, "exp": 0.2211440516951789, "wins": 2, "losses": 1, "avg_w": 0.40893094029678734, "avg_l": -0.154429725508038}, "11:00–14:00": {"n": 12, "pnl": -1.0934069561467108, "wr": 0.3333333333333333, "pf": 0.2220350823402616, "exp": -0.09111724634555923, "wins": 4, "losses": 8, "avg_w": 0.07801595484207714, "avg_l": -0.17568384693937744}, "After 14:00": {"n": 7, "pnl": -0.2136426042710115, "wr": 0.0, "pf": 0.0, "exp": -0.03052037203871593, "wins": 0, "losses": 7, "avg_w": null, "avg_l": -0.03052037203871593}}, "regime": {"trend": {"n": 11, "pnl": -0.5002668261130904, "wr": 0.18181818181818182, "pf": 0.27893714374945405, "exp": -0.04547880237391732, "wins": 2, "losses": 9, "avg_w": 0.0967620217703348, "avg_l": -0.07708787440597334}, "transition": {"n": 1, "pnl": 0.0985399999999723, "wr": 1.0, "pf": 999.0, "exp": 0.0985399999999723, "wins": 1, "losses": 0, "avg_w": 0.0985399999999723, "avg_l": null}, "volatile": {"n": 13, "pnl": 0.1303764979449344, "wr": 0.3076923076923077, "pf": 1.1377187589559155, "exp": 0.010028961380379568, "wins": 4, "losses": 9, "avg_w": 0.269265764089573, "avg_l": -0.10518739537926196}, "range": {"n": 19, "pnl": -0.6601848476487695, "wr": 0.3157894736842105, "pf": 0.6368633748584556, "exp": -0.0347465709288826, "wins": 6, "losses": 13, "avg_w": 0.19297032255198135, "avg_l": -0.13984667561235828}}, "strategy": {"trend_momentum": {"n": 21, "pnl": -0.3636132246569432, "wr": 0.23809523809523808, "pf": 0.7599912270127879, "exp": -0.017314915459854436, "wins": 5, "losses": 16, "avg_w": 0.2302772997217319, "avg_l": -0.09468748270410016}, "manual": {"n": 1, "pnl": 0.0985399999999723, "wr": 1.0, "pf": 999.0, "exp": 0.0985399999999723, "wins": 1, "losses": 0, "avg_w": 0.0985399999999723, "avg_l": null}, "breakout": {"n": 3, "pnl": -0.0062771035112128, "wr": 0.3333333333333333, "pf": 0.9499743518488631, "exp": -0.0020923678370709333, "wins": 1, "losses": 2, "avg_w": 0.1192006012903021, "avg_l": -0.06273885240075745}, "mean_reversion": {"n": 19, "pnl": -0.6601848476487695, "wr": 0.3157894736842105, "pf": 0.6368633748584556, "exp": -0.0347465709288826, "wins": 6, "losses": 13, "avg_w": 0.19297032255198135, "avg_l": -0.13984667561235828}}, "best_syms": [{"symbol": "EUR/USD", "pnl": 0.55229, "n": 2, "wr": 1.0}, {"symbol": "BCH-USD", "pnl": 0.276474, "n": 4, "wr": 0.25}, {"symbol": "LINK-USD", "pnl": 0.122295, "n": 2, "wr": 0.5}, {"symbol": "HBAR-USD", "pnl": 0.059828, "n": 6, "wr": 0.3333333333333333}, {"symbol": "DOGE-USD", "pnl": 0.056869, "n": 5, "wr": 0.4}], "worst_syms": [{"symbol": "EUR/JPY", "pnl": -0.704859, "n": 3, "wr": 0.3333333333333333}, {"symbol": "USD/CAD", "pnl": -0.461957, "n": 1, "wr": 0.0}, {"symbol": "ADA-USD", "pnl": -0.385131, "n": 6, "wr": 0.16666666666666666}, {"symbol": "LTC-USD", "pnl": -0.206023, "n": 3, "wr": 0.0}, {"symbol": "BTC-USD", "pnl": -0.130237, "n": 7, "wr": 0.14285714285714285}], "edge": {"winners": {"n": 13, "avg_hold_h": 0.7220656477777777, "avg_notional": 150.8856149266555, "avg_fills": 2.6153846153846154, "long_pct": 1.0, "regimes": {"range": 0.462, "volatile": 0.308, "trend": 0.154, "transition": 0.077}, "strategies": {"mean_reversion": 0.462, "trend_momentum": 0.385, "manual": 0.077, "breakout": 0.077}, "exits": {"MAX_HOLD": 0.769, "STRATEGY_REVERSAL": 0.231}, "avg_rsi": 51.625, "avg_adx": 37.0}, "losers": {"n": 31, "avg_hold_h": 0.5498423328405018, "avg_notional": 78.62163981514857, "avg_fills": 2.0, "long_pct": 0.9032258064516129, "regimes": {"range": 0.419, "trend": 0.29, "volatile": 0.29}, "strategies": {"trend_momentum": 0.516, "mean_reversion": 0.419, "breakout": 0.065}, "exits": {"MAX_HOLD": 0.613, "STOP_LOSS": 0.29, "REVERSED": 0.097}, "avg_rsi": 52.124, "avg_adx": 36.258823529411764}}, "market_edge": {"winning_symbols": {"names": ["DOGE-USD", "BCH-USD", "HBAR-USD", "LINK-USD"], "day_range_pct": 4.699139173926417, "rvol": 0.9209547690978137, "adr14_pct": 5.14448039735042, "rsi14": 38.850763182863474, "rv20_ann": 67.65140967845862}, "losing_symbols": {"names": ["SOL-USD", "ADA-USD", "XRP-USD", "BTC-USD", "LTC-USD"], "day_range_pct": 3.1356843743453107, "rvol": 0.8268948179649993, "adr14_pct": 4.390668295413816, "rsi14": 39.985228101506934, "rv20_ann": 58.26551631526763}, "per_symbol": {"ADA-USD": {"price": 0.20010000467300415, "day_range_pct": 4.528709272022069, "adr14_pct": 5.598923661612708, "rvol": 0.743757440177509, "rsi14": 34.8061885079446, "rv20_ann": 73.86334026135223, "day_ret_pct": 2.0348098796347136, "pnl": -0.385131, "n": 6, "wr": 0.16666666666666666}, "BCH-USD": {"price": 231.3000030517578, "day_range_pct": 8.804631230432978, "adr14_pct": 5.277911145771008, "rvol": 1.1647856049443945, "rsi14": 36.25017002307709, "rv20_ann": 74.61064447055551, "day_ret_pct": 4.663424260187932, "pnl": 0.276474, "n": 4, "wr": 0.25}, "BTC-USD": {"price": 76229.796875, "day_range_pct": 1.334892626263475, "adr14_pct": 2.791948922427793, "rvol": 0.7900481349955928, "rsi14": 28.430771616553287, "rv20_ann": 36.10410153572003, "day_ret_pct": 0.11292365351420752, "pnl": -0.130237, "n": 7, "wr": 0.14285714285714285}, "DOGE-USD": {"price": 0.08117000013589859, "day_range_pct": 2.1471018324646494, "adr14_pct": 5.122760284859064, "rvol": 0.6901900468993046, "rsi14": 37.80573513724635, "rv20_ann": 63.98637019030144, "day_ret_pct": 0.38414180794328345, "pnl": 0.056869, "n": 5, "wr": 0.4}, "HBAR-USD": {"price": 0.0740400031208992, "day_range_pct": 4.110619180051766, "adr14_pct": 4.421707091582735, "rvol": 1.077699611728292, "rsi14": 36.560818805258066, "rv20_ann": 52.15249871271441, "day_ret_pct": 0.22204709734208183, "pnl": 0.059828, "n": 6, "wr": 0.3333333333333333}, "LINK-USD": {"price": 11.284000396728516, "day_range_pct": 3.7342044527562743, "adr14_pct": 5.75554306718887, "rvol": 0.7511438128192638, "rsi14": 44.786328765872376, "rv20_ann": 79.8561253402631, "day_ret_pct": 2.147120255137036, "pnl": 0.122295, "n": 2, "wr": 0.5}, "LTC-USD": {"price": 53.67300033569336, "day_range_pct": 4.345903409759237, "adr14_pct": 4.16229768573972, "rvol": 0.774160211949292, "rsi14": 57.393324671829085, "rv20_ann": 53.28641829463391, "day_ret_pct": 3.8589540388648036, "pnl": -0.206023, "n": 3, "wr": 0.0}, "SOL-USD": {"price": 100.91999816894531, "day_range_pct": 3.347786243291205, "adr14_pct": 3.9599697284287276, "rvol": 0.9758339960759217, "rsi14": 45.50626879230826, "rv20_ann": 52.94262713461758, "day_ret_pct": 2.3174171534970256, "pnl": -0.027001, "n": 1, "wr": 0.0}, "XRP-USD": {"price": 1.2894999980926514, "day_range_pct": 2.1211303203905665, "adr14_pct": 5.440201478860129, "rvol": 0.8506743066266808, "rsi14": 33.789586918899445, "rv20_ann": 75.13109435001442, "day_ret_pct": -0.7480112414098183, "pnl": -0.017615, "n": 2, "wr": 0.5}}}, "leaks": [{"title": "STOP_LOSS exits", "pnl": -2.249, "detail": "9 trades · 0% WR · expectancy −$0.25 — stops booked pure damage"}, {"title": "Short FX", "pnl": -1.3681, "detail": "3 trades · 0% WR · all ~−$0.45 stop-outs (USD/CAD, USD/JPY, EUR/JPY)"}, {"title": "Entries 11:00–14:00 ET", "pnl": -1.0934, "detail": "12 trades · PF 0.22 — midday chop after the morning peak"}, {"title": "EUR/JPY + ADA-USD", "pnl": -1.09, "detail": "EUR/JPY -0.70 (3) · ADA -0.39 (6, 17% WR)"}, {"title": "Holds under 15 minutes", "pnl": -0.8843, "detail": "8 trades · 0% WR — quick failures, no quick wins"}], "overtrading": {"1-2": {"n": 1, "pnl": 0.0985399999999723, "wr": 1.0, "pf": 999.0, "exp": 0.0985399999999723, "wins": 1, "losses": 0, "avg_w": 0.0985399999999723, "avg_l": null}, "3": {"n": 2, "pnl": -0.0564326206914883, "wr": 0.0, "pf": 0.0, "exp": -0.02821631034574415, "wins": 0, "losses": 2, "avg_w": null, "avg_l": -0.02821631034574415}, "4+": {"n": 41, "pnl": -0.9736425551254372, "wr": 0.2926829268292683, "pf": 0.7138072338787801, "exp": -0.023747379393303344, "wins": 12, "losses": 29, "avg_w": 0.20236741960090418, "avg_l": -0.11731212380469956}}, "focus": ["Longs only until shorts prove an edge", "Crypto with RVOL > 1.0 and day range > ~4% (BCH/LINK/HBAR profile)", "Trend_momentum only when ADX ≳ 25–28 and RSI mid/upper 50s–60s", "Scale out (TP1/TP2) — winners averaged 2.6 fills vs 2.0 for losers", "Prefer 10:00–11:00 ET; pause or reduce size 11:00–14:00 and after 14:00"], "avoid": ["FX shorts in range regime (3/3 stopped)", "ADA-style repeat grinders (6 trades, 17% WR)", "Sub-15-minute panic cycles", "Juggling 4+ names at once", "Forcing mean-reversion/range shorts that resolve via STOP_LOSS"]};
+const tip = document.getElementById('tip');
+const fmt$ = (n, dig=2) => (n<0?'-':'') + '$' + Math.abs(n).toFixed(dig);
+const fmtPct = (n) => ((n||0)*100).toFixed(1) + '%';
+const cls = (n) => n>0 ? 'pos' : (n<0 ? 'neg' : '');
+
+function showTip(e, html) {
+  tip.style.display = 'block';
+  tip.innerHTML = html;
+  tip.style.left = Math.min(e.clientX + 12, window.innerWidth - 280) + 'px';
+  tip.style.top = Math.min(e.clientY + 12, window.innerHeight - 80) + 'px';
+}
+function hideTip() { tip.style.display = 'none'; }
+
+document.addEventListener('mousemove', (e) => {
+  const el = e.target.closest('[data-tip]');
+  if (!el) { hideTip(); return; }
+  showTip(e, el.getAttribute('data-tip'));
+});
+document.addEventListener('mouseleave', hideTip);
+
+document.getElementById('subtitle').textContent =
+  D.meta.session + ' · ' + D.meta.completed_trades + ' completed trades · ' + D.meta.market_data;
+
+const k = D.kpis;
+document.getElementById('kpis').innerHTML = [
+  ['Total P&L', fmt$(k.pnl), cls(k.pnl)],
+  ['Win rate', fmtPct(k.wr), ''],
+  ['Profit factor', k.pf.toFixed(2), k.pf>=1?'pos':'neg'],
+  ['Expectancy', fmt$(k.exp, 3), cls(k.exp)],
+  ['Max drawdown', fmt$(k.max_dd), 'neg'],
+  ['Trades', String(k.n), ''],
+].map(([label,val,c]) => `<div class="kpi"><div class="label">${label}</div><div class="value ${c}">${val}</div></div>`).join('');
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+function barList(obj, order=null) {
+  const keys = order ? order.filter(k => k in obj || true).filter(k => order.includes(k)) : Object.keys(obj);
+  const present = keys.filter(k => obj[k]);
+  const max = Math.max(...present.map(k => Math.abs(obj[k].pnl||0)), 0.01);
+  return keys.map(key => {
+    const s = obj[key];
+    if (!s || !s.n) {
+      return `<div class="bar-row"><div>${esc(key)}</div><div class="bar-track"></div><div style="color:var(--muted)">n=0</div></div>`;
+    }
+    const w = Math.max(4, Math.abs(s.pnl)/max*100);
+    const tipHtml = esc(`<b>${key}</b><br>n=${s.n} · WR ${fmtPct(s.wr)} · PF ${s.pf>100?'∞':s.pf.toFixed(2)}<br>Exp ${fmt$(s.exp,3)} · PnL ${fmt$(s.pnl)}`);
+    // tip stores HTML; use unescaped carefully via data-tip with plain text alternative
+    const tipText = `${key} | n=${s.n} | WR ${fmtPct(s.wr)} | PF ${s.pf>100?'∞':s.pf.toFixed(2)} | Exp ${fmt$(s.exp,3)} | PnL ${fmt$(s.pnl)}`;
+    return `<div class="bar-row" data-tip="${esc(tipText)}">
+      <div>${esc(key)}</div>
+      <div class="bar-track"><div class="bar-fill ${cls(s.pnl)}" style="width:${w}%"></div></div>
+      <div class="${cls(s.pnl)}">${fmt$(s.pnl)}</div>
+    </div>`;
+  }).join('');
+}
+
+function equitySVG(points, labelKey) {
+  const W=720, H=220, padL=52, padR=16, padT=18, padB=36;
+  const ys = points.map(p => p.cum);
+  const minY = Math.min(...ys, 0), maxY = Math.max(...ys, 0);
+  const span = Math.max(maxY - minY, 0.05);
+  const x = i => padL + (i / Math.max(points.length - 1, 1)) * (W - padL - padR);
+  const y = v => padT + (1 - (v - minY) / span) * (H - padT - padB);
+  const y0 = y(0);
+  let d = '';
+  points.forEach((p,i) => { d += (i?'L':'M') + x(i).toFixed(1) + ',' + y(p.cum).toFixed(1) + ' '; });
+  const area = d + `L ${x(points.length-1)} ${y0} L ${x(0)} ${y0} Z`;
+  const last = points[points.length-1].cum;
+  const color = last >= 0 ? '#3ddc97' : '#ff5c7a';
+  const yTicks = [minY, 0, maxY].filter((v,i,a) => a.indexOf(v)===i);
+  const labels = yTicks.map(v =>
+    `<text x="6" y="${y(v)+4}" fill="#8b9bb4" font-size="10">${fmt$(v,2)}</text>
+     <line x1="${padL}" y1="${y(v)}" x2="${W-padR}" y2="${y(v)}" stroke="#1c2738" stroke-dasharray="3,4"/>`
+  ).join('');
+  const dots = points.map((p,i) => {
+    const name = p.symbol || p.week || '';
+    const tipText = `${name} · ${fmt$(p.pnl)} → equity ${fmt$(p.cum)}`;
+    return `<circle cx="${x(i)}" cy="${y(p.cum)}" r="4" fill="${p.pnl>=0?'#3ddc97':'#ff5c7a'}"
+      data-tip="${esc(tipText)}" style="cursor:pointer"></circle>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${labels}
+    <line x1="${padL}" y1="${y0}" x2="${W-padR}" y2="${y0}" stroke="#5b9fd466" stroke-width="1"/>
+    <path d="${area}" fill="${color}22"></path>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"></path>
+    ${dots}</svg>`;
+}
+
+document.getElementById('equity-card').innerHTML = `
+  <h2>This week’s cumulative equity curve</h2>
+  <span class="pill">Trade-by-trade · week of ${Object.keys(D.daily)[0]}</span>
+  ${equitySVG(D.curve)}
+  <div class="takeaway">Peak +$0.99 at ${k.dd_peak}, then a $${k.max_dd.toFixed(2)} drawdown into ${k.dd_trough} — edge died after 11:00 ET, not at the open.</div>`;
+
+document.getElementById('weekly-card').innerHTML = `
+  <h2>Weekly P&L rollup</h2>
+  ${equitySVG(D.weekly_curve.map(w => ({cum:w.cum, pnl:w.pnl, symbol:'Week of '+w.week, week:w.week})))}
+  <div class="takeaway">Only one active week in this export (starting ${D.weekly_curve[0].week}) — finished ${fmt$(D.weekly_curve[0].cum)}; need more weeks before weekly seasonality means anything.</div>`;
+
+document.getElementById('calendar-card').innerHTML = `
+  <h2>Daily performance calendar</h2>
+  <div class="cal">${Object.entries(D.daily).map(([d,v]) => {
+    const c = v.n ? (v.pnl>0?'green':(v.pnl<0?'red':'')) : '';
+    const tipText = v.n ? `${d} ${v.weekday}: ${fmt$(v.pnl)} on ${v.n} trades` : `${d} ${v.weekday}: no trades`;
+    return `<div class="day ${c}" data-tip="${esc(tipText)}">
+      <div class="wd">${v.weekday}</div>
+      <div class="amt ${cls(v.pnl)}">${v.n?fmt$(v.pnl):'—'}</div>
+      <div class="wd">${v.n?v.n+'t':'·'}</div>
+    </div>`;
+  }).join('')}</div>
+  <div class="takeaway">0 green days · 1 red day · longest trade streaks ${k.longest_win_streak} wins / ${k.longest_lose_streak} losses — a single red Thursday carried the whole week.</div>`;
+
+document.getElementById('side-card').innerHTML = `<h2>Long vs short</h2>${barList(D.side, ['long','short'])}
+  <div class="takeaway">Longs were +EV (PF 1.21); all 3 shorts lost ~$0.45 each — shorts are a leak until proven otherwise.</div>`;
+
+document.getElementById('hold-card').innerHTML = `<h2>Holding period</h2>${barList(D.hold, ['same_day','overnight','multi_day'])}
+  <div class="takeaway">100% same-day holds (median ~20 min) — no overnight edge sample in this file.</div>`;
+
+document.getElementById('dow-card').innerHTML = `<h2>Day of week entered</h2>${barList(D.dow)}
+  <div class="takeaway">All entries on Thursday — day-of-week edge not measurable yet.</div>`;
+
+document.getElementById('tod-card').innerHTML = `<h2>Entry time of day (ET)</h2>${barList(D.tod, ['Before 09:30','09:30–10:00','10:00–11:00','11:00–14:00','After 14:00'])}
+  <div class="takeaway">10–11 ET was the only strong bucket (PF 5.3); 11–14 and after 14:00 destroyed the morning gains.</div>`;
+
+document.getElementById('regime-card').innerHTML = `<h2>Regime</h2>${barList(D.regime)}
+  <div class="takeaway">Volatile regime was slightly +EV; range and trend regimes both leaked — especially range shorts.</div>`;
+
+document.getElementById('strategy-card').innerHTML = `<h2>Strategy</h2>${barList(D.strategy)}
+  <div class="takeaway">Neither mean_reversion nor trend_momentum paid alone; scaled trend winners and FX long reversals carried profits.</div>`;
+
+function stockTable(rows, title) {
+  return `<h3 style="margin:0 0 6px;font-size:13px;color:var(--muted)">${title}</h3>
+  <table><thead><tr><th>Symbol</th><th>PnL</th><th>n</th><th>WR</th></tr></thead><tbody>
+  ${rows.map(r => `<tr data-tip="${esc(r.symbol+': '+fmt$(r.pnl)+' over '+r.n+' trades')}">
+    <td>${esc(r.symbol)}</td><td class="${cls(r.pnl)}">${fmt$(r.pnl)}</td><td>${r.n}</td><td>${fmtPct(r.wr)}</td>
+  </tr>`).join('')}
+  </tbody></table>`;
+}
+document.getElementById('stocks-card').innerHTML = `<h2>Best & worst stocks</h2><div class="two-col">
+  ${stockTable(D.best_syms, 'Best by total P&L')}${stockTable(D.worst_syms, 'Worst by total P&L')}
+  </div>
+  <div class="takeaway">EUR/USD and BCH made the week; EUR/JPY, USD/CAD, and ADA were the structural drains — avoid those profiles next session.</div>`;
+
+document.getElementById('overtrade-card').innerHTML = `<h2>Overtrading check</h2>${barList({
+  '1–2 names ±60m': D.overtrading['1-2'],
+  '3 names ±60m': D.overtrading['3'],
+  '4+ names ±60m': D.overtrading['4+'],
+})}
+  <div class="takeaway">Expectancy collapses with 4+ names in play (−$0.97 on 41 trades) — focus beats juggling.</div>`;
+
+function edgeBox(label, e, color) {
+  const top = (obj) => Object.entries(obj||{}).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
+  const rows = [
+    ['Trades', e.n],
+    ['Avg hold', e.avg_hold_h!=null?e.avg_hold_h.toFixed(2)+'h':'—'],
+    ['Avg notional', e.avg_notional!=null?fmt$(e.avg_notional):'—'],
+    ['Avg fills', e.avg_fills!=null?e.avg_fills.toFixed(2):'—'],
+    ['Long %', fmtPct(e.long_pct)],
+    ['Avg RSI (signal)', e.avg_rsi!=null?e.avg_rsi.toFixed(1):'—'],
+    ['Avg ADX (signal)', e.avg_adx!=null?e.avg_adx.toFixed(1):'—'],
+    ['Top regime', top(e.regimes)],
+    ['Top exit', top(e.exits)],
+  ];
+  return `<div class="box"><h3 style="color:${color}">${label}</h3>
+    ${rows.map(([a,b]) => `<div class="metric"><span>${a}</span><b>${b}</b></div>`).join('')}
+  </div>`;
+}
+document.getElementById('edge-card').innerHTML = `<h2>Winners vs losers · behavioral edge</h2>
+  <div class="compare">${edgeBox('Winners', D.edge.winners, 'var(--green)')}${edgeBox('Losers', D.edge.losers, 'var(--red)')}</div>
+  <div class="takeaway">Winners scale out (2.6 fills) and hold a bit longer; losers die on STOP_LOSS / REVERSED — top 5 trades = ${k.top5_pct_gross}% of gross profit · longest losing streak ${k.longest_lose_streak}.</div>`;
+
+function mktBox(label, m, color) {
+  const rows = [
+    ['Symbols', (m.names||[]).join(', ')||'—'],
+    ['Day range', m.day_range_pct!=null?m.day_range_pct.toFixed(2)+'%':'—'],
+    ['RVOL', m.rvol!=null?m.rvol.toFixed(2):'—'],
+    ['ADR14', m.adr14_pct!=null?m.adr14_pct.toFixed(2)+'%':'—'],
+    ['Daily RSI', m.rsi14!=null?m.rsi14.toFixed(1):'—'],
+    ['RV20 ann.', m.rv20_ann!=null?m.rv20_ann.toFixed(1)+'%':'—'],
+  ];
+  return `<div class="box"><h3 style="color:${color}">${label}</h3>
+    ${rows.map(([a,b]) => `<div class="metric"><span>${a}</span><b>${b}</b></div>`).join('')}
+  </div>`;
+}
+const me = D.market_edge;
+const mktRows = Object.entries(me.per_symbol).sort((a,b)=>a[1].pnl-b[1].pnl).map(([s,v]) => {
+  const tipText = `${s}: range ${v.day_range_pct?.toFixed(2)}% · RVOL ${v.rvol?.toFixed(2)} · RSI ${v.rsi14?.toFixed(1)}`;
+  return `<tr data-tip="${esc(tipText)}">
+    <td>${esc(s)}</td><td class="${cls(v.pnl)}">${fmt$(v.pnl)}</td>
+    <td>${v.day_range_pct!=null?v.day_range_pct.toFixed(2)+'%':'—'}</td>
+    <td>${v.rvol!=null?v.rvol.toFixed(2):'—'}</td>
+    <td>${v.adr14_pct!=null?v.adr14_pct.toFixed(2)+'%':'—'}</td>
+    <td>${v.rsi14!=null?v.rsi14.toFixed(1):'—'}</td>
+  </tr>`;
+}).join('');
+document.getElementById('market-card').innerHTML = `<h2>Market-data edge profile <span class="pill">yfinance</span></h2>
+  <div class="compare">${mktBox('Winning symbols', me.winning_symbols, 'var(--green)')}${mktBox('Losing symbols', me.losing_symbols, 'var(--red)')}</div>
+  <table style="margin-top:12px"><thead><tr><th>Symbol</th><th>PnL</th><th>Range</th><th>RVOL</th><th>ADR14</th><th>RSI</th></tr></thead>
+  <tbody>${mktRows}</tbody></table>
+  <div class="takeaway">Winning names ran hotter tape (range ~4.7% / RVOL ~0.92) vs losers (~3.1% / 0.83) — screen for expansion, not quiet mega-caps like BTC on a 1.3% day.</div>`;
+
+document.getElementById('leaks-card').innerHTML = `<h2>Hidden leaks</h2>
+  ${D.leaks.map((L,i) => `<div class="leak">
+    <div class="rank">${i+1}</div>
+    <div class="body"><div class="title">${esc(L.title)}</div><div class="detail">${esc(L.detail)}</div></div>
+    <div class="amt">${fmt$(L.pnl)}</div>
+  </div>`).join('')}
+  <div class="takeaway">Plug stops-on-shorts and midday overtrading first — those five conditions explain more than the headline −$0.93.</div>`;
+
+document.getElementById('focus-card').innerHTML = `<h2>Focus screen</h2><ul class="clean">${D.focus.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+  <div class="takeaway">Your edge sketch: long, expanding-range crypto, ADX&gt;25, scale-out, 10–11 ET.</div>`;
+
+document.getElementById('avoid-card').innerHTML = `<h2>Avoid screen</h2><ul class="clean">${D.avoid.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+  <div class="takeaway">Hard filters next session: no FX shorts · no 4+ names · no entries after 14:00 · skip ADA-like grinders.</div>`;
+
+document.getElementById('foot').textContent =
+  `Generated ${D.meta.generated_at} · ${D.meta.source} · Open positions ignored · P&L reconciled to overnight net (−$0.9315) · Offline · No external libraries`;
+
+</script>
+</body>
+</html>
